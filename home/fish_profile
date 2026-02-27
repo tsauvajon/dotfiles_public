@@ -1,0 +1,12 @@
+if status --is-login; and test -z "$DISPLAY"; and test -z "$WAYLAND_DISPLAY"; and test -z "$SSH_TTY"; and test (tty) = /dev/tty1; and type -q start-hyprland
+    exec start-hyprland
+end
+
+# Reuse a single ssh-agent across shells using keychain
+if status --is-interactive; and type -q keychain
+    # List every key you want loaded (space-separated)
+    keychain --quiet --nogui id_ed25519
+    test -f ~/.keychain/(hostname)-fish; and source ~/.keychain/(hostname)-fish
+end
+
+. ~/export-esp.sh

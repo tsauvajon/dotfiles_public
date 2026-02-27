@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+model="${OC_CLAUDE_MODEL:-anthropic/claude-sonnet-4-5}"
+config_content="$(printf '{"model":"%s"}' "$model")"
+
+export OPENCODE_CONFIG_CONTENT="$config_content"
+exec opencode "$@"

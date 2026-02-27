@@ -1,0 +1,11 @@
+[ -f ~/.config/wayland-env.sh ] && source ~/.config/wayland-env.sh
+
+# Auto-start Hyprland on first TTY login.
+if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ] && [ -z "${SSH_TTY:-}" ] && [ "$(tty 2>/dev/null)" = "/dev/tty1" ] && command -v start-hyprland >/dev/null 2>&1; then
+  exec start-hyprland
+fi
+
+# Start or attach to tmux only for interactive TTY shells.
+if [ -t 1 ] && command -v tmux >/dev/null 2>&1 && [ -z "${TMUX:-}" ]; then
+  tmux attach-session -t main 2>/dev/null || tmux new-session -s main
+fi

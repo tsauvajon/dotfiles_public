@@ -1,0 +1,33 @@
+#
+# ~/.bashrc
+#
+
+# If not running interactively, don't do anything
+[[ $- != *i* ]] && return
+
+export DEV_ROOT="${DEV_ROOT:-$HOME/dev}"
+
+if [[ "${TERM:-}" == "xterm-kitty" ]] && [[ -d "/usr/lib/kitty/terminfo" ]]; then
+  export TERMINFO="/usr/lib/kitty/terminfo"
+fi
+
+if [[ -d "$HOME/.local/bin" ]] && [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+  export PATH="$HOME/.local/bin:$PATH"
+fi
+
+if [[ -d "$HOME/.asdf/shims" ]] && [[ ":$PATH:" != *":$HOME/.asdf/shims:"* ]]; then
+  export PATH="$HOME/.asdf/shims:$PATH"
+fi
+
+if command -v direnv >/dev/null 2>&1; then
+  eval "$(direnv hook bash)"
+fi
+
+if [[ -f "$HOME/task.bash-completion" ]]; then
+  # shellcheck source=/dev/null
+  source "$HOME/task.bash-completion"
+fi
+
+alias ls='ls --color=auto'
+alias grep='grep --color=auto'
+PS1='[\u@\h \W]\$ '

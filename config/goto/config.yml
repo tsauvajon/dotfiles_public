@@ -1,0 +1,4 @@
+api_url: YOUR_GOTO_CONFIG_API_URL
+force_replace: false
+silent: false
+no_browser: false

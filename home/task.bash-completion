@@ -1,0 +1,70 @@
+_task_repo_keys() {
+  local dev_root repos_dir
+  dev_root="${DEV_ROOT:-$HOME/dev}"
+  repos_dir="${dev_root}/repos"
+  [[ -d "$repos_dir" ]] || return 0
+
+  find "$repos_dir" -type d -name '*.git' 2>/dev/null | sed -e "s#^${repos_dir}/##" -e 's#\.git$##' | awk '{print; n=split($0,a,"/"); print a[n]}' | sort -u
+}
+
+_task_normalize_repo() {
+  local key="$1"
+  key="${key#http://}"
+  key="${key#https://}"
+  key="${key#ssh://}"
+  if [[ "$key" == git@*:* ]]; then
+    key="${key#git@}"
+    key="${key/:/\/}"
+  fi
+  key="${key%.git}"
+  key="${key#/}"
+  printf '%s\n' "$key"
+}
+
+_task_branch_suggestions() {
+  local repo_key dev_root gitdir
+  repo_key="$(_task_normalize_repo "$1")"
+  dev_root="${DEV_ROOT:-$HOME/dev}"
+  gitdir="${dev_root}/repos/${repo_key}.git"
+  [[ -d "$gitdir" ]] || return 0
+
+  git --git-dir "$gitdir" for-each-ref --format='%(refname:short)' refs/heads refs/remotes/origin 2>/dev/null | sed 's#^origin/##' | sort -u
+}
+
+_task_completion() {
+  local cur prev cmd
+  cur="${COMP_WORDS[COMP_CWORD]}"
+  prev="${COMP_WORDS[COMP_CWORD-1]}"
+  cmd="${COMP_WORDS[1]}"
+
+  if [[ $COMP_CWORD -eq 1 ]]; then
+    COMPREPLY=( $(compgen -W 'bootstrap doctor clone start open park path list worktrees clean prune done' -- "$cur") )
+    return 0
+  fi
+
+  case "$cmd" in
+    clone)
+      if [[ $COMP_CWORD -eq 2 ]]; then
+        COMPREPLY=( $(compgen -W "$(_task_repo_keys)" -- "$cur") )
+      fi
+      ;;
+    start|open|path|clean|list|prune|worktrees)
+      if [[ $COMP_CWORD -eq 2 ]]; then
+        COMPREPLY=( $(compgen -W "$(_task_repo_keys)" -- "$cur") )
+      elif [[ ( "$cmd" == "start" || "$cmd" == "open" || "$cmd" == "path" || "$cmd" == "clean" ) && $COMP_CWORD -eq 3 ]]; then
+        COMPREPLY=( $(compgen -W "$(_task_branch_suggestions "${COMP_WORDS[2]}")" -- "$cur") )
+      elif [[ "$cmd" == "clean" && $COMP_CWORD -ge 4 ]]; then
+        COMPREPLY=( $(compgen -W '--force' -- "$cur") )
+      fi
+      ;;
+    park)
+      COMPREPLY=()
+      ;;
+    done)
+      COMPREPLY=( $(compgen -d -- "$cur") )
+      ;;
+  esac
+}
+
+complete -F _task_completion task
+complete -F _task_completion wt

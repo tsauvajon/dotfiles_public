@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+model="${OC_CODEX_MODEL:-openai/gpt-5.3-codex}"
+config_content="$(printf '{"model":"%s"}' "$model")"
+
+export OPENCODE_CONFIG_CONTENT="$config_content"
+exec opencode "$@"

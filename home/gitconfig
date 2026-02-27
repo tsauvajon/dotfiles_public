@@ -1,0 +1,14 @@
+[init]
+	defaultBranch = master
+[user]
+	email = YOUR_EMAIL
+	name = YOUR_NAME
+	signingkey = YOUR_GPG_KEY_ID
+[core]
+	editor = vim
+[push]
+	autoSetupRemote = true
+[commit]
+	gpgsign = true
+[credential]
+	helper = cache
