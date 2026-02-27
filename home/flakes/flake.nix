@@ -28,6 +28,7 @@
             asdf-vm
             cargo
             clippy
+	    delta
             direnv
             fd
             fish
