@@ -10,6 +10,7 @@ signing_key = "0000000000000000"  # 16-char hex key ID — run: gpg --list-secre
 api_url = "http://your-host:50002"
 
 [vscodium]
+# See: https://github.com/tsauvajon/task
 # Trusted workspace roots — injected into ~/.config/task/config.toml under [vscodium].trusted_roots
 trusted_roots = [
   "/home/youruser/dev/wt/github.com/youruser",
@@ -25,3 +26,5 @@ skip_links = []
 
 # Private OpenCode skills live at ~/.config/dotfiles/private-skills/<skill-name>/SKILL.md
 # setup.sh merges them with the public skills from this repo at setup time.
+
+# Extra git config can be added to ~/.config/dotfiles/extra.gitconfig
