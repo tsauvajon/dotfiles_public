@@ -37,11 +37,11 @@ fi
 link() {
   local src="$1"
   local dest="$2"
-  local base
-  base="$(basename "$dest")"
+  local rel
+  rel="${dest#"$HOME/"}"
   for skip in "${SKIP_LINKS[@]+"${SKIP_LINKS[@]}"}"; do
-    case "$base" in
-      $skip) return 0 ;;
+    case "$rel" in
+      *"$skip") return 0 ;;
     esac
   done
   mkdir -p "$(dirname "$dest")"

@@ -17,10 +17,10 @@ trusted_roots = [
 ]
 
 [dotfiles]
-# Symlink destinations to skip, matched against the basename of each link target.
+# Symlink destinations to skip, matched as a path suffix of the link target relative to $HOME.
 # Useful for omitting Linux-only or macOS-only configs on the other platform.
 # Example: skip Wayland configs on macOS:
-# skip_links = ["hypr", "rofi", "mako", "waybar", "wayland-env.sh"]
+# skip_links = [".config/hypr", ".config/rofi", ".config/mako", ".config/waybar", ".config/wayland-env.sh"]
 skip_links = []
 
 # Private OpenCode skills live at ~/.config/dotfiles/private-skills/<skill-name>/SKILL.md
