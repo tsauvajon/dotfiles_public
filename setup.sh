@@ -30,17 +30,10 @@ link "$DOTFILES/home/profile" "$HOME/.profile"
 link "$DOTFILES/home/fish_profile" "$HOME/.fish_profile"
 link "$DOTFILES/home/bashrc" "$HOME/.bashrc"
 link "$DOTFILES/home/bash_profile" "$HOME/.bash_profile"
-link "$DOTFILES/home/task.bash-completion" "$HOME/task.bash-completion"
 link "$DOTFILES/home/nix-channels" "$HOME/.nix-channels"
 link "$DOTFILES/home/tool-versions" "$HOME/.tool-versions"
-
 link "$DOTFILES/home/flakes/" "$HOME/flakes"
 link "$DOTFILES/home/tmux/" "$HOME/.tmux"
-mkdir -p "$HOME/.local/bin"
-link "$DOTFILES/home/bin/task" "$HOME/.local/bin/task"
-link "$DOTFILES/home/bin/wt" "$HOME/.local/bin/wt"
-link "$DOTFILES/home/bin/oc-codex" "$HOME/.local/bin/oc-codex"
-link "$DOTFILES/home/bin/oc-claude" "$HOME/.local/bin/oc-claude"
 
 log "Linking config files"
 link "$DOTFILES/config/wayland-env.sh" "$HOME/.config/wayland-env.sh"
@@ -72,11 +65,11 @@ else
   warn "nix not found. Install Nix first to use the flake toolchain."
 fi
 
-if [[ -x "$HOME/.local/bin/task" ]]; then
+if [[ -x "$HOME/.cargo/bin/task" ]]; then
   log "Running task bootstrap"
-  "$HOME/.local/bin/task" bootstrap
+  "$HOME/.cargo/bin/task" bootstrap
 else
-  warn "task script not executable yet; skipping bootstrap."
+  warn "task not found"
 fi
 
 # Private setup
