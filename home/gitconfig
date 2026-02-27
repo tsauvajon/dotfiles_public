@@ -26,7 +26,7 @@
 [include]
 	path = ~/.config/dotfiles/extra.gitconfig
 
-# Delta config
+# Delta config: https://github.com/dandavison/delta
 [interactive]
 	diffFilter = delta --color-only
 [delta]
