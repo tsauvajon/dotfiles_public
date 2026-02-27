@@ -48,23 +48,25 @@ link() {
   ln -snf "$src" "$dest"
 }
 
-# Merge public and private skills into a single directory, then symlink it.
-# Usage: link_skills <public-skills-src> <merge-dir> <dest-link>
-#
-# Any subdirectory found in <public-skills-src> or in
-# ~/.config/dotfiles/private-skills/ is symlinked into <merge-dir>.
-# <dest-link> is then symlinked to <merge-dir>.
+# Merge public ($DOTFILES/config/opencode/skills) and private ($PRIVATE_SKILLS)
+# skills into $PRIVATE_BUILD/opencode/skills, then symlink it as ~/.config/opencode/skills.
 link_skills() {
-  local public_src="$1"
-  local merge_dir="$2"
-  local dest_link="$3"
-  local private_src="$PRIVATE_SKILLS"
+  local merge_dir="$PRIVATE_BUILD/opencode/skills"
+  local dest_link="$HOME/.config/opencode/skills"
 
   mkdir -p "$merge_dir"
 
   # Link public skills
-  if [[ -d "$public_src" ]]; then
-    for skill_dir in "$public_src"/*/; do
+  for skill_dir in "$DOTFILES/config/opencode/skills"/*/; do
+    [[ -d "$skill_dir" ]] || continue
+    local skill_name
+    skill_name="$(basename "$skill_dir")"
+    ln -snf "$skill_dir" "$merge_dir/$skill_name"
+  done
+
+  # Link private skills (if $PRIVATE_SKILLS exists)
+  if [[ -d "$PRIVATE_SKILLS" ]]; then
+    for skill_dir in "$PRIVATE_SKILLS"/*/; do
       [[ -d "$skill_dir" ]] || continue
       local skill_name
       skill_name="$(basename "$skill_dir")"
@@ -72,17 +74,6 @@ link_skills() {
     done
   fi
 
-  # Link private skills (if the private-skills directory exists)
-  if [[ -d "$private_src" ]]; then
-    for skill_dir in "$private_src"/*/; do
-      [[ -d "$skill_dir" ]] || continue
-      local skill_name
-      skill_name="$(basename "$skill_dir")"
-      ln -snf "$skill_dir" "$merge_dir/$skill_name"
-    done
-  fi
-
-  # Point the live config location at the merged directory
   mkdir -p "$(dirname "$dest_link")"
   ln -snf "$merge_dir" "$dest_link"
 }
@@ -116,7 +107,7 @@ link "$DOTFILES/config/kitty" "$HOME/.config/kitty"
 link "$DOTFILES/config/waybar" "$HOME/.config/waybar"
 link "$DOTFILES/config/opencode/opencode.json" "$HOME/.config/opencode/opencode.json"
 link "$DOTFILES/config/opencode/AGENTS.md" "$HOME/.config/opencode/AGENTS.md"
-link_skills "$DOTFILES/config/opencode/skills" "$PRIVATE_BUILD/opencode/skills" "$HOME/.config/opencode/skills"
+link_skills
 
 log "Ensuring workspace directories"
 mkdir -p "$DEV_ROOT/repos" "$DEV_ROOT/wt"
@@ -185,6 +176,8 @@ if [[ -f "$PRIVATE_TOML" ]]; then
   fi
 else
   printf 'tip: place private.toml at %s to configure git identity and network URLs\n' "$PRIVATE_TOML"
+fi
+if [[ ! -d "$PRIVATE_SKILLS" ]]; then
   printf 'tip: place private opencode skills under %s/<skill-name>/SKILL.md\n' "$PRIVATE_SKILLS"
 fi
 
