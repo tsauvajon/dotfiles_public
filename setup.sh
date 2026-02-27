@@ -10,8 +10,11 @@ set -euo pipefail
 DOTFILES="${DOTFILES:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)}"
 DEV_ROOT="${DEV_ROOT:-$HOME/dev}"
 
-# Private config
-PRIVATE_TOML="${DOTFILES_PRIVATE_TOML:-$HOME/.config/dotfiles/private.toml}"
+# Private config — all under ~/.config/dotfiles/ (outside the git repo)
+DOTFILES_CONFIG="$HOME/.config/dotfiles"
+PRIVATE_TOML="$DOTFILES_CONFIG/private.toml"
+PRIVATE_SKILLS="$DOTFILES_CONFIG/private-skills"
+PRIVATE_BUILD="$HOME/.local/share/dotfiles"
 
 # Read a scalar from private.toml: private_get '.git.name'
 private_get() {
@@ -55,7 +58,7 @@ link_skills() {
   local public_src="$1"
   local merge_dir="$2"
   local dest_link="$3"
-  local private_src="$HOME/.config/dotfiles/private-skills"
+  local private_src="$PRIVATE_SKILLS"
 
   mkdir -p "$merge_dir"
 
@@ -88,8 +91,8 @@ log()  { printf '==> %s\n' "$*"; }
 warn() { printf 'warning: %s\n' "$*" >&2; }
 
 log "Recording dotfiles path"
-mkdir -p "$HOME/.config/dotfiles"
-printf '%s\n' "$DOTFILES" > "$HOME/.config/dotfiles/path"
+mkdir -p "$DOTFILES_CONFIG"
+printf '%s\n' "$DOTFILES" > "$DOTFILES_CONFIG/path"
 
 log "Linking home files"
 link "$DOTFILES/home/tmux.conf" "$HOME/.tmux.conf"
@@ -113,7 +116,7 @@ link "$DOTFILES/config/kitty" "$HOME/.config/kitty"
 link "$DOTFILES/config/waybar" "$HOME/.config/waybar"
 link "$DOTFILES/config/opencode/opencode.json" "$HOME/.config/opencode/opencode.json"
 link "$DOTFILES/config/opencode/AGENTS.md" "$HOME/.config/opencode/AGENTS.md"
-link_skills "$DOTFILES/config/opencode/skills" "$HOME/.local/share/dotfiles/opencode/skills" "$HOME/.config/opencode/skills"
+link_skills "$DOTFILES/config/opencode/skills" "$PRIVATE_BUILD/opencode/skills" "$HOME/.config/opencode/skills"
 
 log "Ensuring workspace directories"
 mkdir -p "$DEV_ROOT/repos" "$DEV_ROOT/wt"
@@ -137,9 +140,6 @@ if [[ -x "$HOME/.cargo/bin/task" ]]; then
 else
   warn "task not found"
 fi
-
-# Private setup
-PRIVATE_BUILD="$HOME/.local/share/dotfiles"
 
 if [[ -f "$PRIVATE_TOML" ]]; then
   log "Loading private config from $PRIVATE_TOML"
@@ -185,7 +185,7 @@ if [[ -f "$PRIVATE_TOML" ]]; then
   fi
 else
   printf 'tip: place private.toml at %s to configure git identity and network URLs\n' "$PRIVATE_TOML"
-  printf 'tip: place private opencode skills under ~/.config/dotfiles/private-skills/<skill-name>/SKILL.md\n'
+  printf 'tip: place private opencode skills under %s/<skill-name>/SKILL.md\n' "$PRIVATE_SKILLS"
 fi
 
 log "Done"
