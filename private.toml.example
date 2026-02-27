@@ -22,3 +22,6 @@ trusted_roots = [
 # Example: skip Wayland configs on macOS:
 # skip_links = ["hypr", "rofi", "mako", "waybar", "wayland-env.sh"]
 skip_links = []
+
+# Private OpenCode skills live at ~/.config/dotfiles/private-skills/<skill-name>/SKILL.md
+# setup.sh merges them with the public skills from this repo at setup time.
