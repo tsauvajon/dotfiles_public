@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # To enable private setup (git identity, network config):
 #
-#   cp private.env.example ~/.config/dotfiles/private.env
-#   $EDITOR ~/.config/dotfiles/private.env
+#   cp private.toml.example ~/.config/dotfiles/private.toml
+#   $EDITOR ~/.config/dotfiles/private.toml
 #   bash setup.sh
 #
 set -euo pipefail
@@ -10,9 +10,37 @@ set -euo pipefail
 DOTFILES="${DOTFILES:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)}"
 DEV_ROOT="${DEV_ROOT:-$HOME/dev}"
 
+# Private config
+PRIVATE_TOML="${DOTFILES_PRIVATE_TOML:-$HOME/.config/dotfiles/private.toml}"
+
+# Read a scalar from private.toml: private_get '.git.name'
+private_get() {
+  nix run nixpkgs#dasel -- -f "$PRIVATE_TOML" -r toml "$1" 2>/dev/null | tr -d "'"
+}
+
+# Read a list from private.toml, one entry per line: private_list '.dotfiles.skip_links'
+private_list() {
+  nix run nixpkgs#dasel -- -f "$PRIVATE_TOML" -r toml "${1}.all()" 2>/dev/null | tr -d "'"
+}
+
+# Populate skip list early so link() can use it
+SKIP_LINKS=()
+if [[ -f "$PRIVATE_TOML" ]]; then
+  while IFS= read -r entry; do
+    [[ -n "$entry" ]] && SKIP_LINKS+=("$entry")
+  done < <(private_list '.dotfiles.skip_links')
+fi
+
 link() {
   local src="$1"
   local dest="$2"
+  local base
+  base="$(basename "$dest")"
+  for skip in "${SKIP_LINKS[@]+"${SKIP_LINKS[@]}"}"; do
+    case "$base" in
+      $skip) return 0 ;;
+    esac
+  done
   mkdir -p "$(dirname "$dest")"
   ln -snf "$src" "$dest"
 }
@@ -72,23 +100,25 @@ else
 fi
 
 # Private setup
-PRIVATE_ENV="${DOTFILES_PRIVATE_ENV:-$HOME/.config/dotfiles/private.env}"
 PRIVATE_BUILD="$HOME/.local/share/dotfiles"
 
-if [[ -f "$PRIVATE_ENV" ]]; then
-  log "Loading private env from $PRIVATE_ENV"
-  # shellcheck source=/dev/null
-  source "$PRIVATE_ENV"
+if [[ -f "$PRIVATE_TOML" ]]; then
+  log "Loading private config from $PRIVATE_TOML"
 
   missing=()
-  for var in GIT_NAME GIT_EMAIL GIT_SIGNINGKEY GOTO_CONFIG_API_URL VSCODIUM_TRUSTED_ROOTS; do
-    [[ -z "${!var:-}" ]] && missing+=("$var")
+  for key in '.git.name' '.git.email' '.git.signing_key' '.goto.api_url' '.vscodium.trusted_roots'; do
+    [[ -z "$(private_get "$key")" ]] && missing+=("$key")
   done
   if [[ ${#missing[@]} -gt 0 ]]; then
-    warn "private setup skipped — missing variables in $PRIVATE_ENV: ${missing[*]}"
+    warn "private setup skipped — missing keys in $PRIVATE_TOML: ${missing[*]}"
   else
     log "Building private files"
     mkdir -p "$PRIVATE_BUILD/goto" "$PRIVATE_BUILD/task"
+
+    GIT_NAME="$(private_get '.git.name')"
+    GIT_EMAIL="$(private_get '.git.email')"
+    GIT_SIGNINGKEY="$(private_get '.git.signing_key')"
+    GOTO_API_URL="$(private_get '.goto.api_url')"
 
     sed \
       -e "s/YOUR_NAME/$GIT_NAME/" \
@@ -97,15 +127,15 @@ if [[ -f "$PRIVATE_ENV" ]]; then
       "$DOTFILES/home/gitconfig" > "$PRIVATE_BUILD/gitconfig"
 
     sed \
-      -e "s|YOUR_GOTO_CONFIG_API_URL|$GOTO_CONFIG_API_URL|" \
+      -e "s|YOUR_GOTO_CONFIG_API_URL|$GOTO_API_URL|" \
       "$DOTFILES/config/goto/config.yml" > "$PRIVATE_BUILD/goto/config.yml"
 
     {
       cat "$DOTFILES/config/task/config.toml"
       printf '\n[vscodium]\ntrusted_roots = [\n'
-      for root in $VSCODIUM_TRUSTED_ROOTS; do
-        printf '    "%s",\n' "$root"
-      done
+      while IFS= read -r root; do
+        [[ -n "$root" ]] && printf '    "%s",\n' "$root"
+      done < <(private_list '.vscodium.trusted_roots')
       printf ']\n'
     } > "$PRIVATE_BUILD/task/config.toml"
 
@@ -115,7 +145,7 @@ if [[ -f "$PRIVATE_ENV" ]]; then
     link "$PRIVATE_BUILD/task/config.toml"     "$HOME/.config/task/config.toml"
   fi
 else
-  printf 'tip: place private.env at %s to configure git identity and network URLs\n' "$PRIVATE_ENV"
+  printf 'tip: place private.toml at %s to configure git identity and network URLs\n' "$PRIVATE_TOML"
 fi
 
 log "Done"

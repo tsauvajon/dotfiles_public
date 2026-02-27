@@ -1,0 +1,24 @@
+# Copy to ~/.config/dotfiles/private.toml and fill in real values.
+
+[git]
+name = "Your Full Name"
+email = "you@example.com"
+signing_key = "0000000000000000"  # 16-char hex key ID — run: gpg --list-secret-keys --keyid-format long
+
+[goto]
+# See: https://github.com/tsauvajon/goto
+api_url = "http://your-host:50002"
+
+[vscodium]
+# Trusted workspace roots — injected into ~/.config/task/config.toml under [vscodium].trusted_roots
+trusted_roots = [
+  "/home/youruser/dev/wt/github.com/youruser",
+  "/home/youruser/dev/repos/github.com/youruser",
+]
+
+[dotfiles]
+# Symlink destinations to skip, matched against the basename of each link target.
+# Useful for omitting Linux-only or macOS-only configs on the other platform.
+# Example: skip Wayland configs on macOS:
+# skip_links = ["hypr", "rofi", "mako", "waybar", "wayland-env.sh"]
+skip_links = []
