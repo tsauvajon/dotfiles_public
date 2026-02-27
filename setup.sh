@@ -42,7 +42,6 @@ link "$DOTFILES/config/fish" "$HOME/.config/fish"
 link "$DOTFILES/config/hypr" "$HOME/.config/hypr"
 link "$DOTFILES/config/mako" "$HOME/.config/mako"
 link "$DOTFILES/config/rofi" "$HOME/.config/rofi"
-link "$DOTFILES/config/task" "$HOME/.config/task"
 link "$DOTFILES/config/kitty" "$HOME/.config/kitty"
 link "$DOTFILES/config/waybar" "$HOME/.config/waybar"
 link "$DOTFILES/config/opencode/opencode.json" "$HOME/.config/opencode/opencode.json"
@@ -67,7 +66,7 @@ fi
 
 if [[ -x "$HOME/.cargo/bin/task" ]]; then
   log "Running task bootstrap"
-  "$HOME/.cargo/bin/task" bootstrap
+  "$HOME/.cargo/bin/task" bootstrap || warn "task bootstrap requires an interactive terminal — run it manually"
 else
   warn "task not found"
 fi
@@ -82,14 +81,14 @@ if [[ -f "$PRIVATE_ENV" ]]; then
   source "$PRIVATE_ENV"
 
   missing=()
-  for var in GIT_NAME GIT_EMAIL GIT_SIGNINGKEY GOTO_CONFIG_API_URL; do
+  for var in GIT_NAME GIT_EMAIL GIT_SIGNINGKEY GOTO_CONFIG_API_URL VSCODIUM_TRUSTED_ROOTS; do
     [[ -z "${!var:-}" ]] && missing+=("$var")
   done
   if [[ ${#missing[@]} -gt 0 ]]; then
     warn "private setup skipped — missing variables in $PRIVATE_ENV: ${missing[*]}"
   else
     log "Building private files"
-    mkdir -p "$PRIVATE_BUILD/goto"
+    mkdir -p "$PRIVATE_BUILD/goto" "$PRIVATE_BUILD/task"
 
     sed \
       -e "s/YOUR_NAME/$GIT_NAME/" \
@@ -101,9 +100,19 @@ if [[ -f "$PRIVATE_ENV" ]]; then
       -e "s|YOUR_GOTO_CONFIG_API_URL|$GOTO_CONFIG_API_URL|" \
       "$DOTFILES/config/goto/config.yml" > "$PRIVATE_BUILD/goto/config.yml"
 
+    {
+      cat "$DOTFILES/config/task/config.toml"
+      printf '\n[vscodium]\ntrusted_roots = [\n'
+      for root in $VSCODIUM_TRUSTED_ROOTS; do
+        printf '    "%s",\n' "$root"
+      done
+      printf ']\n'
+    } > "$PRIVATE_BUILD/task/config.toml"
+
     log "Symlinking private files"
-    link "$PRIVATE_BUILD/gitconfig"       "$HOME/.gitconfig"
-    link "$PRIVATE_BUILD/goto/config.yml" "$HOME/.config/goto/config.yml"
+    link "$PRIVATE_BUILD/gitconfig"            "$HOME/.gitconfig"
+    link "$PRIVATE_BUILD/goto/config.yml"      "$HOME/.config/goto/config.yml"
+    link "$PRIVATE_BUILD/task/config.toml"     "$HOME/.config/task/config.toml"
   fi
 else
   printf 'tip: place private.env at %s to configure git identity and network URLs\n' "$PRIVATE_ENV"
