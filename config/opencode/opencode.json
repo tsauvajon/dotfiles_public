@@ -17,6 +17,11 @@
     ]
   },
   "command": {
+    "aggressive-testing": {
+      "description": "Maximize test coverage quickly with parallel module subagents and aggressive testability refactoring",
+      "template": "Use the `aggressive-testing` skill to maximize meaningful test coverage across the codebase. Additional user instructions: $ARGUMENTS",
+      "agent": "build"
+    },
     "bump-rust-deps": {
       "description": "Bump Rust dependencies using the bump-rust-deps skill",
       "template": "Use the `bump-rust-deps` skill to update Rust dependencies with per-bump verification. Additional user instructions: $ARGUMENTS",
