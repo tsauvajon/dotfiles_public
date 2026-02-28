@@ -39,7 +39,7 @@ dotfiles/
 
 1. **Records** the dotfiles path to `~/.config/dotfiles/path`.
 2. **Links** files from `home/` and `config/` into `$HOME` using `ln -snf`.
-3. **Merges skills** — see below.
+3. **Builds merged OpenCode AGENTS and skills** — see below.
 4. **Installs the Nix toolchain** from `home/flakes#toolchain` via `nix profile`.
 5. **Reads** `~/.config/dotfiles/private.toml` (if present) to inject private values
    (git identity, API URLs, trusted workspace roots) into generated files under
@@ -54,6 +54,16 @@ Edit the source in `dotfiles/`; the symlink makes it live immediately.
 **Exception — generated files:** `~/.gitconfig`, `~/.config/goto/config.yml`, and
 `~/.config/task/config.toml` are *generated* by `setup.sh` from templates + private values.
 Never edit them directly; edit the template in `dotfiles/` and re-run `setup.sh`.
+
+### AGENTS merge
+
+Public AGENTS lives at `config/opencode/AGENTS.md`. Optional private AGENTS overlays live at
+`~/.config/dotfiles/private-AGENTS/`.
+
+`setup.sh` builds a merged file at `~/.local/share/dotfiles/opencode/AGENTS.md` by
+copying the public AGENTS and appending each non-empty readable file from that directory,
+sorted by filename (`LC_ALL=C`).
+`~/.config/opencode/AGENTS.md` then points at this generated file.
 
 ### Skills merge
 
@@ -73,6 +83,7 @@ Everything private lives **outside the repo** at `~/.config/dotfiles/`:
 |---|---|
 | `~/.config/dotfiles/private.toml` | Git identity, API URLs, trusted roots |
 | `~/.config/dotfiles/private-skills/` | Private OpenCode skills (not committed) |
+| `~/.config/dotfiles/private-AGENTS/` | Private OpenCode prompt overlays (not committed) |
 
 Copy `private.toml.example` to get started. Private skills need no registration — drop a
 `<skill-name>/SKILL.md` directory into `private-skills/` and re-run `setup.sh`.

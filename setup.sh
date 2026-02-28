@@ -14,6 +14,7 @@ DEV_ROOT="${DEV_ROOT:-$HOME/dev}"
 DOTFILES_CONFIG="$HOME/.config/dotfiles"
 PRIVATE_TOML="$DOTFILES_CONFIG/private.toml"
 PRIVATE_SKILLS="$DOTFILES_CONFIG/private-skills"
+PRIVATE_AGENTS_DIR="$DOTFILES_CONFIG/private-AGENTS"
 PRIVATE_BUILD="$HOME/.local/share/dotfiles"
 
 # Read a scalar from private.toml: private_get '.git.name'
@@ -78,6 +79,39 @@ link_skills() {
   ln -snf "$merge_dir" "$dest_link"
 }
 
+# Build merged AGENTS.md from public repo file and optional private overlays.
+link_agents() {
+  local merged_agents="$PRIVATE_BUILD/opencode/AGENTS.md"
+  local dest_link="$HOME/.config/opencode/AGENTS.md"
+  local agents_file
+  local -a agents_files=()
+
+  mkdir -p "$(dirname "$merged_agents")"
+  cp "$DOTFILES/config/opencode/AGENTS.md" "$merged_agents"
+
+  # Multi-file overlay directory.
+  if [[ -d "$PRIVATE_AGENTS_DIR" ]]; then
+    shopt -s nullglob
+    agents_files=("$PRIVATE_AGENTS_DIR"/*)
+    shopt -u nullglob
+
+    while IFS= read -r agents_file; do
+      [[ -f "$agents_file" ]] || continue
+      if [[ ! -r "$agents_file" ]]; then
+        warn "private AGENTS overlay is not readable: $agents_file"
+        continue
+      fi
+      [[ -s "$agents_file" ]] || continue
+
+      printf '\n\n# Private AGENTS overlay: %s\n\n' "$(basename "$agents_file")" >> "$merged_agents"
+      cat "$agents_file" >> "$merged_agents"
+    done < <(printf '%s\n' "${agents_files[@]}" | LC_ALL=C sort)
+  fi
+
+  mkdir -p "$(dirname "$dest_link")"
+  ln -snf "$merged_agents" "$dest_link"
+}
+
 log()  { printf '==> %s\n' "$*"; }
 warn() { printf 'warning: %s\n' "$*" >&2; }
 
@@ -106,11 +140,11 @@ link "$DOTFILES/config/rofi" "$HOME/.config/rofi"
 link "$DOTFILES/config/kitty" "$HOME/.config/kitty"
 link "$DOTFILES/config/waybar" "$HOME/.config/waybar"
 link "$DOTFILES/config/opencode/opencode.json" "$HOME/.config/opencode/opencode.json"
-link "$DOTFILES/config/opencode/AGENTS.md" "$HOME/.config/opencode/AGENTS.md"
+link_agents
 link_skills
 
 log "Ensuring workspace directories"
-mkdir -p "$DEV_ROOT/repos" "$DEV_ROOT/wt"
+mkdir -p "$DEV_ROOT/repos" "$DEV_ROOT/wt" "$DEV_ROOT/detached"
 
 if command -v nix >/dev/null 2>&1; then
   local_flake_ref="path:${DOTFILES}/home/flakes#toolchain"
@@ -179,6 +213,9 @@ else
 fi
 if [[ ! -d "$PRIVATE_SKILLS" ]]; then
   printf 'tip: place private opencode skills under %s/<skill-name>/SKILL.md\n' "$PRIVATE_SKILLS"
+fi
+if [[ ! -d "$PRIVATE_AGENTS_DIR" ]]; then
+  printf 'tip: place private opencode AGENTS overlays under %s/<name>.md\n' "$PRIVATE_AGENTS_DIR"
 fi
 
 log "Done"

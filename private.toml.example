@@ -9,6 +9,13 @@ signing_key = "0000000000000000"  # 16-char hex key ID — run: gpg --list-secre
 # See: https://github.com/tsauvajon/goto
 api_url = "http://your-host:50002"
 
+[task]
+# Optional — override the default workspace directory paths used by `task`.
+# Defaults match the values in config/task/config.toml.
+# repos_dir = "~/dev/repos"
+# wt_dir = "~/dev/wt"
+# detached_dir = "~/dev/detached"
+
 [vscodium]
 # See: https://github.com/tsauvajon/task
 # Trusted workspace roots — injected into ~/.config/task/config.toml under [vscodium].trusted_roots
@@ -26,5 +33,8 @@ skip_links = []
 
 # Private OpenCode skills live at ~/.config/dotfiles/private-skills/<skill-name>/SKILL.md
 # setup.sh merges them with the public skills from this repo at setup time.
+# Private OpenCode AGENTS overlays live at ~/.config/dotfiles/private-AGENTS/
+# setup.sh appends each non-empty readable file in that directory to config/opencode/AGENTS.md.
+# Files are appended in filename order (LC_ALL=C), so numeric prefixes work well.
 
 # Extra git config can be added to ~/.config/dotfiles/extra.gitconfig
