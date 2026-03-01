@@ -103,6 +103,34 @@ When multiple local repos match a short name, `task` asks you to choose (via `fz
 
 OpenCode config is at `config/opencode/opencode.json`.
 
+### Private OpenCode overrides (MCP, local-only)
+
+Use `~/.config/dotfiles/private-opencode.json` for private OpenCode settings you do not want in git.
+`setup.sh` deep-merges it over `config/opencode/opencode.json` and generates
+`~/.local/share/dotfiles/opencode/opencode.json`, then links that to `~/.config/opencode/opencode.json`.
+
+Example GitLab MCP config:
+
+```json
+{
+  "mcp": {
+    "GitLab": {
+      "type": "remote",
+      "url": "https://gitlab.example.com/api/v4/mcp",
+      "enabled": true
+    }
+  }
+}
+```
+
+After updating your private file:
+
+```bash
+./setup.sh
+opencode mcp auth GitLab
+opencode mcp list
+```
+
 ## Notifications (Hyprland)
 
 - Notification daemon: `mako` (Wayland-native)

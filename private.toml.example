@@ -36,5 +36,8 @@ skip_links = []
 # Private OpenCode AGENTS overlays live at ~/.config/dotfiles/private-AGENTS/
 # setup.sh appends each non-empty readable file in that directory to config/opencode/AGENTS.md.
 # Files are appended in filename order (LC_ALL=C), so numeric prefixes work well.
+# Private OpenCode JSON overlay lives at ~/.config/dotfiles/private-opencode.json.
+# setup.sh deep-merges it over config/opencode/opencode.json (private values win).
+# Use this for private MCP server entries and other local-only OpenCode overrides.
 
 # Extra git config can be added to ~/.config/dotfiles/extra.gitconfig

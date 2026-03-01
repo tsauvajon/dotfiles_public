@@ -84,9 +84,15 @@ Everything private lives **outside the repo** at `~/.config/dotfiles/`:
 | `~/.config/dotfiles/private.toml` | Git identity, API URLs, trusted roots |
 | `~/.config/dotfiles/private-skills/` | Private OpenCode skills (not committed) |
 | `~/.config/dotfiles/private-AGENTS/` | Private OpenCode prompt overlays (not committed) |
+| `~/.config/dotfiles/private-opencode.json` | Private OpenCode config overlay (for MCP servers and local-only overrides) |
 
 Copy `private.toml.example` to get started. Private skills need no registration — drop a
 `<skill-name>/SKILL.md` directory into `private-skills/` and re-run `setup.sh`.
+
+`setup.sh` also supports an optional `~/.config/dotfiles/private-opencode.json` file. When
+present, it is deep-merged over `config/opencode/opencode.json` to generate
+`~/.local/share/dotfiles/opencode/opencode.json`, and `~/.config/opencode/opencode.json`
+points to that generated merged file.
 
 ## OpenCode config
 

@@ -13,6 +13,7 @@ DEV_ROOT="${DEV_ROOT:-$HOME/dev}"
 # Private config — all under ~/.config/dotfiles/ (outside the git repo)
 DOTFILES_CONFIG="$HOME/.config/dotfiles"
 PRIVATE_TOML="$DOTFILES_CONFIG/private.toml"
+PRIVATE_OPENCODE_JSON="$DOTFILES_CONFIG/private-opencode.json"
 PRIVATE_SKILLS="$DOTFILES_CONFIG/private-skills"
 PRIVATE_AGENTS_DIR="$DOTFILES_CONFIG/private-AGENTS"
 PRIVATE_BUILD="$HOME/.local/share/dotfiles"
@@ -79,6 +80,57 @@ link_skills() {
   ln -snf "$merge_dir" "$dest_link"
 }
 
+# Build merged opencode.json from public repo config and optional private overlay.
+link_opencode_config() {
+  local public_config="$DOTFILES/config/opencode/opencode.json"
+  local merged_config="$PRIVATE_BUILD/opencode/opencode.json"
+  local dest_link="$HOME/.config/opencode/opencode.json"
+
+  mkdir -p "$(dirname "$merged_config")"
+
+  if [[ -f "$PRIVATE_OPENCODE_JSON" ]]; then
+    if ! command -v python3 >/dev/null 2>&1; then
+      warn "python3 not found; ignoring private OpenCode overlay at $PRIVATE_OPENCODE_JSON"
+      cp "$public_config" "$merged_config"
+    else
+      python3 - "$public_config" "$PRIVATE_OPENCODE_JSON" "$merged_config" <<'PY'
+import json
+import pathlib
+import sys
+
+public_path = pathlib.Path(sys.argv[1])
+private_path = pathlib.Path(sys.argv[2])
+out_path = pathlib.Path(sys.argv[3])
+
+with public_path.open("r", encoding="utf-8") as f:
+    public_cfg = json.load(f)
+
+with private_path.open("r", encoding="utf-8") as f:
+    private_cfg = json.load(f)
+
+def deep_merge(base, overlay):
+    if isinstance(base, dict) and isinstance(overlay, dict):
+        result = dict(base)
+        for key, value in overlay.items():
+            result[key] = deep_merge(result[key], value) if key in result else value
+        return result
+    return overlay
+
+merged = deep_merge(public_cfg, private_cfg)
+
+with out_path.open("w", encoding="utf-8") as f:
+    json.dump(merged, f, indent=2)
+    f.write("\n")
+PY
+    fi
+  else
+    cp "$public_config" "$merged_config"
+  fi
+
+  mkdir -p "$(dirname "$dest_link")"
+  ln -snf "$merged_config" "$dest_link"
+}
+
 # Build merged AGENTS.md from public repo file and optional private overlays.
 link_agents() {
   local merged_agents="$PRIVATE_BUILD/opencode/AGENTS.md"
@@ -139,7 +191,7 @@ link "$DOTFILES/config/mako" "$HOME/.config/mako"
 link "$DOTFILES/config/rofi" "$HOME/.config/rofi"
 link "$DOTFILES/config/kitty" "$HOME/.config/kitty"
 link "$DOTFILES/config/waybar" "$HOME/.config/waybar"
-link "$DOTFILES/config/opencode/opencode.json" "$HOME/.config/opencode/opencode.json"
+link_opencode_config
 link_agents
 link_skills
 
@@ -216,6 +268,9 @@ if [[ ! -d "$PRIVATE_SKILLS" ]]; then
 fi
 if [[ ! -d "$PRIVATE_AGENTS_DIR" ]]; then
   printf 'tip: place private opencode AGENTS overlays under %s/<name>.md\n' "$PRIVATE_AGENTS_DIR"
+fi
+if [[ ! -f "$PRIVATE_OPENCODE_JSON" ]]; then
+  printf 'tip: place private opencode config at %s to override opencode.json (eg. MCP servers)\n' "$PRIVATE_OPENCODE_JSON"
 fi
 
 log "Done"
