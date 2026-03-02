@@ -27,14 +27,21 @@ trusted_roots = [
 [dotfiles]
 # Symlink destinations to skip, matched as a path suffix of the link target relative to $HOME.
 # Useful for omitting Linux-only or macOS-only configs on the other platform.
+# Applies to both direct links and generated OpenCode links/merge outputs.
 # Example: skip Wayland configs on macOS:
 # skip_links = [".config/hypr", ".config/rofi", ".config/mako", ".config/waybar", ".config/wayland-env.sh"]
 skip_links = []
 
+# Controls how ~/.config/opencode/AGENTS.md is built:
+# - merged: public config/opencode/AGENTS.md + private overlays (default)
+# - private_only: only private overlays
+# - disabled: do not manage/link AGENTS.md
+agents_mode = "merged"
+
 # Private OpenCode skills live at ~/.config/dotfiles/private-skills/<skill-name>/SKILL.md
 # setup.sh merges them with the public skills from this repo at setup time.
 # Private OpenCode AGENTS overlays live at ~/.config/dotfiles/private-AGENTS/
-# setup.sh appends each non-empty readable file in that directory to config/opencode/AGENTS.md.
+# setup.sh appends each non-empty readable file in that directory to the generated AGENTS.md.
 # Files are appended in filename order (LC_ALL=C), so numeric prefixes work well.
 # Private OpenCode JSON overlay lives at ~/.config/dotfiles/private-opencode.json.
 # setup.sh deep-merges it over config/opencode/opencode.json (private values win).
