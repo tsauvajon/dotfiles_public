@@ -128,13 +128,13 @@ When multiple valid approaches exist, choose based on:
 
 ### OpenCode Config Source
 
-- The absolute path to the dotfiles repo is recorded at `~/.config/dotfiles/path` by `setup.sh`. Read it with `cat ~/.config/dotfiles/path` to get `$DOTFILES`.
-- Dotfiles are managed from `$DOTFILES` and symlinked into expected locations under `$HOME`.
-- Prefer canonical files under `$DOTFILES` over their `$HOME` symlink mirrors unless a task explicitly requires checking the mirror path.
-- Always check `$DOTFILES` for canonical OpenCode configuration.
-- Treat `$DOTFILES/config/opencode` as the source of truth for `opencode.json`, `AGENTS.md`, and skills.
-- Assume `~/.config/opencode` is only a symlinked mirror to the canonical files in `$DOTFILES/config/opencode`.
-- Do not spend time rediscovering config locations; read `~/.config/dotfiles/path` once and use that path directly.
+- The absolute path to the dotfiles repo is `__DOTFILES_PATH__`.
+- Dotfiles are managed from `__DOTFILES_PATH__` and symlinked into expected locations under `$HOME`.
+- Prefer canonical files under `__DOTFILES_PATH__` over their `$HOME` symlink mirrors unless a task explicitly requires checking the mirror path.
+- Always check `__DOTFILES_PATH__` for canonical OpenCode configuration.
+- Treat `__DOTFILES_PATH__/config/opencode` as the source of truth for `opencode.json`, `AGENTS.md`, and skills.
+- Assume `~/.config/opencode` is only a symlinked mirror to the canonical files in `__DOTFILES_PATH__/config/opencode`.
+- Do not spend time rediscovering config locations; use `__DOTFILES_PATH__` directly.
 
 ## Quality Gates
 

@@ -36,6 +36,9 @@ if [[ -f "$PRIVATE_TOML" ]]; then
   done < <(private_list '.dotfiles.skip_links')
 fi
 
+log()  { printf '==> %s\n' "$*"; }
+warn() { printf 'warning: %s\n' "$*" >&2; }
+
 AGENTS_MODE="merged"
 if [[ -f "$PRIVATE_TOML" ]]; then
   case "$(private_get '.dotfiles.agents_mode')" in
@@ -57,30 +60,16 @@ fi
 
 normalize_skip_path() {
   local path="$1"
-
-  path="${path#$HOME/}"
+  path="${path#"$HOME/"}"
   path="${path#\~/}"
   path="${path#./}"
-  path="${path#/}"
-  path="${path#.}"
-  path="${path#/}"
-
   printf '%s' "$path"
 }
 
-declare -a LINK_OP_MODES=()
-declare -a LINK_OP_SRCS=()
-declare -a LINK_OP_DESTS=()
-
-queue_link_op() {
-  local mode="$1"
-  local src="$2"
-  local dest="$3"
-
-  LINK_OP_MODES+=("$mode")
-  LINK_OP_SRCS+=("$src")
-  LINK_OP_DESTS+=("$dest")
-}
+SKIP_NORMS=()
+for _skip in "${SKIP_LINKS[@]+"${SKIP_LINKS[@]}"}"; do
+  SKIP_NORMS+=("$(normalize_skip_path "$_skip")")
+done
 
 remove_managed_link_if_present() {
   local dest="$1"
@@ -105,23 +94,14 @@ remove_managed_link_if_present() {
 
 should_skip_dest() {
   local dest="$1"
-  local rel
-  local rel_norm
-  local skip_norm
+  local dest_norm
+  dest_norm="$(normalize_skip_path "$dest")"
 
-  rel="${dest#"$HOME/"}"
-  rel_norm="$(normalize_skip_path "$dest")"
-
-  for skip in "${SKIP_LINKS[@]+"${SKIP_LINKS[@]}"}"; do
-    skip_norm="$(normalize_skip_path "$skip")"
-    [[ -n "$skip_norm" ]] || continue
-
-    case "$rel" in
-      *"$skip") return 0 ;;
-    esac
-
-    case "$rel_norm" in
-      *"$skip_norm") return 0 ;;
+  local i
+  for i in "${!SKIP_NORMS[@]}"; do
+    [[ -n "${SKIP_NORMS[$i]}" ]] || continue
+    case "$dest_norm" in
+      *"${SKIP_NORMS[$i]}") return 0 ;;
     esac
   done
   return 1
@@ -134,45 +114,19 @@ link() {
   ln -snf "$src" "$dest"
 }
 
-process_link_ops() {
-  local i
-  local mode
-  local src
-  local dest
+escape_sed_replacement() {
+  printf '%s' "$1" | sed -e 's/[\/&]/\\&/g'
+}
 
-  for i in "${!LINK_OP_MODES[@]}"; do
-    mode="${LINK_OP_MODES[$i]}"
-    src="${LINK_OP_SRCS[$i]}"
-    dest="${LINK_OP_DESTS[$i]}"
-
-    if should_skip_dest "$dest"; then
-      log "Skipping $dest"
-      remove_managed_link_if_present "$dest"
-      continue
-    fi
-
-    case "$mode" in
-      link)
-        link "$src" "$dest"
-        ;;
-      link_opencode_config)
-        link_opencode_config
-        ;;
-      link_agents)
-        link_agents
-        ;;
-      link_skills)
-        link_skills
-        ;;
-      *)
-        warn "unknown link op: $mode"
-        ;;
-    esac
-  done
-
-  LINK_OP_MODES=()
-  LINK_OP_SRCS=()
-  LINK_OP_DESTS=()
+managed_link() {
+  local src="$1"
+  local dest="$2"
+  if should_skip_dest "$dest"; then
+    log "Skipping $dest"
+    remove_managed_link_if_present "$dest"
+    return 0
+  fi
+  link "$src" "$dest"
 }
 
 # Merge public ($DOTFILES/config/opencode/skills) and private ($PRIVATE_SKILLS)
@@ -180,6 +134,12 @@ process_link_ops() {
 link_skills() {
   local merge_dir="$PRIVATE_BUILD/opencode/skills"
   local dest_link="$HOME/.config/opencode/skills"
+
+  if should_skip_dest "$dest_link"; then
+    log "Skipping $dest_link"
+    remove_managed_link_if_present "$dest_link"
+    return 0
+  fi
 
   mkdir -p "$merge_dir"
 
@@ -201,8 +161,7 @@ link_skills() {
     done
   fi
 
-  mkdir -p "$(dirname "$dest_link")"
-  ln -snf "$merge_dir" "$dest_link"
+  link "$merge_dir" "$dest_link"
 }
 
 # Build merged opencode.json from public repo config and optional private overlay.
@@ -210,6 +169,12 @@ link_opencode_config() {
   local public_config="$DOTFILES/config/opencode/opencode.json"
   local merged_config="$PRIVATE_BUILD/opencode/opencode.json"
   local dest_link="$HOME/.config/opencode/opencode.json"
+
+  if should_skip_dest "$dest_link"; then
+    log "Skipping $dest_link"
+    remove_managed_link_if_present "$dest_link"
+    return 0
+  fi
 
   mkdir -p "$(dirname "$merged_config")"
 
@@ -252,19 +217,20 @@ PY
     cp "$public_config" "$merged_config"
   fi
 
-  mkdir -p "$(dirname "$dest_link")"
-  ln -snf "$merged_config" "$dest_link"
+  link "$merged_config" "$dest_link"
 }
 
 # Build merged AGENTS.md from public repo file and optional private overlays.
 link_agents() {
   local merged_agents="$PRIVATE_BUILD/opencode/AGENTS.md"
   local dest_link="$HOME/.config/opencode/AGENTS.md"
+  local escaped_dotfiles
   local agents_file
   local appended_any=0
   local -a agents_files=()
 
-  if [[ "$AGENTS_MODE" == "disabled" ]]; then
+  if should_skip_dest "$dest_link" || [[ "$AGENTS_MODE" == "disabled" ]]; then
+    [[ "$AGENTS_MODE" == "disabled" ]] || log "Skipping $dest_link"
     remove_managed_link_if_present "$dest_link"
     return 0
   fi
@@ -304,41 +270,40 @@ link_agents() {
     warn "agents_mode=private_only but no readable non-empty files found in $PRIVATE_AGENTS_DIR"
   fi
 
-  mkdir -p "$(dirname "$dest_link")"
-  ln -snf "$merged_agents" "$dest_link"
-}
+  escaped_dotfiles="$(escape_sed_replacement "$DOTFILES")"
+  sed -i.bak "s|__DOTFILES_PATH__|$escaped_dotfiles|g" "$merged_agents"
+  rm -f "$merged_agents.bak"
 
-log()  { printf '==> %s\n' "$*"; }
-warn() { printf 'warning: %s\n' "$*" >&2; }
+  link "$merged_agents" "$dest_link"
+}
 
 log "Recording dotfiles path"
 mkdir -p "$DOTFILES_CONFIG"
 printf '%s\n' "$DOTFILES" > "$DOTFILES_CONFIG/path"
 
 log "Linking home files"
-queue_link_op link "$DOTFILES/home/tmux.conf" "$HOME/.tmux.conf"
-queue_link_op link "$DOTFILES/home/profile" "$HOME/.profile"
-queue_link_op link "$DOTFILES/home/fish_profile" "$HOME/.fish_profile"
-queue_link_op link "$DOTFILES/home/bashrc" "$HOME/.bashrc"
-queue_link_op link "$DOTFILES/home/bash_profile" "$HOME/.bash_profile"
-queue_link_op link "$DOTFILES/home/nix-channels" "$HOME/.nix-channels"
-queue_link_op link "$DOTFILES/home/tool-versions" "$HOME/.tool-versions"
-queue_link_op link "$DOTFILES/home/flakes/" "$HOME/flakes"
-queue_link_op link "$DOTFILES/home/tmux/" "$HOME/.tmux"
+managed_link "$DOTFILES/home/tmux.conf" "$HOME/.tmux.conf"
+managed_link "$DOTFILES/home/profile" "$HOME/.profile"
+managed_link "$DOTFILES/home/fish_profile" "$HOME/.fish_profile"
+managed_link "$DOTFILES/home/bashrc" "$HOME/.bashrc"
+managed_link "$DOTFILES/home/bash_profile" "$HOME/.bash_profile"
+managed_link "$DOTFILES/home/nix-channels" "$HOME/.nix-channels"
+managed_link "$DOTFILES/home/tool-versions" "$HOME/.tool-versions"
+managed_link "$DOTFILES/home/flakes/" "$HOME/flakes"
+managed_link "$DOTFILES/home/tmux/" "$HOME/.tmux"
 
 log "Linking config files"
-queue_link_op link "$DOTFILES/config/wayland-env.sh" "$HOME/.config/wayland-env.sh"
-queue_link_op link "$DOTFILES/config/espflash" "$HOME/.config/espflash"
-queue_link_op link "$DOTFILES/config/fish" "$HOME/.config/fish"
-queue_link_op link "$DOTFILES/config/hypr" "$HOME/.config/hypr"
-queue_link_op link "$DOTFILES/config/mako" "$HOME/.config/mako"
-queue_link_op link "$DOTFILES/config/rofi" "$HOME/.config/rofi"
-queue_link_op link "$DOTFILES/config/kitty" "$HOME/.config/kitty"
-queue_link_op link "$DOTFILES/config/waybar" "$HOME/.config/waybar"
-queue_link_op link_opencode_config "" "$HOME/.config/opencode/opencode.json"
-queue_link_op link_agents "" "$HOME/.config/opencode/AGENTS.md"
-queue_link_op link_skills "" "$HOME/.config/opencode/skills"
-process_link_ops
+managed_link "$DOTFILES/config/wayland-env.sh" "$HOME/.config/wayland-env.sh"
+managed_link "$DOTFILES/config/espflash" "$HOME/.config/espflash"
+managed_link "$DOTFILES/config/fish" "$HOME/.config/fish"
+managed_link "$DOTFILES/config/hypr" "$HOME/.config/hypr"
+managed_link "$DOTFILES/config/mako" "$HOME/.config/mako"
+managed_link "$DOTFILES/config/rofi" "$HOME/.config/rofi"
+managed_link "$DOTFILES/config/kitty" "$HOME/.config/kitty"
+managed_link "$DOTFILES/config/waybar" "$HOME/.config/waybar"
+link_opencode_config
+link_agents
+link_skills
 
 log "Ensuring workspace directories"
 mkdir -p "$DEV_ROOT/repos" "$DEV_ROOT/wt" "$DEV_ROOT/detached"
@@ -401,10 +366,9 @@ if [[ -f "$PRIVATE_TOML" ]]; then
     } > "$PRIVATE_BUILD/task/config.toml"
 
     log "Symlinking private files"
-    queue_link_op link "$PRIVATE_BUILD/gitconfig" "$HOME/.gitconfig"
-    queue_link_op link "$PRIVATE_BUILD/goto/config.yml" "$HOME/.config/goto/config.yml"
-    queue_link_op link "$PRIVATE_BUILD/task/config.toml" "$HOME/.config/task/config.toml"
-    process_link_ops
+    managed_link "$PRIVATE_BUILD/gitconfig" "$HOME/.gitconfig"
+    managed_link "$PRIVATE_BUILD/goto/config.yml" "$HOME/.config/goto/config.yml"
+    managed_link "$PRIVATE_BUILD/task/config.toml" "$HOME/.config/task/config.toml"
   fi
 else
   printf 'tip: place private.toml at %s to configure git identity and network URLs\n' "$PRIVATE_TOML"
