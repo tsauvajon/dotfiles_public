@@ -1,5 +1,5 @@
 ---
-name: mcp-private-add
+name: add-private-mcp
 description: Add or update an OpenCode MCP server in private dotfiles config and verify connectivity.
 compatibility: opencode
 metadata:
