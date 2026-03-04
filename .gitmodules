@@ -1,9 +1,11 @@
 [submodule "home/tmux/plugins/tpm"]
 	path = home/tmux/plugins/tpm
 	url = https://github.com/tmux-plugins/tpm
+	fetchRecurseSubmodules = false
 [submodule "home/tmux/plugins/tmux-resurrect"]
 	path = home/tmux/plugins/tmux-resurrect
 	url = https://github.com/tmux-plugins/tmux-resurrect
+	fetchRecurseSubmodules = false
 [submodule "home/tmux/plugins/tmux-continuum"]
 	path = home/tmux/plugins/tmux-continuum
 	url = https://github.com/tmux-plugins/tmux-continuum
