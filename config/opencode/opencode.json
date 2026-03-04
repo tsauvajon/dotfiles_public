@@ -84,6 +84,7 @@
       "git diff *": "allow",
       "git diff --stat *...HEAD": "allow",
       "git fetch *": "allow",
+      "git format-patch *": "allow",
       "git ls-files *": "allow",
       "git ls-remote*": "allow",
       "git log *": "allow",
