@@ -118,6 +118,8 @@
       "node *": "allow",
       "npm *": "allow",
       "npm view *": "allow",
+      "pnpm *": "allow",
+      "pnpm --filter *": "allow",
       "pod *": "allow",
       "printf *": "allow",
       "python *": "allow",
