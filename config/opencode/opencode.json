@@ -63,6 +63,7 @@
       "*": "ask",
       "rm -rf *": "deny",
       "asdf *": "allow",
+      "basename *": "allow",
       "cat *": "allow",
       "cargo *": "allow",
       "cargo test *": "allow",
