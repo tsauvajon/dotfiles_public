@@ -8,7 +8,7 @@ This dotfiles repo now includes a cross-machine OpenCode + worktree setup.
 ./setup.sh
 ```
 
-That script links your dotfiles, installs the Nix flake toolchain from your local dotfiles path (`path:<dotfiles>/home/flakes#toolchain`), creates `~/dev/repos` and `~/dev/wt`, and runs `task bootstrap`.
+That script links your dotfiles, installs the Nix flake toolchain from your local dotfiles path (`path:<dotfiles>/home/flakes/toolchain#toolchain`), creates `~/dev/repos` and `~/dev/wt`, and runs `task bootstrap`.
 
 ## Daily flow
 

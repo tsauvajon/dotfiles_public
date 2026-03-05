@@ -24,7 +24,8 @@ dotfiles/
 │   └── task/                 # task config template (private values injected by setup.sh)
 └── home/                     # Files symlinked directly into $HOME
     ├── gitconfig             # Git config template (private values injected by setup.sh)
-    ├── flakes/               # Nix flake — defines the toolchain profile
+    ├── flakes/               # Nix flakes directory
+    │   └── toolchain/        # Toolchain flake — defines the dev profile
     ├── tmux/                 # tmux plugins
     ├── tmux.conf
     ├── profile / bashrc / bash_profile / fish_profile
@@ -40,7 +41,7 @@ dotfiles/
 1. **Records** the dotfiles path to `~/.config/dotfiles/path`.
 2. **Links** files from `home/` and `config/` into `$HOME` using `ln -snf`.
 3. **Builds merged OpenCode AGENTS and skills** — see below.
-4. **Installs the Nix toolchain** from `home/flakes#toolchain` via `nix profile`.
+4. **Installs the Nix toolchain** from `home/flakes/toolchain#toolchain` via `nix profile`.
 5. **Reads** `~/.config/dotfiles/private.toml` (if present) to inject private values
    (git identity, API URLs, trusted workspace roots) into generated files under
    `~/.local/share/dotfiles/`, then symlinks those into `~/.config/`.

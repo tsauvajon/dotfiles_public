@@ -309,8 +309,8 @@ log "Ensuring workspace directories"
 mkdir -p "$DEV_ROOT/repos" "$DEV_ROOT/wt" "$DEV_ROOT/detached"
 
 if command -v nix >/dev/null 2>&1; then
-  local_flake_ref="path:${DOTFILES}/home/flakes#toolchain"
-  log "Installing Nix toolchain from ${DOTFILES}/home/flakes"
+  local_flake_ref="path:${DOTFILES}/home/flakes/toolchain#toolchain"
+  log "Installing Nix toolchain from ${DOTFILES}/home/flakes/toolchain"
   nix --extra-experimental-features "nix-command flakes" profile remove toolchain >/dev/null 2>&1 || true
   nix --extra-experimental-features "nix-command flakes" profile add "$local_flake_ref"
 
