@@ -323,7 +323,7 @@ fi
 
 if [[ -x "$HOME/.cargo/bin/task" ]]; then
   log "Running task bootstrap"
-  "$HOME/.cargo/bin/task" bootstrap || warn "task bootstrap requires an interactive terminal — run it manually"
+  "$HOME/.cargo/bin/task" bootstrap --yes || warn "task bootstrap failed"
 else
   warn "task not found"
 fi
