@@ -133,14 +133,14 @@
       "terraform *": "allow",
       "tr *": "allow",
       "true": "allow",
-      "yarn *": "allow"
+      "yarn *": "allow",
       "xargs *": "allow",
       "xxd *": "allow",
       "xz *": "allow",
       "BASE_REF=*": "allow",
       "BRANCH=*": "allow",
       "GIT_EDITOR=true git rebase --continue": "allow",
-      "OWNER=*": "allow",
+      "OWNER=*": "allow"
     },
     "edit": {
       ".env*": "deny",

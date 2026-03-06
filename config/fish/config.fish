@@ -76,12 +76,8 @@ fish_add_path ~/.spicetify
 set --export GOPATH "$HOME/go"
 set --export PATH $GOPATH/bin $PATH
 
-# Bun
-set --export BUN_INSTALL "$HOME/.bun"
-set --export PATH $BUN_INSTALL/bin $PATH
-
-# C-sharp
-set --export PATH "$HOME/.dotnet/tools" $PATH
-
-# Git
-git config --global core.editor "vim"
+# SSH Agent to cache keys
+if not set -q SSH_AUTH_SOCK
+    eval (ssh-agent -c) > /dev/null
+    ssh-add ~/.ssh/id_ed25519 2>/dev/null
+end
