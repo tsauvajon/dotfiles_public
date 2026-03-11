@@ -311,6 +311,40 @@ link_aerospace() {
   link "$merged" "$dest_link"
 }
 
+# Merge public Cargo config with private overlays (cargo.*.toml).
+link_cargo() {
+  local base="$DOTFILES/home/cargo-config.toml"
+  local merged="$PRIVATE_BUILD/cargo-config.toml"
+  local dest_link="$HOME/.cargo/config.toml"
+
+  if should_skip_dest "$dest_link"; then
+    log "Skipping $dest_link"
+    remove_managed_link_if_present "$dest_link"
+    return 0
+  fi
+
+  if [[ ! -f "$base" ]]; then
+    warn "cargo base config not found at $base"
+    return 0
+  fi
+
+  mkdir -p "$(dirname "$merged")" "$(dirname "$dest_link")"
+  cp "$base" "$merged"
+
+  # Append private overlays in sorted order
+  shopt -s nullglob
+  local -a overlays=("$DOTFILES_CONFIG"/cargo.*.toml)
+  shopt -u nullglob
+
+  for overlay in "${overlays[@]}"; do
+    [[ -f "$overlay" && -r "$overlay" && -s "$overlay" ]] || continue
+    printf '\n' >> "$merged"
+    cat "$overlay" >> "$merged"
+  done
+
+  link "$merged" "$dest_link"
+}
+
 log "Recording dotfiles path"
 mkdir -p "$DOTFILES_CONFIG"
 printf '%s\n' "$DOTFILES" > "$DOTFILES_CONFIG/path"
@@ -339,6 +373,7 @@ link_opencode_config
 link_agents
 link_skills
 link_aerospace
+link_cargo
 
 log "Ensuring workspace directories"
 mkdir -p "$DEV_ROOT/repos" "$DEV_ROOT/wt" "$DEV_ROOT/detached"

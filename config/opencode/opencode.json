@@ -216,11 +216,14 @@
     },
     "read": {
       ".env*": "deny",
-      "*": "allow",
-      "/mnt/linux/dotfiles/*": "allow",
-      "/mnt/linux/dev/*": "allow",
-      "/Users/thomas/dev/*": "allow",
-      "/Users/thomas/.config/*": "allow"
+      "*": "allow"
+    },
+    "external_directory": {
+      "~/.cargo/**": "allow",
+      "~/dev/**": "allow",
+      "~/.config/**": "allow",
+      "/mnt/linux/dotfiles/**": "allow",
+      "/mnt/linux/dev/**": "allow"
     },
     "webfetch": "allow",
     "websearch": "allow"
