@@ -69,6 +69,7 @@
       "brew *": "allow",
       "cat *": "allow",
       "cargo *": "allow",
+      "cargo run -q *": "allow",
       "cargo run -- *": "allow",
       "cargo test *": "allow",
       "cd *": "allow",
