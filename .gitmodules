@@ -9,3 +9,6 @@
 [submodule "home/tmux/plugins/tmux-continuum"]
 	path = home/tmux/plugins/tmux-continuum
 	url = https://github.com/tmux-plugins/tmux-continuum
+[submodule "config/alacritty/themes"]
+	path = config/alacritty/themes
+	url = https://github.com/alacritty/alacritty-theme.git

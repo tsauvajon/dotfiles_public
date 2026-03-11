@@ -1,0 +1,46 @@
+[general]
+import = [
+    "~/.config/alacritty/themes/themes/omni.toml"
+]
+
+[env]
+TERM = "xterm-256color"
+
+[font]
+size = 15.0
+normal.family = "MesloLGS Nerd Font Mono"
+
+[window]
+padding = { x = 10, y = 10 }
+
+# startup_mode = "Fullscreen"
+
+decorations = "Buttonless"
+startup_mode = "Windowed"
+
+opacity = 0.9
+blur = true
+
+[keyboard]
+bindings = [
+  { key = "Right", mods = "Alt|Option", chars = "\u001BF" },
+  { key = "Left",  mods = "Alt|Option", chars = "\u001BB" },
+  { key = "Right", mods = "Command", chars = "\u0005" }, { key = "End", chars = "\u0005" },
+  { key = "Left",  mods = "Command", chars = "\u0001" }, { key = "Home", chars = "\u0001" },
+  { key = "Backspace", mods = "Alt|Option", chars = "\u001B\u007F" },
+  { key = "Backspace", mods = "Command", chars = "\u0015" },
+  { key = "Delete", mods = "Alt|Option", chars = "\u001bd" },
+  { key = "Enter", mods = "Control", action = "ToggleFullscreen" },
+  # Tmux
+  # { key = "R", mods = "Command", chars = "\u0002\"" }, # split tmux window vertically
+]
+
+# Make URLs clickable
+[[hints.enabled]]
+regex = "(ipfs:|ipns:|magnet:|mailto:|gemini://|gopher://|https://|http://|news:|file:|git://|ssh:|ftp://)[^\u0000-\u001F\u007F-\u009F<>\"\\s{-}\\^⟨⟩`]+"
+hyperlinks = true
+post_processing = true
+persist = false
+mouse.enabled = true
+mouse.mods = "Command"
+command = "open"

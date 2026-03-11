@@ -345,6 +345,49 @@ link_cargo() {
   link "$merged" "$dest_link"
 }
 
+# Merge public Alacritty config with private overlays (alacritty.*.toml).
+link_alacritty() {
+  local base="$DOTFILES/config/alacritty/alacritty.toml"
+  local merged="$PRIVATE_BUILD/alacritty.toml"
+  local dest_link="$HOME/.config/alacritty/alacritty.toml"
+
+  if should_skip_dest "$dest_link"; then
+    log "Skipping $dest_link"
+    remove_managed_link_if_present "$dest_link"
+    return 0
+  fi
+
+  if [[ ! -f "$base" ]]; then
+    warn "alacritty base config not found at $base"
+    return 0
+  fi
+
+  mkdir -p "$(dirname "$merged")" "$(dirname "$dest_link")"
+  cp "$base" "$merged"
+
+  # Append private overlays in sorted order
+  shopt -s nullglob
+  local -a overlays=("$DOTFILES_CONFIG"/alacritty.*.toml)
+  shopt -u nullglob
+
+  if [[ ${#overlays[@]} -gt 0 ]]; then
+    while IFS= read -r overlay; do
+      [[ -f "$overlay" && -r "$overlay" && -s "$overlay" ]] || continue
+      printf '\n' >> "$merged"
+      cat "$overlay" >> "$merged"
+    done < <(printf '%s\n' "${overlays[@]}" | LC_ALL=C sort)
+  fi
+
+  link "$merged" "$dest_link"
+
+  # Link themes submodule so the import path resolves
+  local themes_src="$DOTFILES/config/alacritty/themes"
+  local themes_dest="$HOME/.config/alacritty/themes"
+  if [[ -d "$themes_src" ]]; then
+    ln -snf "$themes_src" "$themes_dest"
+  fi
+}
+
 log "Recording dotfiles path"
 mkdir -p "$DOTFILES_CONFIG"
 printf '%s\n' "$DOTFILES" > "$DOTFILES_CONFIG/path"
@@ -374,6 +417,7 @@ link_agents
 link_skills
 link_aerospace
 link_cargo
+link_alacritty
 
 log "Ensuring workspace directories"
 mkdir -p "$DEV_ROOT/repos" "$DEV_ROOT/wt" "$DEV_ROOT/detached"
