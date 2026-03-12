@@ -117,3 +117,7 @@ alias grr='git remote remove'
 alias grv='git remote --verbose'
 alias grb='git fetch && git rebase --interactive --autosquash'
 alias gf='git fetch' 
+
+# Task
+alias cdt='cd-task'
+alias ts='task start'
