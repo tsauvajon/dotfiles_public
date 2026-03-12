@@ -1,0 +1,14 @@
+[package]
+name = "dotfiles-setup"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "dotfiles-setup"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+toml = "0.8"
