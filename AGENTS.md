@@ -89,6 +89,32 @@ inside it. `~/.config/opencode/skills` then points at this merge directory.
 This means adding a new public skill only requires creating the subdirectory here and
 re-running `setup.sh` (or manually adding a symlink to the merge dir).
 
+### Overlay-append merges (Cargo, AeroSpace, Alacritty)
+
+These configs are built by appending overlays onto a base file:
+
+1. **Base file** — e.g. `home/cargo-config.toml`
+2. **Repo overlays** — e.g. `home/cargo.darwin.toml` (platform-specific, tracked in git)
+3. **Private overlays** — e.g. `~/.config/dotfiles/cargo.*.toml` (machine-local, not tracked)
+
+Overlays are sorted by filename (byte order) within each group. Repo overlays are appended
+first, then private overlays (private wins on conflict).
+
+### Skip lists
+
+Two skip lists in `private.toml` control what gets linked/merged:
+
+- **`skip_destinations`** — suffix-matched against the destination path relative to `$HOME`.
+  Prevents a managed symlink or merge output from being created. Use this to omit
+  platform-specific outputs (e.g. skip `.config/hypr` on macOS).
+- **`skip_sources`** — suffix-matched against source paths relative to the dotfiles repo root.
+  Prevents a source file from being linked or included in a merge. Use this to exclude
+  platform-specific overlays (e.g. skip `home/cargo.darwin.toml` on Linux).
+
+Source filtering happens before merge; destination filtering happens at link time.
+
+> `skip_links` is a deprecated alias for `skip_destinations`.
+
 ## Private config
 
 Everything private lives **outside the repo** at `~/.config/dotfiles/`:

@@ -1,6 +1,6 @@
+use std::{path::Path, process::Command};
+
 use anyhow::{Context, Result};
-use std::path::Path;
-use std::process::Command;
 
 use crate::config::Paths;
 

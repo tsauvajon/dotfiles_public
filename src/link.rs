@@ -1,5 +1,6 @@
-use anyhow::{Context, Result};
 use std::path::Path;
+
+use anyhow::{Context, Result};
 
 use crate::config::{self, Paths};
 
@@ -58,11 +59,22 @@ pub fn remove_managed_link_if_present(dest: &Path, paths: &Paths) -> Result<()> 
     Ok(())
 }
 
-/// Create a managed symlink, respecting the skip list.
-/// If the dest is in the skip list, remove any existing managed link and return.
-pub fn managed_link(src: &Path, dest: &Path, skip_norms: &[String], paths: &Paths) -> Result<()> {
+/// Create a managed symlink, respecting skip lists.
+/// Skips if destination is in `skip_norms` or source is in `skip_source_norms`.
+pub fn managed_link(
+    src: &Path,
+    dest: &Path,
+    skip_norms: &[String],
+    skip_source_norms: &[String],
+    paths: &Paths,
+) -> Result<()> {
     if config::should_skip_dest(dest, &paths.home, skip_norms) {
         crate::log(&format!("Skipping {}", dest.display()));
+        remove_managed_link_if_present(dest, paths)?;
+        return Ok(());
+    }
+    if config::should_skip_source(src, &paths.dotfiles, skip_source_norms) {
+        crate::log(&format!("Skipping source {}", src.display()));
         remove_managed_link_if_present(dest, paths)?;
         return Ok(());
     }
@@ -74,10 +86,21 @@ pub fn managed_link_raw(
     src: &str,
     dest: &Path,
     skip_norms: &[String],
+    skip_source_norms: &[String],
     paths: &Paths,
 ) -> Result<()> {
     if config::should_skip_dest(dest, &paths.home, skip_norms) {
         crate::log(&format!("Skipping {}", dest.display()));
+        remove_managed_link_if_present(dest, paths)?;
+        return Ok(());
+    }
+    // Strip trailing slash for source-skip matching
+    if config::should_skip_source(
+        Path::new(src.trim_end_matches('/')),
+        &paths.dotfiles,
+        skip_source_norms,
+    ) {
+        crate::log(&format!("Skipping source {src}"));
         remove_managed_link_if_present(dest, paths)?;
         return Ok(());
     }
@@ -86,8 +109,9 @@ pub fn managed_link_raw(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::os::unix::fs::symlink;
+
+    use super::*;
 
     fn temp_paths(dir: &Path) -> Paths {
         Paths {

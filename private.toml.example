@@ -25,12 +25,18 @@ trusted_roots = [
 ]
 
 [dotfiles]
-# Symlink destinations to skip, matched as a path suffix of the link target relative to $HOME.
-# Useful for omitting Linux-only or macOS-only configs on the other platform.
-# Applies to both direct links and generated OpenCode links/merge outputs.
+# Destination paths to skip, matched as a suffix relative to $HOME.
+# Useful for omitting Linux-only or macOS-only outputs on the other platform.
 # Example: skip Wayland configs on macOS:
-# skip_links = [".config/hypr", ".config/rofi", ".config/mako", ".config/waybar", ".config/wayland-env.sh"]
-skip_links = []
+# skip_destinations = [".config/hypr", ".config/rofi", ".config/mako", ".config/waybar", ".config/wayland-env.sh"]
+skip_destinations = []
+
+# Source paths to skip, matched as a suffix relative to the dotfiles repo root.
+# Prevents specific repo files from being linked or merged into config.
+# Useful for excluding platform-specific overlays (e.g. macOS cargo config on Linux).
+# Example: skip macOS-only Cargo overlay on Linux:
+# skip_sources = ["home/cargo.darwin.toml"]
+skip_sources = []
 
 # Controls how ~/.config/opencode/AGENTS.md is built:
 # - merged: public config/opencode/AGENTS.md + private overlays (default)

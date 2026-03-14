@@ -11,22 +11,44 @@ fn main() -> Result<()> {
     let check_mode = std::env::args().any(|a| a == "--check");
 
     let paths = Paths::resolve()?;
+
+    if config::migrate_skip_links(&paths.private_toml)? {
+        println!(
+            "MIGRATED: renamed skip_links to skip_destinations in {}",
+            paths.private_toml.display()
+        );
+    }
+
     let private_cfg = PrivateConfig::load(&paths.private_toml)?;
 
     let skip_norms = private_cfg.skip_norms(&paths.home);
+    let skip_source_norms = private_cfg.skip_source_norms();
     let agents_mode = private_cfg.agents_mode();
 
     if check_mode {
-        return run_check(&paths, &private_cfg, &skip_norms, agents_mode);
+        return run_check(
+            &paths,
+            &private_cfg,
+            &skip_norms,
+            &skip_source_norms,
+            agents_mode,
+        );
     }
 
-    run_setup(&paths, &private_cfg, &skip_norms, agents_mode)
+    run_setup(
+        &paths,
+        &private_cfg,
+        &skip_norms,
+        &skip_source_norms,
+        agents_mode,
+    )
 }
 
 fn run_setup(
     paths: &Paths,
     private_cfg: &PrivateConfig,
     skip_norms: &[String],
+    skip_source_norms: &[String],
     agents_mode: AgentsMode,
 ) -> Result<()> {
     log("Recording dotfiles path");
@@ -43,42 +65,49 @@ fn run_setup(
         &d.join("home/tmux.conf"),
         &h.join(".tmux.conf"),
         skip_norms,
+        skip_source_norms,
         paths,
     )?;
     link::managed_link(
         &d.join("home/profile"),
         &h.join(".profile"),
         skip_norms,
+        skip_source_norms,
         paths,
     )?;
     link::managed_link(
         &d.join("home/fish_profile"),
         &h.join(".fish_profile"),
         skip_norms,
+        skip_source_norms,
         paths,
     )?;
     link::managed_link(
         &d.join("home/bashrc"),
         &h.join(".bashrc"),
         skip_norms,
+        skip_source_norms,
         paths,
     )?;
     link::managed_link(
         &d.join("home/bash_profile"),
         &h.join(".bash_profile"),
         skip_norms,
+        skip_source_norms,
         paths,
     )?;
     link::managed_link(
         &d.join("home/nix-channels"),
         &h.join(".nix-channels"),
         skip_norms,
+        skip_source_norms,
         paths,
     )?;
     link::managed_link(
         &d.join("home/tool-versions"),
         &h.join(".tool-versions"),
         skip_norms,
+        skip_source_norms,
         paths,
     )?;
     // Trailing slash matches bash: managed_link "$DOTFILES/home/flakes/" "$HOME/flakes"
@@ -86,12 +115,14 @@ fn run_setup(
         &format!("{}/home/flakes/", d.display()),
         &h.join("flakes"),
         skip_norms,
+        skip_source_norms,
         paths,
     )?;
     link::managed_link_raw(
         &format!("{}/home/tmux/", d.display()),
         &h.join(".tmux"),
         skip_norms,
+        skip_source_norms,
         paths,
     )?;
 
@@ -100,56 +131,64 @@ fn run_setup(
         &d.join("config/wayland-env.sh"),
         &h.join(".config/wayland-env.sh"),
         skip_norms,
+        skip_source_norms,
         paths,
     )?;
     link::managed_link(
         &d.join("config/espflash"),
         &h.join(".config/espflash"),
         skip_norms,
+        skip_source_norms,
         paths,
     )?;
     link::managed_link(
         &d.join("config/fish"),
         &h.join(".config/fish"),
         skip_norms,
+        skip_source_norms,
         paths,
     )?;
     link::managed_link(
         &d.join("config/hypr"),
         &h.join(".config/hypr"),
         skip_norms,
+        skip_source_norms,
         paths,
     )?;
     link::managed_link(
         &d.join("config/mako"),
         &h.join(".config/mako"),
         skip_norms,
+        skip_source_norms,
         paths,
     )?;
     link::managed_link(
         &d.join("config/rofi"),
         &h.join(".config/rofi"),
         skip_norms,
+        skip_source_norms,
         paths,
     )?;
     link::managed_link(
         &d.join("config/kitty"),
         &h.join(".config/kitty"),
         skip_norms,
+        skip_source_norms,
         paths,
     )?;
     link::managed_link(
         &d.join("config/waybar"),
         &h.join(".config/waybar"),
         skip_norms,
+        skip_source_norms,
         paths,
     )?;
     merge::merge_opencode_json(paths, skip_norms)?;
     merge::merge_agents(paths, skip_norms, agents_mode)?;
     merge::merge_skills(paths, skip_norms)?;
-    merge::merge_aerospace(paths, skip_norms)?;
-    merge::merge_cargo(paths, skip_norms)?;
-    merge::merge_alacritty(paths, skip_norms)?;
+    merge::merge_aerospace(paths, skip_norms, skip_source_norms)?;
+    merge::merge_cargo(paths, skip_norms, skip_source_norms)?;
+    merge::merge_alacritty(paths, skip_norms, skip_source_norms)?;
 
     log("Ensuring workspace directories");
     let dev = &paths.dev_root;
@@ -161,7 +200,7 @@ fn run_setup(
     external::run_task_bootstrap(&paths.home)?;
 
     if paths.private_toml.exists() {
-        generate::generate_private_files(paths, private_cfg, skip_norms)?;
+        generate::generate_private_files(paths, private_cfg, skip_norms, skip_source_norms)?;
     } else {
         println!(
             "tip: place private.toml at {} to configure git identity and network URLs",
@@ -201,6 +240,7 @@ fn run_check(
     paths: &Paths,
     private_cfg: &PrivateConfig,
     _skip_norms: &[String],
+    skip_source_norms: &[String],
     agents_mode: AgentsMode,
 ) -> Result<()> {
     use std::collections::BTreeMap;
@@ -223,9 +263,9 @@ fn run_check(
     merge::merge_opencode_json_to(&shadow_paths)?;
     merge::merge_agents_to(&shadow_paths, agents_mode)?;
     merge::merge_skills_to(&shadow_paths)?;
-    merge::merge_aerospace_to(&shadow_paths)?;
-    merge::merge_cargo_to(&shadow_paths)?;
-    merge::merge_alacritty_to(&shadow_paths)?;
+    merge::merge_aerospace_to(&shadow_paths, skip_source_norms)?;
+    merge::merge_cargo_to(&shadow_paths, skip_source_norms)?;
+    merge::merge_alacritty_to(&shadow_paths, skip_source_norms)?;
     generate::generate_private_files_to(&shadow_paths, private_cfg)?;
 
     // Compare generated files

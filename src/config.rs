@@ -1,6 +1,7 @@
+use std::path::{Path, PathBuf};
+
 use anyhow::{Context, Result};
 use serde::Deserialize;
-use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
 pub struct Paths {
@@ -104,7 +105,12 @@ pub struct VscodiumConfig {
 
 #[derive(Debug, Default, Deserialize)]
 pub struct DotfilesConfig {
+    /// Deprecated alias for skip_destinations. Kept for backward compatibility.
     pub skip_links: Option<Vec<String>>,
+    /// Destination paths (relative to $HOME) to skip when linking/merging outputs.
+    pub skip_destinations: Option<Vec<String>>,
+    /// Source paths (relative to dotfiles root) to skip before merge/link.
+    pub skip_sources: Option<Vec<String>>,
     pub agents_mode: Option<String>,
 }
 
@@ -141,17 +147,41 @@ impl PrivateConfig {
     }
 
     pub fn skip_norms(&self, home: &Path) -> Vec<String> {
+        let destinations = self
+            .dotfiles
+            .as_ref()
+            .and_then(|d| d.skip_destinations.as_deref())
+            .unwrap_or(&[]);
+        let legacy = self
+            .dotfiles
+            .as_ref()
+            .and_then(|d| d.skip_links.as_deref())
+            .unwrap_or(&[]);
+
+        destinations
+            .iter()
+            .chain(legacy.iter())
+            .filter(|s| !s.is_empty())
+            .map(|s| normalize_skip_path(s, home))
+            .collect()
+    }
+
+    pub fn skip_source_norms(&self) -> Vec<String> {
         self.dotfiles
             .as_ref()
-            .and_then(|d| d.skip_links.as_ref())
-            .map(|links| {
-                links
-                    .iter()
-                    .filter(|s| !s.is_empty())
-                    .map(|s| normalize_skip_path(s, home))
-                    .collect()
+            .and_then(|d| d.skip_sources.as_deref())
+            .unwrap_or(&[])
+            .iter()
+            .filter(|s| !s.is_empty())
+            .map(|s| {
+                Path::new(s.as_str())
+                    .components()
+                    .filter(|c| !matches!(c, std::path::Component::CurDir))
+                    .collect::<PathBuf>()
+                    .to_string_lossy()
+                    .into_owned()
             })
-            .unwrap_or_default()
+            .collect()
     }
 
     /// Get a private value by dot-path, returning None if empty or missing.
@@ -195,6 +225,25 @@ impl PrivateConfig {
     }
 }
 
+/// Check if a source path should be skipped.
+/// `src` is an absolute path; `dotfiles_root` is the repo root.
+/// Matches when any skip_source suffix matches the path relative to dotfiles root.
+pub fn should_skip_source(src: &Path, dotfiles_root: &Path, skip_source_norms: &[String]) -> bool {
+    let src_str = src.to_string_lossy();
+    let root_prefix = format!("{}/", dotfiles_root.to_string_lossy());
+
+    let relative = if let Some(rest) = src_str.strip_prefix(&root_prefix) {
+        rest
+    } else {
+        // Not under dotfiles root — never skip
+        return false;
+    };
+
+    skip_source_norms
+        .iter()
+        .any(|skip| !skip.is_empty() && relative.ends_with(skip.as_str()))
+}
+
 /// Strip $HOME/, ~/, ./ prefix from a path string.
 pub fn normalize_skip_path(path: &str, home: &Path) -> String {
     let home_str = home.to_string_lossy();
@@ -211,6 +260,35 @@ pub fn normalize_skip_path(path: &str, home: &Path) -> String {
     };
 
     stripped.to_string()
+}
+
+/// Auto-rewrite `skip_links` to `skip_destinations` in private.toml.
+/// Returns true if the file was rewritten.
+pub fn migrate_skip_links(private_toml: &Path) -> Result<bool> {
+    if !private_toml.exists() {
+        return Ok(false);
+    }
+
+    let content = std::fs::read_to_string(private_toml)
+        .with_context(|| format!("reading {}", private_toml.display()))?;
+
+    if !content.contains("skip_links") {
+        return Ok(false);
+    }
+    if content.contains("skip_destinations") {
+        // Both present — warn but don't touch the file
+        crate::warn(
+            "both skip_links and skip_destinations found in private.toml; \
+             remove skip_links manually",
+        );
+        return Ok(false);
+    }
+
+    let migrated = content.replace("skip_links", "skip_destinations");
+    std::fs::write(private_toml, &migrated)
+        .with_context(|| format!("writing {}", private_toml.display()))?;
+
+    Ok(true)
 }
 
 /// Check if a destination path should be skipped.
@@ -313,5 +391,107 @@ agents_mode = "merged"
         assert_eq!(cfg.git.as_ref().unwrap().name.as_deref(), Some("Test User"));
         assert_eq!(cfg.agents_mode(), AgentsMode::Merged);
         assert!(cfg.missing_required_keys().is_empty());
+    }
+
+    #[test]
+    fn parse_skip_destinations() {
+        let content = r#"
+[dotfiles]
+skip_destinations = [".config/hypr", ".config/mako"]
+"#;
+        let cfg: PrivateConfig = toml::from_str(content).unwrap();
+        let home = Path::new("/home/test");
+        let norms = cfg.skip_norms(home);
+        assert_eq!(norms, vec![".config/hypr", ".config/mako"]);
+    }
+
+    #[test]
+    fn parse_skip_sources() {
+        let content = r#"
+[dotfiles]
+skip_sources = ["home/cargo.darwin.toml", "config/hypr"]
+"#;
+        let cfg: PrivateConfig = toml::from_str(content).unwrap();
+        let norms = cfg.skip_source_norms();
+        assert_eq!(norms, vec!["home/cargo.darwin.toml", "config/hypr"]);
+    }
+
+    #[test]
+    fn skip_sources_strips_dot_slash() {
+        let content = r#"
+[dotfiles]
+skip_sources = ["./home/cargo.darwin.toml"]
+"#;
+        let cfg: PrivateConfig = toml::from_str(content).unwrap();
+        let norms = cfg.skip_source_norms();
+        assert_eq!(norms, vec!["home/cargo.darwin.toml"]);
+    }
+
+    #[test]
+    fn should_skip_source_matches() {
+        let root = Path::new("/mnt/dotfiles");
+        let skips = vec!["home/cargo.darwin.toml".to_string()];
+
+        assert!(should_skip_source(
+            Path::new("/mnt/dotfiles/home/cargo.darwin.toml"),
+            root,
+            &skips
+        ));
+        assert!(!should_skip_source(
+            Path::new("/mnt/dotfiles/home/cargo-config.toml"),
+            root,
+            &skips
+        ));
+    }
+
+    #[test]
+    fn should_skip_source_outside_root() {
+        let root = Path::new("/mnt/dotfiles");
+        let skips = vec!["cargo.darwin.toml".to_string()];
+
+        // Path not under dotfiles root — never skipped
+        assert!(!should_skip_source(
+            Path::new("/other/cargo.darwin.toml"),
+            root,
+            &skips
+        ));
+    }
+
+    #[test]
+    fn migrate_rewrites_skip_links() {
+        let dir = std::env::temp_dir().join("dotfiles-test-migrate-rewrite");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let toml_path = dir.join("private.toml");
+        std::fs::write(&toml_path, "[dotfiles]\nskip_links = [\".config/hypr\"]\n").unwrap();
+
+        assert!(migrate_skip_links(&toml_path).unwrap());
+        let content = std::fs::read_to_string(&toml_path).unwrap();
+        assert!(content.contains("skip_destinations"));
+        assert!(!content.contains("skip_links"));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn migrate_noop_when_already_migrated() {
+        let dir = std::env::temp_dir().join("dotfiles-test-migrate-noop");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let toml_path = dir.join("private.toml");
+        std::fs::write(&toml_path, "[dotfiles]\nskip_destinations = []\n").unwrap();
+
+        assert!(!migrate_skip_links(&toml_path).unwrap());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn migrate_noop_when_missing() {
+        let path = std::env::temp_dir().join("dotfiles-test-migrate-missing/private.toml");
+        let _ = std::fs::remove_file(&path);
+        assert!(!migrate_skip_links(&path).unwrap());
     }
 }

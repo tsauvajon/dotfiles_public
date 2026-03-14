@@ -1,7 +1,9 @@
 use anyhow::{Context, Result};
 
-use crate::config::{Paths, PrivateConfig};
-use crate::link;
+use crate::{
+    config::{Paths, PrivateConfig},
+    link,
+};
 
 /// Generate all private files (gitconfig, goto/config.yml, task/config.toml)
 /// and symlink them into place.
@@ -9,6 +11,7 @@ pub fn generate_private_files(
     paths: &Paths,
     cfg: &PrivateConfig,
     skip_norms: &[String],
+    skip_source_norms: &[String],
 ) -> Result<()> {
     crate::log(&format!(
         "Loading private config from {}",
@@ -33,18 +36,21 @@ pub fn generate_private_files(
         &paths.private_build.join("gitconfig"),
         &paths.home.join(".gitconfig"),
         skip_norms,
+        skip_source_norms,
         paths,
     )?;
     link::managed_link(
         &paths.private_build.join("goto/config.yml"),
         &paths.home.join(".config/goto/config.yml"),
         skip_norms,
+        skip_source_norms,
         paths,
     )?;
     link::managed_link(
         &paths.private_build.join("task/config.toml"),
         &paths.home.join(".config/task/config.toml"),
         skip_norms,
+        skip_source_norms,
         paths,
     )?;
 
