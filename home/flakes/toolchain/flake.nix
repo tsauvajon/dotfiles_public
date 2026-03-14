@@ -43,6 +43,7 @@
             rust-analyzer
             rustc
             rustfmt
+            sccache
             tmux
             vim
             vscodium
