@@ -13,8 +13,6 @@ pub struct Paths {
     pub private_opencode_json: PathBuf,
     pub private_skills: PathBuf,
     pub private_rules_dir: PathBuf,
-    /// Legacy path — migrated to private_rules_dir on first run.
-    pub private_rules_legacy: PathBuf,
     pub private_subagents: PathBuf,
     pub private_build: PathBuf,
 }
@@ -53,7 +51,6 @@ impl Paths {
             private_opencode_json: dotfiles_config.join("private-opencode.json"),
             private_skills: dotfiles_config.join("private-skills"),
             private_rules_dir: dotfiles_config.join("opencode/rules"),
-            private_rules_legacy: dotfiles_config.join("private-AGENTS"),
             private_subagents: dotfiles_config.join("opencode/agents"),
             private_build: home.join(".local/share/dotfiles"),
             dotfiles_config,
@@ -110,17 +107,12 @@ pub struct VscodiumConfig {
 
 #[derive(Debug, Default, Deserialize)]
 pub struct DotfilesConfig {
-    /// Deprecated alias for skip_destinations. Kept for backward compatibility.
-    pub skip_links: Option<Vec<String>>,
     /// Destination paths (relative to $HOME) to skip when linking/merging outputs.
     pub skip_destinations: Option<Vec<String>>,
     /// Source paths (relative to dotfiles root) to skip before merge/link.
     pub skip_sources: Option<Vec<String>>,
-    /// Controls how AGENTS.md is built. Replaces deprecated rules_mode_legacy.
+    /// Controls how AGENTS.md is built.
     pub rules_mode: Option<String>,
-    /// Deprecated alias for rules_mode (was "agents_mode" in private.toml). Kept for backward compatibility.
-    #[serde(rename = "agents_mode")]
-    pub rules_mode_legacy: Option<String>,
 }
 
 impl PrivateConfig {
@@ -137,16 +129,10 @@ impl PrivateConfig {
     }
 
     pub fn rules_mode(&self) -> RulesMode {
-        // rules_mode takes precedence; fall back to deprecated rules_mode_legacy.
         let raw = self
             .dotfiles
             .as_ref()
-            .and_then(|d| d.rules_mode.as_deref().filter(|s| !s.is_empty()))
-            .or_else(|| {
-                self.dotfiles
-                    .as_ref()
-                    .and_then(|d| d.rules_mode_legacy.as_deref().filter(|s| !s.is_empty()))
-            });
+            .and_then(|d| d.rules_mode.as_deref().filter(|s| !s.is_empty()));
 
         match raw {
             None | Some("merged") => RulesMode::Merged,
@@ -162,39 +148,15 @@ impl PrivateConfig {
         }
     }
 
-    /// Returns true if `rules_mode_legacy` is set but `rules_mode` is not — migration needed.
-    #[cfg(test)]
-    pub fn needs_rules_mode_migration(&self) -> bool {
-        let has_rules_legacy = self
-            .dotfiles
-            .as_ref()
-            .and_then(|d| d.rules_mode_legacy.as_deref())
-            .filter(|s| !s.is_empty())
-            .is_some();
-        let has_rules = self
-            .dotfiles
-            .as_ref()
-            .and_then(|d| d.rules_mode.as_deref())
-            .filter(|s| !s.is_empty())
-            .is_some();
-        has_rules_legacy && !has_rules
-    }
-
     pub fn skip_norms(&self, home: &Path) -> Vec<String> {
         let destinations = self
             .dotfiles
             .as_ref()
             .and_then(|d| d.skip_destinations.as_deref())
             .unwrap_or(&[]);
-        let legacy = self
-            .dotfiles
-            .as_ref()
-            .and_then(|d| d.skip_links.as_deref())
-            .unwrap_or(&[]);
 
         destinations
             .iter()
-            .chain(legacy.iter())
             .filter(|s| !s.is_empty())
             .map(|s| normalize_skip_path(s, home))
             .collect()
@@ -298,6 +260,7 @@ pub fn normalize_skip_path(path: &str, home: &Path) -> String {
 
 /// Auto-rewrite `skip_links` to `skip_destinations` in private.toml.
 /// Returns true if the file was rewritten.
+/// Errors if both skip_links and skip_destinations are present.
 pub fn migrate_skip_links(private_toml: &Path) -> Result<bool> {
     if !private_toml.exists() {
         return Ok(false);
@@ -310,12 +273,10 @@ pub fn migrate_skip_links(private_toml: &Path) -> Result<bool> {
         return Ok(false);
     }
     if content.contains("skip_destinations") {
-        // Both present — warn but don't touch the file
-        crate::warn(
-            "both skip_links and skip_destinations found in private.toml; \
-             remove skip_links manually",
+        anyhow::bail!(
+            "both skip_links and skip_destinations found in {}; remove skip_links manually",
+            private_toml.display()
         );
-        return Ok(false);
     }
 
     let migrated = content.replace("skip_links", "skip_destinations");
@@ -327,6 +288,7 @@ pub fn migrate_skip_links(private_toml: &Path) -> Result<bool> {
 
 /// Auto-rewrite the legacy `agents_mode` key to `rules_mode` in private.toml.
 /// Returns true if the file was rewritten.
+/// Errors if both agents_mode and rules_mode are present.
 pub fn migrate_rules_mode_key(private_toml: &Path) -> Result<bool> {
     if !private_toml.exists() {
         return Ok(false);
@@ -339,12 +301,10 @@ pub fn migrate_rules_mode_key(private_toml: &Path) -> Result<bool> {
         return Ok(false);
     }
     if content.contains("rules_mode") {
-        // Both present — warn but don't touch the file
-        crate::warn(
-            "both agents_mode and rules_mode found in private.toml; \
-             remove agents_mode manually",
+        anyhow::bail!(
+            "both agents_mode and rules_mode found in {}; remove agents_mode manually",
+            private_toml.display()
         );
-        return Ok(false);
     }
 
     let migrated = content.replace("agents_mode", "rules_mode");
@@ -493,34 +453,6 @@ mod tests {
     }
 
     #[test]
-    fn rules_mode_falls_back_to_agents_mode() {
-        let content = "[dotfiles]\nagents_mode = \"disabled\"\n";
-        let cfg: PrivateConfig = toml::from_str(content).unwrap();
-        assert_eq!(cfg.rules_mode(), RulesMode::Disabled);
-    }
-
-    #[test]
-    fn rules_mode_prefers_rules_mode_over_agents_mode() {
-        let content = "[dotfiles]\nagents_mode = \"disabled\"\nrules_mode = \"merged\"\n";
-        let cfg: PrivateConfig = toml::from_str(content).unwrap();
-        assert_eq!(cfg.rules_mode(), RulesMode::Merged);
-    }
-
-    #[test]
-    fn needs_rules_mode_migration_when_only_agents_mode_set() {
-        let content = "[dotfiles]\nagents_mode = \"merged\"\n";
-        let cfg: PrivateConfig = toml::from_str(content).unwrap();
-        assert!(cfg.needs_rules_mode_migration());
-    }
-
-    #[test]
-    fn no_migration_needed_when_rules_mode_set() {
-        let content = "[dotfiles]\nrules_mode = \"merged\"\n";
-        let cfg: PrivateConfig = toml::from_str(content).unwrap();
-        assert!(!cfg.needs_rules_mode_migration());
-    }
-
-    #[test]
     fn parse_example_toml() {
         let content = r#"
 [git]
@@ -535,7 +467,7 @@ api_url = "http://localhost:50002"
 trusted_roots = ["/home/test/dev"]
 
 [dotfiles]
-skip_links = [".config/hypr"]
+skip_destinations = [".config/hypr"]
 rules_mode = "merged"
 "#;
         let cfg: PrivateConfig = toml::from_str(content).unwrap();
@@ -664,8 +596,8 @@ skip_sources = ["./home/cargo.darwin.toml"]
     }
 
     #[test]
-    fn migrate_rules_mode_key_noop_when_rules_mode_present() {
-        let dir = std::env::temp_dir().join("dotfiles-test-migrate-rules-mode-key-noop");
+    fn migrate_rules_mode_key_errs_when_both_present() {
+        let dir = std::env::temp_dir().join("dotfiles-test-migrate-rules-mode-key-both");
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
 
@@ -676,10 +608,12 @@ skip_sources = ["./home/cargo.darwin.toml"]
         )
         .unwrap();
 
-        // Should warn but not rewrite
-        assert!(!migrate_rules_mode_key(&toml_path).unwrap());
-        let content = std::fs::read_to_string(&toml_path).unwrap();
-        assert!(content.contains("agents_mode"));
+        let result = migrate_rules_mode_key(&toml_path);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("both agents_mode and rules_mode"));
 
         let _ = std::fs::remove_dir_all(&dir);
     }

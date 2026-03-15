@@ -26,10 +26,13 @@ fn main() -> Result<()> {
         );
     }
 
-    if config::migrate_rules_dir(&paths.private_rules_legacy, &paths.private_rules_dir)? {
+    if config::migrate_rules_dir(
+        &paths.dotfiles_config.join("private-AGENTS"),
+        &paths.private_rules_dir,
+    )? {
         println!(
-            "MIGRATED: moved rules overlays from {} to {}",
-            paths.private_rules_legacy.display(),
+            "MIGRATED: moved rules overlays from {}/private-AGENTS to {}",
+            paths.dotfiles_config.display(),
             paths.private_rules_dir.display()
         );
     }
