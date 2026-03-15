@@ -116,10 +116,11 @@ pub struct DotfilesConfig {
     pub skip_destinations: Option<Vec<String>>,
     /// Source paths (relative to dotfiles root) to skip before merge/link.
     pub skip_sources: Option<Vec<String>>,
-    /// Controls how AGENTS.md is built. Replaces deprecated agents_mode.
+    /// Controls how AGENTS.md is built. Replaces deprecated rules_mode_legacy.
     pub rules_mode: Option<String>,
-    /// Deprecated alias for rules_mode. Kept for backward compatibility.
-    pub agents_mode: Option<String>,
+    /// Deprecated alias for rules_mode (was "agents_mode" in private.toml). Kept for backward compatibility.
+    #[serde(rename = "agents_mode")]
+    pub rules_mode_legacy: Option<String>,
 }
 
 impl PrivateConfig {
@@ -136,7 +137,7 @@ impl PrivateConfig {
     }
 
     pub fn rules_mode(&self) -> RulesMode {
-        // rules_mode takes precedence; fall back to deprecated agents_mode.
+        // rules_mode takes precedence; fall back to deprecated rules_mode_legacy.
         let raw = self
             .dotfiles
             .as_ref()
@@ -144,7 +145,7 @@ impl PrivateConfig {
             .or_else(|| {
                 self.dotfiles
                     .as_ref()
-                    .and_then(|d| d.agents_mode.as_deref().filter(|s| !s.is_empty()))
+                    .and_then(|d| d.rules_mode_legacy.as_deref().filter(|s| !s.is_empty()))
             });
 
         match raw {
@@ -161,13 +162,13 @@ impl PrivateConfig {
         }
     }
 
-    /// Returns true if `agents_mode` is set but `rules_mode` is not — migration needed.
+    /// Returns true if `rules_mode_legacy` is set but `rules_mode` is not — migration needed.
     #[cfg(test)]
     pub fn needs_rules_mode_migration(&self) -> bool {
-        let has_agents = self
+        let has_rules_legacy = self
             .dotfiles
             .as_ref()
-            .and_then(|d| d.agents_mode.as_deref())
+            .and_then(|d| d.rules_mode_legacy.as_deref())
             .filter(|s| !s.is_empty())
             .is_some();
         let has_rules = self
@@ -176,7 +177,7 @@ impl PrivateConfig {
             .and_then(|d| d.rules_mode.as_deref())
             .filter(|s| !s.is_empty())
             .is_some();
-        has_agents && !has_rules
+        has_rules_legacy && !has_rules
     }
 
     pub fn skip_norms(&self, home: &Path) -> Vec<String> {
@@ -324,9 +325,9 @@ pub fn migrate_skip_links(private_toml: &Path) -> Result<bool> {
     Ok(true)
 }
 
-/// Auto-rewrite `agents_mode` to `rules_mode` in private.toml.
+/// Auto-rewrite the legacy `agents_mode` key to `rules_mode` in private.toml.
 /// Returns true if the file was rewritten.
-pub fn migrate_agents_mode(private_toml: &Path) -> Result<bool> {
+pub fn migrate_rules_mode_key(private_toml: &Path) -> Result<bool> {
     if !private_toml.exists() {
         return Ok(false);
     }
@@ -646,15 +647,15 @@ skip_sources = ["./home/cargo.darwin.toml"]
     }
 
     #[test]
-    fn migrate_agents_mode_rewrites_key() {
-        let dir = std::env::temp_dir().join("dotfiles-test-migrate-agents-mode");
+    fn migrate_rules_mode_key_rewrites_key() {
+        let dir = std::env::temp_dir().join("dotfiles-test-migrate-rules-mode-key");
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
 
         let toml_path = dir.join("private.toml");
         std::fs::write(&toml_path, "[dotfiles]\nagents_mode = \"merged\"\n").unwrap();
 
-        assert!(migrate_agents_mode(&toml_path).unwrap());
+        assert!(migrate_rules_mode_key(&toml_path).unwrap());
         let content = std::fs::read_to_string(&toml_path).unwrap();
         assert!(content.contains("rules_mode"));
         assert!(!content.contains("agents_mode"));
@@ -663,8 +664,8 @@ skip_sources = ["./home/cargo.darwin.toml"]
     }
 
     #[test]
-    fn migrate_agents_mode_noop_when_rules_mode_present() {
-        let dir = std::env::temp_dir().join("dotfiles-test-migrate-agents-mode-noop");
+    fn migrate_rules_mode_key_noop_when_rules_mode_present() {
+        let dir = std::env::temp_dir().join("dotfiles-test-migrate-rules-mode-key-noop");
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
 
@@ -676,7 +677,7 @@ skip_sources = ["./home/cargo.darwin.toml"]
         .unwrap();
 
         // Should warn but not rewrite
-        assert!(!migrate_agents_mode(&toml_path).unwrap());
+        assert!(!migrate_rules_mode_key(&toml_path).unwrap());
         let content = std::fs::read_to_string(&toml_path).unwrap();
         assert!(content.contains("agents_mode"));
 

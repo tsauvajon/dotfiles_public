@@ -19,7 +19,7 @@ fn main() -> Result<()> {
         );
     }
 
-    if config::migrate_agents_mode(&paths.private_toml)? {
+    if config::migrate_rules_mode_key(&paths.private_toml)? {
         println!(
             "MIGRATED: renamed agents_mode to rules_mode in {}",
             paths.private_toml.display()
