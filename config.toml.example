@@ -1,4 +1,4 @@
-# Copy to ~/.config/dotfiles/private.toml and fill in real values.
+# Copy to ~/.config/dotfiles/config.toml and fill in real values.
 
 [git]
 name = "Your Full Name"

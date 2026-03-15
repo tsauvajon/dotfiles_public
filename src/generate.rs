@@ -15,14 +15,14 @@ pub fn generate_private_files(
 ) -> Result<()> {
     crate::log(&format!(
         "Loading private config from {}",
-        paths.private_toml.display()
+        paths.config_toml.display()
     ));
 
     let missing = cfg.missing_required_keys();
     if !missing.is_empty() {
         crate::warn(&format!(
             "private setup skipped \u{2014} missing keys in {}: {}",
-            paths.private_toml.display(),
+            paths.config_toml.display(),
             missing.join(" ")
         ));
         return Ok(());
@@ -33,21 +33,21 @@ pub fn generate_private_files(
 
     crate::log("Symlinking private files");
     link::managed_link(
-        &paths.private_build.join("gitconfig"),
+        &paths.dist.join("gitconfig"),
         &paths.home.join(".gitconfig"),
         skip_norms,
         skip_source_norms,
         paths,
     )?;
     link::managed_link(
-        &paths.private_build.join("goto/config.yml"),
+        &paths.dist.join("goto/config.yml"),
         &paths.home.join(".config/goto/config.yml"),
         skip_norms,
         skip_source_norms,
         paths,
     )?;
     link::managed_link(
-        &paths.private_build.join("task/config.toml"),
+        &paths.dist.join("task/config.toml"),
         &paths.home.join(".config/task/config.toml"),
         skip_norms,
         skip_source_norms,
@@ -57,7 +57,7 @@ pub fn generate_private_files(
     Ok(())
 }
 
-/// Generate private files into private_build (without symlinking).
+/// Generate private files into dist (without symlinking).
 pub fn generate_private_files_to(paths: &Paths, cfg: &PrivateConfig) -> Result<()> {
     let missing = cfg.missing_required_keys();
     if !missing.is_empty() {
@@ -74,8 +74,8 @@ pub fn generate_private_files_to(paths: &Paths, cfg: &PrivateConfig) -> Result<(
     let goto_api_url = goto.api_url.as_deref().unwrap();
     let trusted_roots = vscodium.trusted_roots.as_deref().unwrap();
 
-    std::fs::create_dir_all(paths.private_build.join("goto"))?;
-    std::fs::create_dir_all(paths.private_build.join("task"))?;
+    std::fs::create_dir_all(paths.dist.join("goto"))?;
+    std::fs::create_dir_all(paths.dist.join("task"))?;
 
     // gitconfig
     let template = std::fs::read_to_string(paths.dotfiles.join("home/gitconfig"))
@@ -84,13 +84,13 @@ pub fn generate_private_files_to(paths: &Paths, cfg: &PrivateConfig) -> Result<(
         .replace("YOUR_NAME", git_name)
         .replace("YOUR_EMAIL", git_email)
         .replace("YOUR_GPG_KEY_ID", git_signing_key);
-    std::fs::write(paths.private_build.join("gitconfig"), gitconfig)?;
+    std::fs::write(paths.dist.join("gitconfig"), gitconfig)?;
 
     // goto/config.yml
     let template = std::fs::read_to_string(paths.dotfiles.join("config/goto/config.yml"))
         .context("reading goto config template")?;
     let goto_config = template.replace("YOUR_GOTO_CONFIG_API_URL", goto_api_url);
-    std::fs::write(paths.private_build.join("goto/config.yml"), goto_config)?;
+    std::fs::write(paths.dist.join("goto/config.yml"), goto_config)?;
 
     // task/config.toml
     let base = std::fs::read_to_string(paths.dotfiles.join("config/task/config.toml"))
@@ -103,7 +103,7 @@ pub fn generate_private_files_to(paths: &Paths, cfg: &PrivateConfig) -> Result<(
         }
     }
     task_config.push_str("]\n");
-    std::fs::write(paths.private_build.join("task/config.toml"), task_config)?;
+    std::fs::write(paths.dist.join("task/config.toml"), task_config)?;
 
     Ok(())
 }
@@ -149,14 +149,14 @@ mod tests {
             home: dir.join("home"),
             dev_root: dir.join("dev"),
             dotfiles_config: dir.join("config"),
-            private_toml: dir.join("config/private.toml"),
+            config_toml: dir.join("config/config.toml"),
             opencode_json: dir.join("config/opencode/opencode.json"),
             opencode_skills: dir.join("config/opencode/skills"),
             opencode_rules: dir.join("config/opencode/rules"),
             opencode_agents: dir.join("config/opencode/agents"),
-            private_build: dir.join("build"),
+            dist: dir.join("dist"),
         };
-        std::fs::create_dir_all(&paths.private_build).unwrap();
+        std::fs::create_dir_all(&paths.dist).unwrap();
 
         let cfg = PrivateConfig {
             git: Some(GitConfig {
@@ -175,15 +175,15 @@ mod tests {
 
         generate_private_files_to(&paths, &cfg).unwrap();
 
-        let gitconfig = std::fs::read_to_string(paths.private_build.join("gitconfig")).unwrap();
+        let gitconfig = std::fs::read_to_string(paths.dist.join("gitconfig")).unwrap();
         assert!(gitconfig.contains("email = test@example.com"));
         assert!(gitconfig.contains("name = Test User"));
         assert!(gitconfig.contains("signingkey = ABCD1234"));
 
-        let goto = std::fs::read_to_string(paths.private_build.join("goto/config.yml")).unwrap();
+        let goto = std::fs::read_to_string(paths.dist.join("goto/config.yml")).unwrap();
         assert!(goto.contains("api_url: http://localhost:50002"));
 
-        let task = std::fs::read_to_string(paths.private_build.join("task/config.toml")).unwrap();
+        let task = std::fs::read_to_string(paths.dist.join("task/config.toml")).unwrap();
         assert!(task.contains("[vscodium]"));
         assert!(task.contains("    \"/home/test/dev\","));
 

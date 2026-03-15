@@ -27,7 +27,7 @@ pub fn force_symlink(src: &Path, dest: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Remove a managed symlink if it points into our dotfiles or private_build directories.
+/// Remove a managed symlink if it points into our dotfiles or dist directories.
 /// Also removes empty regular files (stale placeholders).
 pub fn remove_managed_link_if_present(dest: &Path, paths: &Paths) -> Result<()> {
     let meta = match dest.symlink_metadata() {
@@ -40,7 +40,7 @@ pub fn remove_managed_link_if_present(dest: &Path, paths: &Paths) -> Result<()> 
             .with_context(|| format!("reading symlink {}", dest.display()))?;
         let target_str = target.to_string_lossy();
         let dotfiles_str = paths.dotfiles.to_string_lossy();
-        let build_str = paths.private_build.to_string_lossy();
+        let build_str = paths.dist.to_string_lossy();
 
         if target_str.starts_with(dotfiles_str.as_ref())
             || target_str.starts_with(build_str.as_ref())
@@ -119,12 +119,12 @@ mod tests {
             home: dir.join("home"),
             dev_root: dir.join("dev"),
             dotfiles_config: dir.join("config"),
-            private_toml: dir.join("config/private.toml"),
+            config_toml: dir.join("config/config.toml"),
             opencode_json: dir.join("config/opencode/opencode.json"),
             opencode_skills: dir.join("config/opencode/skills"),
             opencode_rules: dir.join("config/opencode/rules"),
             opencode_agents: dir.join("config/opencode/agents"),
-            private_build: dir.join("build"),
+            dist: dir.join("build"),
         }
     }
 

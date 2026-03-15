@@ -16,7 +16,7 @@ dotfiles/
 │   ├── merge.rs              # AGENTS.md, opencode.json, skills, overlay-append merges
 │   ├── generate.rs           # Template substitution (gitconfig, goto, task)
 │   └── external.rs           # Nix toolchain install, task bootstrap
-├── private.toml.example      # Template; real file lives at ~/.config/dotfiles/private.toml
+├── config.toml.example        # Template; real file lives at ~/.config/dotfiles/config.toml
 ├── config/                   # XDG config files, symlinked into ~/.config/
 │   ├── opencode/
 │   │   ├── opencode.json     # OpenCode config (model, commands, permissions)
@@ -55,7 +55,7 @@ verify that generated files match the current output without changing anything.
 2. **Links** files from `home/` and `config/` into `$HOME` using symlinks.
 3. **Builds merged OpenCode AGENTS and skills** — see below.
 4. **Installs the Nix toolchain** from `home/flakes/toolchain#toolchain` via `nix profile`.
-5. **Reads** `~/.config/dotfiles/private.toml` (if present) to inject private values
+5. **Reads** `~/.config/dotfiles/config.toml` (if present) to inject private values
    (git identity, API URLs, trusted workspace roots) into generated files under
    `~/.local/share/dotfiles/`, then symlinks those into `~/.config/`.
 6. Runs `task bootstrap`.
@@ -112,7 +112,7 @@ first, then private overlays (private wins on conflict).
 
 ### Skip lists
 
-Two skip lists in `private.toml` control what gets linked/merged:
+Two skip lists in `config.toml` control what gets linked/merged:
 
 - **`skip_destinations`** — suffix-matched against the destination path relative to `$HOME`.
   Prevents a managed symlink or merge output from being created. Use this to omit
@@ -131,13 +131,13 @@ Everything private lives **outside the repo** at `~/.config/dotfiles/`:
 
 | Path | Purpose |
 |---|---|
-| `~/.config/dotfiles/private.toml` | Git identity, API URLs, trusted roots |
+| `~/.config/dotfiles/config.toml` | Git identity, API URLs, trusted roots |
 | `~/.config/dotfiles/opencode/skills/` | Private OpenCode skills (not committed) |
 | `~/.config/dotfiles/opencode/rules/` | Private AGENTS.md rules overlays (not committed) |
 | `~/.config/dotfiles/opencode/agents/` | Private OpenCode agents (not committed) |
 | `~/.config/dotfiles/opencode/opencode.json` | Private OpenCode config overlay (for MCP servers and local-only overrides) |
 
-Copy `private.toml_example` to get started. Private skills need no registration — drop a
+Copy `config.toml.example` to get started. Private skills need no registration — drop a
 `<skill-name>/SKILL.md` directory into `opencode/skills/` and re-run `setup.sh`.
 
 The setup tool also supports an optional `~/.config/dotfiles/opencode/opencode.json` file.
@@ -165,5 +165,5 @@ To add a new slash command that does not need a skill file, add it directly to t
 - **Never edit** files under `~/.local/share/dotfiles/` directly — they are generated.
 - **Never edit** `~/.gitconfig`, `~/.config/goto/config.yml`, or `~/.config/task/config.toml`
   directly — edit the templates in `dotfiles/` instead.
-- Setup must stay idempotent and work without `private.toml` present.
+- Setup must stay idempotent and work without `config.toml` present.
 - New tools must not be introduced unless already present in the Nix flake or the project.

@@ -9,12 +9,12 @@ pub struct Paths {
     pub home: PathBuf,
     pub dev_root: PathBuf,
     pub dotfiles_config: PathBuf,
-    pub private_toml: PathBuf,
+    pub config_toml: PathBuf,
     pub opencode_json: PathBuf,
     pub opencode_skills: PathBuf,
     pub opencode_rules: PathBuf,
     pub opencode_agents: PathBuf,
-    pub private_build: PathBuf,
+    pub dist: PathBuf,
 }
 
 impl Paths {
@@ -47,12 +47,12 @@ impl Paths {
         let dotfiles_config = home.join(".config/dotfiles");
 
         Ok(Self {
-            private_toml: dotfiles_config.join("private.toml"),
+            config_toml: dotfiles_config.join("config.toml"),
             opencode_json: dotfiles_config.join("opencode/opencode.json"),
             opencode_skills: dotfiles_config.join("opencode/skills"),
             opencode_rules: dotfiles_config.join("opencode/rules"),
             opencode_agents: dotfiles_config.join("opencode/agents"),
-            private_build: home.join(".local/share/dotfiles"),
+            dist: home.join(".local/share/dotfiles"),
             dotfiles_config,
             dotfiles,
             home,
@@ -311,6 +311,24 @@ pub fn migrate_rules_mode_key(private_toml: &Path) -> Result<bool> {
     std::fs::write(private_toml, &migrated)
         .with_context(|| format!("writing {}", private_toml.display()))?;
 
+    Ok(true)
+}
+
+/// Migrate private.toml to config.toml.
+/// Returns true if migration was performed.
+pub fn migrate_private_to_config(legacy: &Path, new_path: &Path) -> Result<bool> {
+    if !legacy.exists() {
+        return Ok(false);
+    }
+    if new_path.exists() {
+        anyhow::bail!(
+            "both {} and {} exist; remove legacy file manually",
+            legacy.display(),
+            new_path.display()
+        );
+    }
+    std::fs::rename(legacy, new_path)
+        .with_context(|| format!("moving {} -> {}", legacy.display(), new_path.display()))?;
     Ok(true)
 }
 

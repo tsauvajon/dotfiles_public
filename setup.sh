@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # To enable private setup (git identity, network config):
 #
-#   cp private.toml.example ~/.config/dotfiles/private.toml
-#   $EDITOR ~/.config/dotfiles/private.toml
+#   cp config.toml.example ~/.config/dotfiles/config.toml
+#   $EDITOR ~/.config/dotfiles/config.toml
 #   bash setup.sh
 #
 set -euo pipefail

@@ -12,17 +12,25 @@ fn main() -> Result<()> {
 
     let paths = Paths::resolve()?;
 
-    if config::migrate_skip_links(&paths.private_toml)? {
+    let legacy_private = paths.dotfiles_config.join("private.toml");
+    if config::migrate_private_to_config(&legacy_private, &paths.config_toml)? {
         println!(
-            "MIGRATED: renamed skip_links to skip_destinations in {}",
-            paths.private_toml.display()
+            "MIGRATED: renamed private.toml to config.toml in {}",
+            paths.dotfiles_config.display()
         );
     }
 
-    if config::migrate_rules_mode_key(&paths.private_toml)? {
+    if config::migrate_skip_links(&paths.config_toml)? {
+        println!(
+            "MIGRATED: renamed skip_links to skip_destinations in {}",
+            paths.config_toml.display()
+        );
+    }
+
+    if config::migrate_rules_mode_key(&paths.config_toml)? {
         println!(
             "MIGRATED: renamed agents_mode to rules_mode in {}",
-            paths.private_toml.display()
+            paths.config_toml.display()
         );
     }
 
@@ -58,7 +66,7 @@ fn main() -> Result<()> {
         );
     }
 
-    let private_cfg = PrivateConfig::load(&paths.private_toml)?;
+    let private_cfg = PrivateConfig::load(&paths.config_toml)?;
 
     let skip_norms = private_cfg.skip_norms(&paths.home);
     let skip_source_norms = private_cfg.skip_source_norms();
@@ -239,12 +247,12 @@ fn run_setup(
     external::install_nix_toolchain(paths)?;
     external::run_task_bootstrap(&paths.home)?;
 
-    if paths.private_toml.exists() {
+    if paths.config_toml.exists() {
         generate::generate_private_files(paths, private_cfg, skip_norms, skip_source_norms)?;
     } else {
         println!(
-            "tip: place private.toml at {} to configure git identity and network URLs",
-            paths.private_toml.display()
+            "tip: place config.toml at {} to configure git identity and network URLs",
+            paths.config_toml.display()
         );
     }
 
@@ -301,7 +309,7 @@ fn run_check(
     std::fs::create_dir_all(&shadow_build)?;
 
     let shadow_paths = Paths {
-        private_build: shadow_build.clone(),
+        dist: shadow_build.clone(),
         ..paths.clone()
     };
 
@@ -355,7 +363,7 @@ fn run_check(
 
     for rel in &generated_files {
         compare_files(
-            &paths.private_build.join(rel),
+            &paths.dist.join(rel),
             &shadow_build.join(rel),
             rel,
             &mut diffs,
@@ -415,13 +423,13 @@ fn run_check(
     };
 
     compare_symlink_dir(
-        &paths.private_build.join("opencode/skills"),
+        &paths.dist.join("opencode/skills"),
         &shadow_build.join("opencode/skills"),
         "opencode/skills",
         &mut diffs,
     );
     compare_symlink_dir(
-        &paths.private_build.join("opencode/agents"),
+        &paths.dist.join("opencode/agents"),
         &shadow_build.join("opencode/agents"),
         "opencode/agents",
         &mut diffs,

@@ -53,10 +53,10 @@ pub fn merge_opencode_json(paths: &Paths, skip_norms: &[String]) -> Result<()> {
     link::force_symlink(&merged_path, &dest_link)
 }
 
-/// Generate merged opencode.json into private_build, returning the path.
+/// Generate merged opencode.json into dist, returning the path.
 pub fn merge_opencode_json_to(paths: &Paths) -> Result<std::path::PathBuf> {
     let public_config = paths.dotfiles.join("config/opencode/opencode.json");
-    let merged_path = paths.private_build.join("opencode/opencode.json");
+    let merged_path = paths.dist.join("opencode/opencode.json");
     std::fs::create_dir_all(merged_path.parent().unwrap())?;
 
     let public_content = std::fs::read_to_string(&public_config)
@@ -100,9 +100,9 @@ pub fn merge_rules(paths: &Paths, skip_norms: &[String], mode: RulesMode) -> Res
     link::force_symlink(&merged_path, &dest_link)
 }
 
-/// Generate merged AGENTS.md into private_build, returning the path.
+/// Generate merged AGENTS.md into dist, returning the path.
 pub fn merge_rules_to(paths: &Paths, mode: RulesMode) -> Result<std::path::PathBuf> {
-    let merged_path = paths.private_build.join("opencode/AGENTS.md");
+    let merged_path = paths.dist.join("opencode/AGENTS.md");
     std::fs::create_dir_all(merged_path.parent().unwrap())?;
 
     let mut content = if mode == RulesMode::Merged {
@@ -206,7 +206,7 @@ pub fn merge_skills(paths: &Paths, skip_norms: &[String]) -> Result<()> {
 
 /// Generate merged skills directory, returning the path.
 pub fn merge_skills_to(paths: &Paths) -> Result<std::path::PathBuf> {
-    let merge_dir = paths.private_build.join("opencode/skills");
+    let merge_dir = paths.dist.join("opencode/skills");
     std::fs::create_dir_all(&merge_dir)?;
 
     // Link public skills
@@ -255,7 +255,7 @@ pub fn merge_agents(paths: &Paths, skip_norms: &[String]) -> Result<()> {
 
 /// Generate merged agents directory, returning the path.
 pub fn merge_agents_to(paths: &Paths) -> Result<std::path::PathBuf> {
-    let merge_dir = paths.private_build.join("opencode/agents");
+    let merge_dir = paths.dist.join("opencode/agents");
     std::fs::create_dir_all(&merge_dir)?;
 
     // Symlink public agents (flat .md files)
@@ -399,7 +399,7 @@ pub fn merge_aerospace_to(
     skip_source_norms: &[String],
 ) -> Result<std::path::PathBuf> {
     let base = paths.dotfiles.join("home/aerospace.toml");
-    let merged_path = paths.private_build.join("aerospace.toml");
+    let merged_path = paths.dist.join("aerospace.toml");
     let mut overlays = collect_overlays_from(&paths.dotfiles.join("home"), "aerospace.", ".toml")?;
     overlays.retain(|p| p != &base);
     overlays.extend(collect_overlays(
@@ -449,7 +449,7 @@ pub fn merge_cargo(
 
 pub fn merge_cargo_to(paths: &Paths, skip_source_norms: &[String]) -> Result<std::path::PathBuf> {
     let base = paths.dotfiles.join("home/cargo-config.toml");
-    let merged_path = paths.private_build.join("cargo-config.toml");
+    let merged_path = paths.dist.join("cargo-config.toml");
     // Repo-level overlays first (e.g. home/cargo.darwin.toml), then private overlays
     let mut overlays = collect_overlays_from(&paths.dotfiles.join("home"), "cargo.", ".toml")?;
     overlays.extend(collect_overlays(&paths.dotfiles_config, "cargo.", ".toml")?);
@@ -506,7 +506,7 @@ pub fn merge_alacritty_to(
     skip_source_norms: &[String],
 ) -> Result<std::path::PathBuf> {
     let base = paths.dotfiles.join("config/alacritty/alacritty.toml");
-    let merged_path = paths.private_build.join("alacritty.toml");
+    let merged_path = paths.dist.join("alacritty.toml");
     let mut overlays = collect_overlays_from(
         &paths.dotfiles.join("config/alacritty"),
         "alacritty.",
