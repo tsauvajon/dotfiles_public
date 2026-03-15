@@ -204,7 +204,7 @@ fn run_setup(
     merge::merge_opencode_json(paths, skip_norms)?;
     merge::merge_rules(paths, skip_norms, rules_mode)?;
     merge::merge_skills(paths, skip_norms)?;
-    merge::merge_subagents(paths, skip_norms)?;
+    merge::merge_agents(paths, skip_norms)?;
     merge::merge_aerospace(paths, skip_norms, skip_source_norms)?;
     merge::merge_cargo(paths, skip_norms, skip_source_norms)?;
     merge::merge_alacritty(paths, skip_norms, skip_source_norms)?;
@@ -233,10 +233,10 @@ fn run_setup(
             paths.private_skills.display()
         );
     }
-    if !paths.private_subagents.exists() {
+    if !paths.private_agents.exists() {
         println!(
-            "tip: place private opencode subagents under {}/<name>.md",
-            paths.private_subagents.display()
+            "tip: place private opencode agents under {}/<name>.md",
+            paths.private_agents.display()
         );
     }
     if !paths.private_rules_dir.exists() {
@@ -288,7 +288,7 @@ fn run_check(
     merge::merge_opencode_json_to(&shadow_paths)?;
     merge::merge_rules_to(&shadow_paths, rules_mode)?;
     merge::merge_skills_to(&shadow_paths)?;
-    merge::merge_subagents_to(&shadow_paths)?;
+    merge::merge_agents_to(&shadow_paths)?;
     merge::merge_aerospace_to(&shadow_paths, skip_source_norms)?;
     merge::merge_cargo_to(&shadow_paths, skip_source_norms)?;
     merge::merge_alacritty_to(&shadow_paths, skip_source_norms)?;

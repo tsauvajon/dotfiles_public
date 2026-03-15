@@ -13,7 +13,7 @@ pub struct Paths {
     pub private_opencode_json: PathBuf,
     pub private_skills: PathBuf,
     pub private_rules_dir: PathBuf,
-    pub private_subagents: PathBuf,
+    pub private_agents: PathBuf,
     pub private_build: PathBuf,
 }
 
@@ -51,7 +51,7 @@ impl Paths {
             private_opencode_json: dotfiles_config.join("private-opencode.json"),
             private_skills: dotfiles_config.join("private-skills"),
             private_rules_dir: dotfiles_config.join("opencode/rules"),
-            private_subagents: dotfiles_config.join("opencode/agents"),
+            private_agents: dotfiles_config.join("opencode/agents"),
             private_build: home.join(".local/share/dotfiles"),
             dotfiles_config,
             dotfiles,

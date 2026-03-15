@@ -46,7 +46,7 @@ rules_mode = "merged"
 
 # Private OpenCode skills live at ~/.config/dotfiles/private-skills/<skill-name>/SKILL.md
 # setup.sh merges them with the public skills from this repo at setup time.
-# Private OpenCode subagents live at ~/.config/dotfiles/opencode/agents/<name>.md
+# Private OpenCode agents live at ~/.config/dotfiles/opencode/agents/<name>.md
 # setup.sh merges them with public agents from config/opencode/agents/ at setup time.
 # Private agents overwrite public ones on filename collision.
 # Private OpenCode rules overlays live at ~/.config/dotfiles/opencode/rules/

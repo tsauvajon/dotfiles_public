@@ -239,9 +239,9 @@ pub fn merge_skills_to(paths: &Paths) -> Result<std::path::PathBuf> {
     Ok(merge_dir)
 }
 
-// ── Subagents directory merge ───────────────────────────────────────────
+// ── Agents directory merge ───────────────────────────────────────────
 
-pub fn merge_subagents(paths: &Paths, skip_norms: &[String]) -> Result<()> {
+pub fn merge_agents(paths: &Paths, skip_norms: &[String]) -> Result<()> {
     let dest_link = paths.home.join(".config/opencode/agents");
     if config::should_skip_dest(&dest_link, &paths.home, skip_norms) {
         crate::log(&format!("Skipping {}", dest_link.display()));
@@ -249,12 +249,12 @@ pub fn merge_subagents(paths: &Paths, skip_norms: &[String]) -> Result<()> {
         return Ok(());
     }
 
-    let merge_dir = merge_subagents_to(paths)?;
+    let merge_dir = merge_agents_to(paths)?;
     link::force_symlink(&merge_dir, &dest_link)
 }
 
 /// Generate merged agents directory, returning the path.
-pub fn merge_subagents_to(paths: &Paths) -> Result<std::path::PathBuf> {
+pub fn merge_agents_to(paths: &Paths) -> Result<std::path::PathBuf> {
     let merge_dir = paths.private_build.join("opencode/agents");
     std::fs::create_dir_all(&merge_dir)?;
 
@@ -271,8 +271,8 @@ pub fn merge_subagents_to(paths: &Paths) -> Result<std::path::PathBuf> {
     }
 
     // Symlink private agents (overwrites public on collision)
-    if paths.private_subagents.is_dir() {
-        for entry in std::fs::read_dir(&paths.private_subagents)? {
+    if paths.private_agents.is_dir() {
+        for entry in std::fs::read_dir(&paths.private_agents)? {
             let entry = entry?;
             if entry.path().is_file() {
                 let name = entry.file_name();

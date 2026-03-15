@@ -91,7 +91,7 @@ re-running `setup.sh` (or manually adding a symlink to the merge dir).
 
 ### Agents merge
 
-Public subagents (`config/opencode/agents/<name>.md`) and private subagents
+Public agents (`config/opencode/agents/<name>.md`) and private agents
 (`~/.config/dotfiles/opencode/agents/<name>.md`) are merged into a real directory at
 `~/.local/share/dotfiles/opencode/agents/`, with each agent as a symlink inside it.
 `~/.config/opencode/agents` then points at this merge directory.
@@ -134,7 +134,7 @@ Everything private lives **outside the repo** at `~/.config/dotfiles/`:
 | `~/.config/dotfiles/private.toml` | Git identity, API URLs, trusted roots |
 | `~/.config/dotfiles/private-skills/` | Private OpenCode skills (not committed) |
 | `~/.config/dotfiles/opencode/rules/` | Private AGENTS.md rules overlays (not committed) |
-| `~/.config/dotfiles/opencode/agents/` | Private OpenCode subagents (not committed) |
+| `~/.config/dotfiles/opencode/agents/` | Private OpenCode agents (not committed) |
 | `~/.config/dotfiles/private-opencode.json` | Private OpenCode config overlay (for MCP servers and local-only overrides) |
 
 Copy `private.toml.example` to get started. Private skills need no registration — drop a

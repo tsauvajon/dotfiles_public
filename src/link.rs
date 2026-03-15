@@ -123,7 +123,7 @@ mod tests {
             private_opencode_json: dir.join("config/private-opencode.json"),
             private_skills: dir.join("config/private-skills"),
             private_rules_dir: dir.join("config/opencode/rules"),
-            private_subagents: dir.join("config/opencode/agents"),
+            private_agents: dir.join("config/opencode/agents"),
             private_build: dir.join("build"),
         }
     }
