@@ -5,7 +5,7 @@ mod link;
 mod merge;
 
 use anyhow::Result;
-use config::{AgentsMode, Paths, PrivateConfig};
+use config::{Paths, PrivateConfig, RulesMode};
 
 fn main() -> Result<()> {
     let check_mode = std::env::args().any(|a| a == "--check");
@@ -19,11 +19,26 @@ fn main() -> Result<()> {
         );
     }
 
+    if config::migrate_agents_mode(&paths.private_toml)? {
+        println!(
+            "MIGRATED: renamed agents_mode to rules_mode in {}",
+            paths.private_toml.display()
+        );
+    }
+
+    if config::migrate_rules_dir(&paths.private_rules_legacy, &paths.private_rules_dir)? {
+        println!(
+            "MIGRATED: moved rules overlays from {} to {}",
+            paths.private_rules_legacy.display(),
+            paths.private_rules_dir.display()
+        );
+    }
+
     let private_cfg = PrivateConfig::load(&paths.private_toml)?;
 
     let skip_norms = private_cfg.skip_norms(&paths.home);
     let skip_source_norms = private_cfg.skip_source_norms();
-    let agents_mode = private_cfg.agents_mode();
+    let rules_mode = private_cfg.rules_mode();
 
     if check_mode {
         return run_check(
@@ -31,7 +46,7 @@ fn main() -> Result<()> {
             &private_cfg,
             &skip_norms,
             &skip_source_norms,
-            agents_mode,
+            rules_mode,
         );
     }
 
@@ -40,7 +55,7 @@ fn main() -> Result<()> {
         &private_cfg,
         &skip_norms,
         &skip_source_norms,
-        agents_mode,
+        rules_mode,
     )
 }
 
@@ -49,7 +64,7 @@ fn run_setup(
     private_cfg: &PrivateConfig,
     skip_norms: &[String],
     skip_source_norms: &[String],
-    agents_mode: AgentsMode,
+    rules_mode: RulesMode,
 ) -> Result<()> {
     log("Recording dotfiles path");
     std::fs::create_dir_all(&paths.dotfiles_config)?;
@@ -184,7 +199,7 @@ fn run_setup(
         paths,
     )?;
     merge::merge_opencode_json(paths, skip_norms)?;
-    merge::merge_agents(paths, skip_norms, agents_mode)?;
+    merge::merge_agents(paths, skip_norms, rules_mode)?;
     merge::merge_skills(paths, skip_norms)?;
     merge::merge_aerospace(paths, skip_norms, skip_source_norms)?;
     merge::merge_cargo(paths, skip_norms, skip_source_norms)?;
@@ -214,10 +229,10 @@ fn run_setup(
             paths.private_skills.display()
         );
     }
-    if !paths.private_agents_dir.exists() {
+    if !paths.private_rules_dir.exists() {
         println!(
-            "tip: place private opencode AGENTS overlays under {}/<name>.md",
-            paths.private_agents_dir.display()
+            "tip: place private opencode rules overlays under {}/<name>.md",
+            paths.private_rules_dir.display()
         );
     }
     if !paths.private_opencode_json.exists() {
@@ -241,7 +256,7 @@ fn run_check(
     private_cfg: &PrivateConfig,
     _skip_norms: &[String],
     skip_source_norms: &[String],
-    agents_mode: AgentsMode,
+    rules_mode: RulesMode,
 ) -> Result<()> {
     use std::collections::BTreeMap;
 
@@ -261,7 +276,7 @@ fn run_check(
 
     // Generate all files into temp
     merge::merge_opencode_json_to(&shadow_paths)?;
-    merge::merge_agents_to(&shadow_paths, agents_mode)?;
+    merge::merge_agents_to(&shadow_paths, rules_mode)?;
     merge::merge_skills_to(&shadow_paths)?;
     merge::merge_aerospace_to(&shadow_paths, skip_source_norms)?;
     merge::merge_cargo_to(&shadow_paths, skip_source_norms)?;

@@ -3,7 +3,7 @@ use std::path::Path;
 use anyhow::{Context, Result};
 
 use crate::{
-    config::{self, AgentsMode, Paths},
+    config::{self, Paths, RulesMode},
     link,
 };
 
@@ -84,12 +84,12 @@ pub fn merge_opencode_json_to(paths: &Paths) -> Result<std::path::PathBuf> {
 
 // ── AGENTS.md merge ─────────────────────────────────────────────────────
 
-pub fn merge_agents(paths: &Paths, skip_norms: &[String], mode: AgentsMode) -> Result<()> {
+pub fn merge_agents(paths: &Paths, skip_norms: &[String], mode: RulesMode) -> Result<()> {
     let dest_link = paths.home.join(".config/opencode/AGENTS.md");
 
-    if config::should_skip_dest(&dest_link, &paths.home, skip_norms) || mode == AgentsMode::Disabled
+    if config::should_skip_dest(&dest_link, &paths.home, skip_norms) || mode == RulesMode::Disabled
     {
-        if mode != AgentsMode::Disabled {
+        if mode != RulesMode::Disabled {
             crate::log(&format!("Skipping {}", dest_link.display()));
         }
         link::remove_managed_link_if_present(&dest_link, paths)?;
@@ -101,11 +101,11 @@ pub fn merge_agents(paths: &Paths, skip_norms: &[String], mode: AgentsMode) -> R
 }
 
 /// Generate merged AGENTS.md into private_build, returning the path.
-pub fn merge_agents_to(paths: &Paths, mode: AgentsMode) -> Result<std::path::PathBuf> {
+pub fn merge_agents_to(paths: &Paths, mode: RulesMode) -> Result<std::path::PathBuf> {
     let merged_path = paths.private_build.join("opencode/AGENTS.md");
     std::fs::create_dir_all(merged_path.parent().unwrap())?;
 
-    let mut content = if mode == AgentsMode::Merged {
+    let mut content = if mode == RulesMode::Merged {
         std::fs::read_to_string(paths.dotfiles.join("config/opencode/AGENTS.md"))
             .context("reading public AGENTS.md")?
     } else {
@@ -114,9 +114,9 @@ pub fn merge_agents_to(paths: &Paths, mode: AgentsMode) -> Result<std::path::Pat
 
     let mut appended_any = false;
 
-    if paths.private_agents_dir.is_dir() {
-        let mut overlay_files: Vec<_> = std::fs::read_dir(&paths.private_agents_dir)
-            .with_context(|| format!("reading {}", paths.private_agents_dir.display()))?
+    if paths.private_rules_dir.is_dir() {
+        let mut overlay_files: Vec<_> = std::fs::read_dir(&paths.private_rules_dir)
+            .with_context(|| format!("reading {}", paths.private_rules_dir.display()))?
             .filter_map(|e| e.ok())
             .map(|e| e.path())
             .collect();
@@ -138,7 +138,7 @@ pub fn merge_agents_to(paths: &Paths, mode: AgentsMode) -> Result<std::path::Pat
                 Ok(m) => m,
                 Err(_) => {
                     crate::warn(&format!(
-                        "private AGENTS overlay is not readable: {}",
+                        "rules overlay is not readable: {}",
                         overlay_path.display()
                     ));
                     continue;
@@ -155,7 +155,7 @@ pub fn merge_agents_to(paths: &Paths, mode: AgentsMode) -> Result<std::path::Pat
                 Ok(c) => c,
                 Err(_) => {
                     crate::warn(&format!(
-                        "private AGENTS overlay is not readable: {}",
+                        "rules overlay is not readable: {}",
                         overlay_path.display()
                     ));
                     continue;
@@ -170,16 +170,16 @@ pub fn merge_agents_to(paths: &Paths, mode: AgentsMode) -> Result<std::path::Pat
                 .file_name()
                 .unwrap_or_default()
                 .to_string_lossy();
-            content.push_str(&format!("# Private AGENTS overlay: {}\n\n", filename));
+            content.push_str(&format!("# Rules overlay: {}\n\n", filename));
             content.push_str(&overlay_content);
             appended_any = true;
         }
     }
 
-    if mode == AgentsMode::PrivateOnly && !appended_any {
+    if mode == RulesMode::PrivateOnly && !appended_any {
         crate::warn(&format!(
-            "agents_mode=private_only but no readable non-empty files found in {}",
-            paths.private_agents_dir.display()
+            "rules_mode=private_only but no readable non-empty files found in {}",
+            paths.private_rules_dir.display()
         ));
     }
 

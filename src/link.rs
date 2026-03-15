@@ -122,7 +122,8 @@ mod tests {
             private_toml: dir.join("config/private.toml"),
             private_opencode_json: dir.join("config/private-opencode.json"),
             private_skills: dir.join("config/private-skills"),
-            private_agents_dir: dir.join("config/private-AGENTS"),
+            private_rules_dir: dir.join("config/opencode/rules"),
+            private_rules_legacy: dir.join("config/private-AGENTS"),
             private_build: dir.join("build"),
         }
     }

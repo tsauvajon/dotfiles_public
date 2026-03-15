@@ -71,8 +71,8 @@ Never edit them directly; edit the template in `dotfiles/` and re-run `setup.sh`
 
 ### AGENTS merge
 
-Public AGENTS lives at `config/opencode/AGENTS.md`. Optional private AGENTS overlays live at
-`~/.config/dotfiles/private-AGENTS/`.
+Public AGENTS lives at `config/opencode/AGENTS.md`. Optional private rules overlays live at
+`~/.config/dotfiles/opencode/rules/`.
 
 The setup tool builds a merged file at `~/.local/share/dotfiles/opencode/AGENTS.md` by
 copying the public AGENTS and appending each non-empty readable file from that directory,
@@ -123,7 +123,7 @@ Everything private lives **outside the repo** at `~/.config/dotfiles/`:
 |---|---|
 | `~/.config/dotfiles/private.toml` | Git identity, API URLs, trusted roots |
 | `~/.config/dotfiles/private-skills/` | Private OpenCode skills (not committed) |
-| `~/.config/dotfiles/private-AGENTS/` | Private OpenCode prompt overlays (not committed) |
+| `~/.config/dotfiles/opencode/rules/` | Private AGENTS.md rules overlays (not committed) |
 | `~/.config/dotfiles/private-opencode.json` | Private OpenCode config overlay (for MCP servers and local-only overrides) |
 
 Copy `private.toml.example` to get started. Private skills need no registration — drop a
