@@ -609,11 +609,8 @@ skip_sources = ["./home/cargo.darwin.toml"]
         .unwrap();
 
         let result = migrate_rules_mode_key(&toml_path);
-        assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("both agents_mode and rules_mode"));
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("both agents_mode and rules_mode"));
 
         let _ = std::fs::remove_dir_all(&dir);
     }
