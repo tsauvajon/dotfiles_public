@@ -28,33 +28,33 @@ fn main() -> Result<()> {
 
     if config::migrate_dir(
         &paths.dotfiles_config.join("private-AGENTS"),
-        &paths.private_rules,
+        &paths.opencode_rules,
     )? {
         println!(
             "MIGRATED: moved rules overlays from {}/private-AGENTS to {}",
             paths.dotfiles_config.display(),
-            paths.private_rules.display()
+            paths.opencode_rules.display()
         );
     }
 
     if config::migrate_dir(
         &paths.dotfiles_config.join("private-skills"),
-        &paths.private_skills,
+        &paths.opencode_skills,
     )? {
         println!(
             "MIGRATED: moved skills from {}/private-skills to {}",
             paths.dotfiles_config.display(),
-            paths.private_skills.display()
+            paths.opencode_skills.display()
         );
     }
 
     if config::migrate_file(
         &paths.dotfiles_config.join("private-opencode.json"),
-        &paths.private_opencode_json,
+        &paths.opencode_json,
     )? {
         println!(
             "MIGRATED: moved private-opencode.json to {}",
-            paths.private_opencode_json.display()
+            paths.opencode_json.display()
         );
     }
 
@@ -248,28 +248,28 @@ fn run_setup(
         );
     }
 
-    if !paths.private_skills.exists() {
+    if !paths.opencode_skills.exists() {
         println!(
             "tip: place private opencode skills under {}/<skill-name>/SKILL.md",
-            paths.private_skills.display()
+            paths.opencode_skills.display()
         );
     }
-    if !paths.private_agents.exists() {
+    if !paths.opencode_agents.exists() {
         println!(
             "tip: place private opencode agents under {}/<name>.md",
-            paths.private_agents.display()
+            paths.opencode_agents.display()
         );
     }
-    if !paths.private_rules.exists() {
+    if !paths.opencode_rules.exists() {
         println!(
             "tip: place private opencode rules overlays under {}/<name>.md",
-            paths.private_rules.display()
+            paths.opencode_rules.display()
         );
     }
-    if !paths.private_opencode_json.exists() {
+    if !paths.opencode_json.exists() {
         println!(
             "tip: place private opencode config at {} to override opencode.json (eg. MCP servers)",
-            paths.private_opencode_json.display()
+            paths.opencode_json.display()
         );
     }
 

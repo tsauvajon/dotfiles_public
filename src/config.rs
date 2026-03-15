@@ -10,10 +10,10 @@ pub struct Paths {
     pub dev_root: PathBuf,
     pub dotfiles_config: PathBuf,
     pub private_toml: PathBuf,
-    pub private_opencode_json: PathBuf,
-    pub private_skills: PathBuf,
-    pub private_rules: PathBuf,
-    pub private_agents: PathBuf,
+    pub opencode_json: PathBuf,
+    pub opencode_skills: PathBuf,
+    pub opencode_rules: PathBuf,
+    pub opencode_agents: PathBuf,
     pub private_build: PathBuf,
 }
 
@@ -48,10 +48,10 @@ impl Paths {
 
         Ok(Self {
             private_toml: dotfiles_config.join("private.toml"),
-            private_opencode_json: dotfiles_config.join("opencode/opencode.json"),
-            private_skills: dotfiles_config.join("opencode/skills"),
-            private_rules: dotfiles_config.join("opencode/rules"),
-            private_agents: dotfiles_config.join("opencode/agents"),
+            opencode_json: dotfiles_config.join("opencode/opencode.json"),
+            opencode_skills: dotfiles_config.join("opencode/skills"),
+            opencode_rules: dotfiles_config.join("opencode/rules"),
+            opencode_agents: dotfiles_config.join("opencode/agents"),
             private_build: home.join(".local/share/dotfiles"),
             dotfiles_config,
             dotfiles,

@@ -120,10 +120,10 @@ mod tests {
             dev_root: dir.join("dev"),
             dotfiles_config: dir.join("config"),
             private_toml: dir.join("config/private.toml"),
-            private_opencode_json: dir.join("config/opencode/opencode.json"),
-            private_skills: dir.join("config/opencode/skills"),
-            private_rules: dir.join("config/opencode/rules"),
-            private_agents: dir.join("config/opencode/agents"),
+            opencode_json: dir.join("config/opencode/opencode.json"),
+            opencode_skills: dir.join("config/opencode/skills"),
+            opencode_rules: dir.join("config/opencode/rules"),
+            opencode_agents: dir.join("config/opencode/agents"),
             private_build: dir.join("build"),
         }
     }

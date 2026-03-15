@@ -64,11 +64,11 @@ pub fn merge_opencode_json_to(paths: &Paths) -> Result<std::path::PathBuf> {
     let public_json: serde_json::Value = serde_json::from_str(&public_content)
         .with_context(|| format!("parsing {}", public_config.display()))?;
 
-    let merged = if paths.private_opencode_json.exists() {
-        let private_content = std::fs::read_to_string(&paths.private_opencode_json)
-            .with_context(|| format!("reading {}", paths.private_opencode_json.display()))?;
+    let merged = if paths.opencode_json.exists() {
+        let private_content = std::fs::read_to_string(&paths.opencode_json)
+            .with_context(|| format!("reading {}", paths.opencode_json.display()))?;
         let private_json: serde_json::Value = serde_json::from_str(&private_content)
-            .with_context(|| format!("parsing {}", paths.private_opencode_json.display()))?;
+            .with_context(|| format!("parsing {}", paths.opencode_json.display()))?;
         deep_merge_json(public_json, private_json)
     } else {
         public_json
@@ -114,9 +114,9 @@ pub fn merge_rules_to(paths: &Paths, mode: RulesMode) -> Result<std::path::PathB
 
     let mut appended_any = false;
 
-    if paths.private_rules.is_dir() {
-        let mut overlay_files: Vec<_> = std::fs::read_dir(&paths.private_rules)
-            .with_context(|| format!("reading {}", paths.private_rules.display()))?
+    if paths.opencode_rules.is_dir() {
+        let mut overlay_files: Vec<_> = std::fs::read_dir(&paths.opencode_rules)
+            .with_context(|| format!("reading {}", paths.opencode_rules.display()))?
             .filter_map(|e| e.ok())
             .map(|e| e.path())
             .collect();
@@ -179,7 +179,7 @@ pub fn merge_rules_to(paths: &Paths, mode: RulesMode) -> Result<std::path::PathB
     if mode == RulesMode::PrivateOnly && !appended_any {
         crate::warn(&format!(
             "rules_mode=private_only but no readable non-empty files found in {}",
-            paths.private_rules.display()
+            paths.opencode_rules.display()
         ));
     }
 
@@ -225,8 +225,8 @@ pub fn merge_skills_to(paths: &Paths) -> Result<std::path::PathBuf> {
     }
 
     // Link private skills (overwrites public on collision)
-    if paths.private_skills.is_dir() {
-        for entry in std::fs::read_dir(&paths.private_skills)? {
+    if paths.opencode_skills.is_dir() {
+        for entry in std::fs::read_dir(&paths.opencode_skills)? {
             let entry = entry?;
             if entry.path().is_dir() {
                 let name = entry.file_name();
@@ -271,8 +271,8 @@ pub fn merge_agents_to(paths: &Paths) -> Result<std::path::PathBuf> {
     }
 
     // Symlink private agents (overwrites public on collision)
-    if paths.private_agents.is_dir() {
-        for entry in std::fs::read_dir(&paths.private_agents)? {
+    if paths.opencode_agents.is_dir() {
+        for entry in std::fs::read_dir(&paths.opencode_agents)? {
             let entry = entry?;
             if entry.path().is_file() {
                 let name = entry.file_name();
