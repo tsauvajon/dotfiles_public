@@ -15,6 +15,7 @@ pub struct Paths {
     pub private_rules_dir: PathBuf,
     /// Legacy path — migrated to private_rules_dir on first run.
     pub private_rules_legacy: PathBuf,
+    pub private_subagents: PathBuf,
     pub private_build: PathBuf,
 }
 
@@ -53,6 +54,7 @@ impl Paths {
             private_skills: dotfiles_config.join("private-skills"),
             private_rules_dir: dotfiles_config.join("opencode/rules"),
             private_rules_legacy: dotfiles_config.join("private-AGENTS"),
+            private_subagents: dotfiles_config.join("opencode/agents"),
             private_build: home.join(".local/share/dotfiles"),
             dotfiles_config,
             dotfiles,

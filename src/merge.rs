@@ -239,6 +239,51 @@ pub fn merge_skills_to(paths: &Paths) -> Result<std::path::PathBuf> {
     Ok(merge_dir)
 }
 
+// ── Subagents directory merge ───────────────────────────────────────────
+
+pub fn merge_subagents(paths: &Paths, skip_norms: &[String]) -> Result<()> {
+    let dest_link = paths.home.join(".config/opencode/agents");
+    if config::should_skip_dest(&dest_link, &paths.home, skip_norms) {
+        crate::log(&format!("Skipping {}", dest_link.display()));
+        link::remove_managed_link_if_present(&dest_link, paths)?;
+        return Ok(());
+    }
+
+    let merge_dir = merge_subagents_to(paths)?;
+    link::force_symlink(&merge_dir, &dest_link)
+}
+
+/// Generate merged agents directory, returning the path.
+pub fn merge_subagents_to(paths: &Paths) -> Result<std::path::PathBuf> {
+    let merge_dir = paths.private_build.join("opencode/agents");
+    std::fs::create_dir_all(&merge_dir)?;
+
+    // Symlink public agents (flat .md files)
+    let public_agents = paths.dotfiles.join("config/opencode/agents");
+    if public_agents.is_dir() {
+        for entry in std::fs::read_dir(&public_agents)? {
+            let entry = entry?;
+            if entry.path().is_file() {
+                let name = entry.file_name();
+                link::force_symlink(&entry.path(), &merge_dir.join(&name))?;
+            }
+        }
+    }
+
+    // Symlink private agents (overwrites public on collision)
+    if paths.private_subagents.is_dir() {
+        for entry in std::fs::read_dir(&paths.private_subagents)? {
+            let entry = entry?;
+            if entry.path().is_file() {
+                let name = entry.file_name();
+                link::force_symlink(&entry.path(), &merge_dir.join(&name))?;
+            }
+        }
+    }
+
+    Ok(merge_dir)
+}
+
 /// Append a trailing `/` to a path, matching bash glob `*/` behavior.
 fn append_slash(p: &Path) -> std::ffi::OsString {
     let mut s = p.as_os_str().to_os_string();

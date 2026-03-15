@@ -154,6 +154,7 @@ mod tests {
             private_skills: dir.join("config/private-skills"),
             private_rules_dir: dir.join("config/opencode/rules"),
             private_rules_legacy: dir.join("config/private-AGENTS"),
+            private_subagents: dir.join("config/opencode/agents"),
             private_build: dir.join("build"),
         };
         std::fs::create_dir_all(&paths.private_build).unwrap();
