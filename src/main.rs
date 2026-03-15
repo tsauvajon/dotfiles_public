@@ -28,12 +28,12 @@ fn main() -> Result<()> {
 
     if config::migrate_rules_dir(
         &paths.dotfiles_config.join("private-AGENTS"),
-        &paths.private_rules_dir,
+        &paths.private_rules,
     )? {
         println!(
             "MIGRATED: moved rules overlays from {}/private-AGENTS to {}",
             paths.dotfiles_config.display(),
-            paths.private_rules_dir.display()
+            paths.private_rules.display()
         );
     }
 
@@ -239,10 +239,10 @@ fn run_setup(
             paths.private_agents.display()
         );
     }
-    if !paths.private_rules_dir.exists() {
+    if !paths.private_rules.exists() {
         println!(
             "tip: place private opencode rules overlays under {}/<name>.md",
-            paths.private_rules_dir.display()
+            paths.private_rules.display()
         );
     }
     if !paths.private_opencode_json.exists() {

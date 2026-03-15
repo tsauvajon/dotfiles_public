@@ -114,9 +114,9 @@ pub fn merge_rules_to(paths: &Paths, mode: RulesMode) -> Result<std::path::PathB
 
     let mut appended_any = false;
 
-    if paths.private_rules_dir.is_dir() {
-        let mut overlay_files: Vec<_> = std::fs::read_dir(&paths.private_rules_dir)
-            .with_context(|| format!("reading {}", paths.private_rules_dir.display()))?
+    if paths.private_rules.is_dir() {
+        let mut overlay_files: Vec<_> = std::fs::read_dir(&paths.private_rules)
+            .with_context(|| format!("reading {}", paths.private_rules.display()))?
             .filter_map(|e| e.ok())
             .map(|e| e.path())
             .collect();
@@ -179,7 +179,7 @@ pub fn merge_rules_to(paths: &Paths, mode: RulesMode) -> Result<std::path::PathB
     if mode == RulesMode::PrivateOnly && !appended_any {
         crate::warn(&format!(
             "rules_mode=private_only but no readable non-empty files found in {}",
-            paths.private_rules_dir.display()
+            paths.private_rules.display()
         ));
     }
 
