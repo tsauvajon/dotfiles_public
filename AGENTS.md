@@ -82,7 +82,7 @@ sorted by filename (byte order, equivalent to `LC_ALL=C`).
 ### Skills merge
 
 Public skills (`config/opencode/skills/<name>/`) and private skills
-(`~/.config/dotfiles/private-skills/<name>/`) are merged into a real
+(`~/.config/dotfiles/opencode/skills/<name>/`) are merged into a real
 directory at `~/.local/share/dotfiles/opencode/skills/`, with each skill as a symlink
 inside it. `~/.config/opencode/skills` then points at this merge directory.
 
@@ -132,15 +132,15 @@ Everything private lives **outside the repo** at `~/.config/dotfiles/`:
 | Path | Purpose |
 |---|---|
 | `~/.config/dotfiles/private.toml` | Git identity, API URLs, trusted roots |
-| `~/.config/dotfiles/private-skills/` | Private OpenCode skills (not committed) |
+| `~/.config/dotfiles/opencode/skills/` | Private OpenCode skills (not committed) |
 | `~/.config/dotfiles/opencode/rules/` | Private AGENTS.md rules overlays (not committed) |
 | `~/.config/dotfiles/opencode/agents/` | Private OpenCode agents (not committed) |
-| `~/.config/dotfiles/private-opencode.json` | Private OpenCode config overlay (for MCP servers and local-only overrides) |
+| `~/.config/dotfiles/opencode/opencode.json` | Private OpenCode config overlay (for MCP servers and local-only overrides) |
 
-Copy `private.toml.example` to get started. Private skills need no registration — drop a
-`<skill-name>/SKILL.md` directory into `private-skills/` and re-run `setup.sh`.
+Copy `private.toml_example` to get started. Private skills need no registration — drop a
+`<skill-name>/SKILL.md` directory into `opencode/skills/` and re-run `setup.sh`.
 
-The setup tool also supports an optional `~/.config/dotfiles/private-opencode.json` file.
+The setup tool also supports an optional `~/.config/dotfiles/opencode/opencode.json` file.
 When present, it is deep-merged over `config/opencode/opencode.json` to generate
 `~/.local/share/dotfiles/opencode/opencode.json`, and `~/.config/opencode/opencode.json`
 points to that generated merged file.

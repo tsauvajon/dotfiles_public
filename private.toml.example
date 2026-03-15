@@ -44,7 +44,7 @@ skip_sources = []
 # - disabled: do not manage/link AGENTS.md
 rules_mode = "merged"
 
-# Private OpenCode skills live at ~/.config/dotfiles/private-skills/<skill-name>/SKILL.md
+# Private OpenCode skills live at ~/.config/dotfiles/opencode/skills/<skill-name>/SKILL.md
 # setup.sh merges them with the public skills from this repo at setup time.
 # Private OpenCode agents live at ~/.config/dotfiles/opencode/agents/<name>.md
 # setup.sh merges them with public agents from config/opencode/agents/ at setup time.
@@ -52,7 +52,7 @@ rules_mode = "merged"
 # Private OpenCode rules overlays live at ~/.config/dotfiles/opencode/rules/
 # setup.sh appends each non-empty readable file in that directory to the generated AGENTS.md.
 # Files are appended in filename order (LC_ALL=C), so numeric prefixes work well.
-# Private OpenCode JSON overlay lives at ~/.config/dotfiles/private-opencode.json.
+# Private OpenCode JSON overlay lives at ~/.config/dotfiles/opencode/opencode.json.
 # setup.sh deep-merges it over config/opencode/opencode.json (private values win).
 # Use this for private MCP server entries and other local-only OpenCode overrides.
 

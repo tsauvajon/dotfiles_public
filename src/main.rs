@@ -26,7 +26,7 @@ fn main() -> Result<()> {
         );
     }
 
-    if config::migrate_rules_dir(
+    if config::migrate_dir(
         &paths.dotfiles_config.join("private-AGENTS"),
         &paths.private_rules,
     )? {
@@ -34,6 +34,27 @@ fn main() -> Result<()> {
             "MIGRATED: moved rules overlays from {}/private-AGENTS to {}",
             paths.dotfiles_config.display(),
             paths.private_rules.display()
+        );
+    }
+
+    if config::migrate_dir(
+        &paths.dotfiles_config.join("private-skills"),
+        &paths.private_skills,
+    )? {
+        println!(
+            "MIGRATED: moved skills from {}/private-skills to {}",
+            paths.dotfiles_config.display(),
+            paths.private_skills.display()
+        );
+    }
+
+    if config::migrate_file(
+        &paths.dotfiles_config.join("private-opencode.json"),
+        &paths.private_opencode_json,
+    )? {
+        println!(
+            "MIGRATED: moved private-opencode.json to {}",
+            paths.private_opencode_json.display()
         );
     }
 

@@ -48,8 +48,8 @@ impl Paths {
 
         Ok(Self {
             private_toml: dotfiles_config.join("private.toml"),
-            private_opencode_json: dotfiles_config.join("private-opencode.json"),
-            private_skills: dotfiles_config.join("private-skills"),
+            private_opencode_json: dotfiles_config.join("opencode/opencode.json"),
+            private_skills: dotfiles_config.join("opencode/skills"),
             private_rules: dotfiles_config.join("opencode/rules"),
             private_agents: dotfiles_config.join("opencode/agents"),
             private_build: home.join(".local/share/dotfiles"),
@@ -318,7 +318,11 @@ pub fn migrate_rules_mode_key(private_toml: &Path) -> Result<bool> {
 /// Moves each file that doesn't already exist at the destination, then removes the
 /// old directory if it is empty afterwards.
 /// Returns true if any migration was performed.
-pub fn migrate_rules_dir(legacy: &Path, new_dir: &Path) -> Result<bool> {
+/// Migrate files/directories from a legacy directory to a new directory.
+/// Moves each entry that doesn't already exist at the destination, then removes the
+/// old directory if empty afterwards.
+/// Returns true if any migration was performed.
+pub fn migrate_dir(legacy: &Path, new_dir: &Path) -> Result<bool> {
     if !legacy.exists() {
         return Ok(false);
     }
@@ -329,7 +333,6 @@ pub fn migrate_rules_dir(legacy: &Path, new_dir: &Path) -> Result<bool> {
         .collect();
 
     if entries.is_empty() {
-        // Empty legacy dir — remove it silently.
         let _ = std::fs::remove_dir(legacy);
         return Ok(false);
     }
@@ -339,13 +342,10 @@ pub fn migrate_rules_dir(legacy: &Path, new_dir: &Path) -> Result<bool> {
     let mut moved_any = false;
     for entry in &entries {
         let src = entry.path();
-        if !src.is_file() {
-            continue;
-        }
         let dest = new_dir.join(entry.file_name());
         if dest.exists() {
             crate::warn(&format!(
-                "rules migration: skipping {} (already exists at {})",
+                "migration: skipping {} (already exists at {})",
                 src.display(),
                 dest.display()
             ));
@@ -365,6 +365,29 @@ pub fn migrate_rules_dir(legacy: &Path, new_dir: &Path) -> Result<bool> {
     }
 
     Ok(moved_any)
+}
+
+/// Migrate a single file from legacy path to new path.
+/// Returns true if the file was migrated.
+/// Errors if both old and new paths exist.
+pub fn migrate_file(legacy: &Path, new_path: &Path) -> Result<bool> {
+    if !legacy.exists() {
+        return Ok(false);
+    }
+    if new_path.exists() {
+        anyhow::bail!(
+            "both {} and {} exist; remove legacy file manually",
+            legacy.display(),
+            new_path.display()
+        );
+    }
+    if let Some(parent) = new_path.parent() {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("creating parent dir for {}", new_path.display()))?;
+    }
+    std::fs::rename(legacy, new_path)
+        .with_context(|| format!("moving {} -> {}", legacy.display(), new_path.display()))?;
+    Ok(true)
 }
 
 /// Check if a destination path should be skipped.
@@ -616,7 +639,7 @@ skip_sources = ["./home/cargo.darwin.toml"]
     }
 
     #[test]
-    fn migrate_rules_dir_moves_files() {
+    fn migrate_dir_moves_files() {
         let dir = std::env::temp_dir().join("dotfiles-test-migrate-rules-dir");
         let _ = std::fs::remove_dir_all(&dir);
         let legacy = dir.join("private-AGENTS");
@@ -624,7 +647,7 @@ skip_sources = ["./home/cargo.darwin.toml"]
         std::fs::create_dir_all(&legacy).unwrap();
         std::fs::write(legacy.join("01-extra.md"), "# extra\n").unwrap();
 
-        assert!(migrate_rules_dir(&legacy, &new_dir).unwrap());
+        assert!(migrate_dir(&legacy, &new_dir).unwrap());
         assert!(new_dir.join("01-extra.md").exists());
         assert!(!legacy.exists(), "legacy dir should be removed when empty");
 
@@ -632,7 +655,7 @@ skip_sources = ["./home/cargo.darwin.toml"]
     }
 
     #[test]
-    fn migrate_rules_dir_skips_existing_dest() {
+    fn migrate_dir_skips_existing_dest() {
         let dir = std::env::temp_dir().join("dotfiles-test-migrate-rules-dir-skip");
         let _ = std::fs::remove_dir_all(&dir);
         let legacy = dir.join("private-AGENTS");
@@ -643,7 +666,7 @@ skip_sources = ["./home/cargo.darwin.toml"]
         std::fs::write(new_dir.join("01-extra.md"), "new\n").unwrap();
 
         // Returns false since the only file was skipped (not moved)
-        assert!(!migrate_rules_dir(&legacy, &new_dir).unwrap());
+        assert!(!migrate_dir(&legacy, &new_dir).unwrap());
         // Destination content untouched
         assert_eq!(
             std::fs::read_to_string(new_dir.join("01-extra.md")).unwrap(),
@@ -654,10 +677,10 @@ skip_sources = ["./home/cargo.darwin.toml"]
     }
 
     #[test]
-    fn migrate_rules_dir_noop_when_missing() {
+    fn migrate_dir_noop_when_missing() {
         let dir = std::env::temp_dir().join("dotfiles-test-migrate-rules-dir-missing");
         let legacy = dir.join("private-AGENTS");
         let new_dir = dir.join("opencode/rules");
-        assert!(!migrate_rules_dir(&legacy, &new_dir).unwrap());
+        assert!(!migrate_dir(&legacy, &new_dir).unwrap());
     }
 }
