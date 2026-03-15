@@ -50,7 +50,7 @@ pub fn install_nix_toolchain(paths: &Paths) -> Result<()> {
     Ok(())
 }
 
-/// Run `task bootstrap --yes` if the task binary is available.
+/// Run `task bootstrap` if the task binary is available.
 pub fn run_task_bootstrap(home: &Path) -> Result<()> {
     let task_bin = home.join(".cargo/bin/task");
     if !task_bin.exists() {
@@ -60,7 +60,7 @@ pub fn run_task_bootstrap(home: &Path) -> Result<()> {
 
     crate::log("Running task bootstrap");
     let status = Command::new(&task_bin)
-        .args(["bootstrap", "--yes"])
+        .args(["bootstrap"])
         .status()
         .context("running task bootstrap")?;
 

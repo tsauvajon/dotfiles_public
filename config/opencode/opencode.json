@@ -1,10 +1,9 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "enabled_providers": ["openai", "anthropic"],
   "model": "anthropic/claude-opus-4.6",
   "small_model": "anthropic/claude-sonnet-4.6",
   "theme": "opencode",
-  "autoupdate": true,
+  "autoupdate": false,
   "share": "manual",
   "watcher": {
     "ignore": [
