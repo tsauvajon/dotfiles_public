@@ -84,7 +84,7 @@ pub fn merge_opencode_json_to(paths: &Paths) -> Result<std::path::PathBuf> {
 
 // ── AGENTS.md merge ─────────────────────────────────────────────────────
 
-pub fn merge_agents(paths: &Paths, skip_norms: &[String], mode: RulesMode) -> Result<()> {
+pub fn merge_rules(paths: &Paths, skip_norms: &[String], mode: RulesMode) -> Result<()> {
     let dest_link = paths.home.join(".config/opencode/AGENTS.md");
 
     if config::should_skip_dest(&dest_link, &paths.home, skip_norms) || mode == RulesMode::Disabled
@@ -96,12 +96,12 @@ pub fn merge_agents(paths: &Paths, skip_norms: &[String], mode: RulesMode) -> Re
         return Ok(());
     }
 
-    let merged_path = merge_agents_to(paths, mode)?;
+    let merged_path = merge_rules_to(paths, mode)?;
     link::force_symlink(&merged_path, &dest_link)
 }
 
 /// Generate merged AGENTS.md into private_build, returning the path.
-pub fn merge_agents_to(paths: &Paths, mode: RulesMode) -> Result<std::path::PathBuf> {
+pub fn merge_rules_to(paths: &Paths, mode: RulesMode) -> Result<std::path::PathBuf> {
     let merged_path = paths.private_build.join("opencode/AGENTS.md");
     std::fs::create_dir_all(merged_path.parent().unwrap())?;
 
