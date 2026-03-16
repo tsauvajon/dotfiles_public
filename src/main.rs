@@ -237,6 +237,13 @@ fn run_setup(
         skip_source_norms,
         paths,
     )?;
+    link::managed_link(
+        &d.join("config/goto/database.yml"),
+        &h.join(".config/goto/database.yml"),
+        skip_norms,
+        skip_source_norms,
+        paths,
+    )?;
     merge::merge_opencode_json(paths, skip_norms)?;
     merge::merge_rules(paths, skip_norms, rules_mode)?;
     merge::merge_skills(paths, skip_norms)?;

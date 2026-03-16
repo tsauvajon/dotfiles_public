@@ -61,6 +61,7 @@
     "bash": {
       "*": "ask",
       "rm -rf *": "deny",
+      "./scripts/*.sh *": "allow",
       "asdf *": "allow",
       "awk *": "allow",
       "bash *": "allow",
