@@ -224,6 +224,13 @@ fn run_setup(
         paths,
     )?;
     link::managed_link(
+        &d.join("config/ssh/config"),
+        &h.join(".ssh/config"),
+        skip_norms,
+        skip_source_norms,
+        paths,
+    )?;
+    link::managed_link(
         &d.join("config/waybar"),
         &h.join(".config/waybar"),
         skip_norms,
@@ -278,6 +285,13 @@ fn run_setup(
         println!(
             "tip: place private opencode config at {} to override opencode.json (eg. MCP servers)",
             paths.opencode_json.display()
+        );
+    }
+    let private_ssh_config = paths.dotfiles_config.join("ssh/config");
+    if !private_ssh_config.exists() {
+        println!(
+            "tip: place private SSH hosts at {} (included from ~/.ssh/config)",
+            private_ssh_config.display()
         );
     }
 

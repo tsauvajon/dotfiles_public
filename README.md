@@ -138,6 +138,15 @@ opencode mcp list
 - Hyprland autostart: `exec-once = mako &` in `config/hypr/hyprland.conf`
 - Position: top-right
 
+## Private SSH hosts
+
+`~/.ssh/config` is managed from `config/ssh/config` in the repo.
+
+- Shared defaults belong in `config/ssh/config`
+- Private host entries belong in `~/.config/dotfiles/ssh/config`
+- The repo-managed file includes the private file first, so per-host entries can keep
+  machine-specific `IdentityFile` and related SSH settings
+
 ## Node.js policy
 
 Node.js is managed by `asdf`.

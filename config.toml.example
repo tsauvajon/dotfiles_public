@@ -55,5 +55,8 @@ rules_mode = "merged"
 # Private OpenCode JSON overlay lives at ~/.config/dotfiles/opencode/opencode.json.
 # setup.sh deep-merges it over config/opencode/opencode.json (private values win).
 # Use this for private MCP server entries and other local-only OpenCode overrides.
+# Private SSH host config can live at ~/.config/dotfiles/ssh/config.
+# The repo-managed ~/.ssh/config includes it first, so keep host-specific entries,
+# IdentityFile paths, and machine-only SSH settings there.
 
 # Extra git config can be added to ~/.config/dotfiles/extra.gitconfig
