@@ -26,9 +26,7 @@
           };
           basePackages = with pkgs; [
             asdf-vm
-            cargo
-            clippy
-	    delta
+            delta
             direnv
             fd
             fish
@@ -40,9 +38,6 @@
             nix-direnv
             opencode
             ripgrep
-            rust-analyzer
-            rustc
-            rustfmt
             sccache
             tmux
             vim

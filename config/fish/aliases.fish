@@ -21,7 +21,7 @@ alias ranger='yazi'
 alias lf='yazi'
 
 # Common use
-alias fmt='nix develop -c cargo fmt'
+alias fmt='rustup run nightly cargo fmt'
 alias grubup="sudo grub-mkconfig -o /boot/grub/grub.cfg"
 alias fixpacman="sudo rm /var/lib/pacman/db.lck"
 alias tarnow='tar -acf '
