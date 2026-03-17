@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
 from reportlab.lib.units import mm
@@ -5,8 +7,10 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
 
+OUTPUT_PATH = Path(__file__).with_name("llm_cheatsheet.pdf")
+
 doc = SimpleDocTemplate(
-    "/home/claude/llm_cheatsheet_v28.pdf",
+    str(OUTPUT_PATH),
     pagesize=landscape(A4),
     leftMargin=10*mm, rightMargin=10*mm,
     topMargin=9*mm, bottomMargin=8*mm,
@@ -84,9 +88,9 @@ RUST_SEC = 1
 data.append(section_row("RUST"))
 
 data.append([
-    tc("Code Changes", "refactors, tests, bug fixes, simple features"),
+    tc("Code Changes", "refactors, bug fixes, simple features"),
     mc("DeepSeek V3.2", "", "tests, boilerplate, typed errors, existing patterns"),
-    mc("Sonnet 4.6", "high", "ownership changes, generics, non-obvious bugs"),
+    mc("Sonnet 4.6", "high", "ownership, generics, non-obvious bugs"),
     pb("Opus 4.6", "max", "GPT-5.4", "high", "soundness, perf, hard-to-diagnose failures"),
 ])
 
@@ -98,15 +102,15 @@ data.append([
 ])
 
 data.append([
-    tc("Repo Maintenance", "deps, git, CI/CD, Dockerfiles"),
-    mc("DeepSeek V3.2", "", "Cargo.toml, CI configs, release workflows, scripts"),
+    tc("Repo Maintenance", "Cargo.toml, deps, git, CI/CD, Dockerfile"),
+    mc("DeepSeek V3.2", "", ""),
     P(""),
     P(""),
 ])
 
 data.append([
     tc("Architecture / API", "crates, traits, modules, public API"),
-    mc("DeepSeek V3.2", "", "brainstorming, review before shipping"),
+    mc("DeepSeek V3.2", "", "brainstorming"),
     pb("Sonnet 4.6", "high", "GPT-5.4", "medium", "trait design, error types, module boundaries"),
     mc("GPT-5.4", "high", "multi-crate, plugin systems, semver"),
 ])
@@ -133,9 +137,9 @@ data.append(section_row("GENERAL"))
 
 data.append([
     tc("Research / Browsing", "docs, RFCs, crate eval"),
-    mc("DeepSeek V3.2", "", "saves sub quota"),
+    mc("DeepSeek V3.2", "", "faster"),
     P(""),
-    mc("ChatGPT Deep Research", "", "complex multi-source research"),
+    mc("ChatGPT Deep Research", "", "complex multi-source research; make Opus write the prompts "),
 ])
 
 data.append([
@@ -245,4 +249,4 @@ footer_table.setStyle(TableStyle([
 story.append(footer_table)
 
 doc.build(story)
-print("Done!")
+print(f"Done! Wrote {OUTPUT_PATH}")
