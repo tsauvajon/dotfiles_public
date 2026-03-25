@@ -238,7 +238,7 @@ fn run_setup(
         paths,
     )?;
     link::managed_link(
-        &d.join("config/goto/database.yml"),
+        &paths.dotfiles_config.join("goto/database.yml"),
         &h.join(".config/goto/database.yml"),
         skip_norms,
         skip_source_norms,
@@ -293,6 +293,10 @@ fn run_setup(
             "tip: place private opencode config at {} to override opencode.json (eg. MCP servers)",
             paths.opencode_json.display()
         );
+    }
+    let private_goto_db = paths.dotfiles_config.join("goto/database.yml");
+    if !private_goto_db.exists() {
+        println!("tip: place goto bookmarks at {}", private_goto_db.display());
     }
     let private_ssh_config = paths.dotfiles_config.join("ssh/config");
     if !private_ssh_config.exists() {
