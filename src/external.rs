@@ -60,7 +60,7 @@ pub fn run_task_bootstrap(home: &Path) -> Result<()> {
 
     crate::log("Running task bootstrap");
     let status = Command::new(&task_bin)
-        .args(["bootstrap"])
+        .args(["bootstrap", "--yes"])
         .status()
         .context("running task bootstrap")?;
 
