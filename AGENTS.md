@@ -30,7 +30,7 @@ dotfiles/
 │   ├── rofi/                 # App launcher
 │   ├── espflash/             # ESP flashing tool
 │   ├── goto/                 # goto config template (private values injected by setup)
-│   └── task/                 # task config template (private values injected by setup)
+│   └── task/                 # task base config (overlay-append pattern, see below)
 └── home/                     # Files symlinked directly into $HOME
     ├── gitconfig             # Git config template (private values injected by setup)
     ├── flakes/               # Nix flakes directory
@@ -56,8 +56,8 @@ verify that generated files match the current output without changing anything.
 3. **Builds merged OpenCode AGENTS and skills** — see below.
 4. **Installs the Nix toolchain** from `home/flakes/toolchain#toolchain` via `nix profile`.
 5. **Reads** `~/.config/dotfiles/config.toml` (if present) to inject private values
-   (git identity, API URLs, trusted workspace roots) into generated files under
-   `~/.local/share/dotfiles/`, then symlinks those into `~/.config/`.
+   (git identity, API URLs) into generated files under `~/.local/share/dotfiles/`,
+   then symlinks those into `~/.config/`.
 6. Runs `task bootstrap`.
 
 ### Symlink strategy
@@ -65,9 +65,9 @@ verify that generated files match the current output without changing anything.
 Most config is a direct symlink: `~/.config/fish -> dotfiles/config/fish`.
 Edit the source in `dotfiles/`; the symlink makes it live immediately.
 
-**Exception — generated files:** `~/.gitconfig`, `~/.config/goto/config.yml`, and
-`~/.config/task/config.toml` are *generated* from templates + private values.
-Never edit them directly; edit the template in `dotfiles/` and re-run `setup.sh`.
+**Exception — generated files:** `~/.gitconfig` and `~/.config/goto/config.yml` are
+*generated* from templates + private values. Never edit them directly; edit the
+template in `dotfiles/` and re-run `setup.sh`.
 
 ### AGENTS merge
 
@@ -99,13 +99,13 @@ Public agents (`config/opencode/agents/<name>.md`) and private agents
 Private agents overwrite public ones on filename collision. Adding a new public agent only
 requires placing a `.md` file in `config/opencode/agents/` and re-running `setup.sh`.
 
-### Overlay-append merges (Cargo, AeroSpace, Alacritty)
+### Overlay-append merges (Cargo, AeroSpace, Alacritty, task)
 
 These configs are built by appending overlays onto a base file:
 
-1. **Base file** — e.g. `home/cargo-config.toml`
+1. **Base file** — e.g. `home/cargo-config.toml`, `config/task/config.toml`
 2. **Repo overlays** — e.g. `home/cargo.darwin.toml` (platform-specific, tracked in git)
-3. **Private overlays** — e.g. `~/.config/dotfiles/cargo.*.toml` (machine-local, not tracked)
+3. **Private overlays** — e.g. `~/.config/dotfiles/cargo.*.toml`, `~/.config/dotfiles/task.*.toml` (machine-local, not tracked)
 
 Overlays are sorted by filename (byte order) within each group. Repo overlays are appended
 first, then private overlays (private wins on conflict).

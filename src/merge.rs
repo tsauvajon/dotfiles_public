@@ -463,6 +463,50 @@ pub fn merge_cargo_to(paths: &Paths, skip_source_norms: &[String]) -> Result<std
     Ok(merged_path)
 }
 
+// ── Task ────────────────────────────────────────────────────────────────
+
+pub fn merge_task(
+    paths: &Paths,
+    skip_norms: &[String],
+    skip_source_norms: &[String],
+) -> Result<()> {
+    let dest_link = paths.home.join(".config/task/config.toml");
+    if config::should_skip_dest(&dest_link, &paths.home, skip_norms) {
+        crate::log(&format!("Skipping {}", dest_link.display()));
+        link::remove_managed_link_if_present(&dest_link, paths)?;
+        return Ok(());
+    }
+
+    let base = paths.dotfiles.join("config/task/config.toml");
+    if !base.exists() {
+        crate::warn(&format!("task base config not found at {}", base.display()));
+        return Ok(());
+    }
+
+    let merged_path = merge_task_to(paths, skip_source_norms)?;
+
+    std::fs::create_dir_all(dest_link.parent().unwrap())?;
+    link::force_symlink(&merged_path, &dest_link)
+}
+
+pub fn merge_task_to(paths: &Paths, skip_source_norms: &[String]) -> Result<std::path::PathBuf> {
+    let base = paths.dotfiles.join("config/task/config.toml");
+    let merged_path = paths.dist.join("task/config.toml");
+    // Repo-level overlays first (e.g. config/task/task.darwin.toml), then private overlays
+    let mut overlays =
+        collect_overlays_from(&paths.dotfiles.join("config/task"), "task.", ".toml")?;
+    overlays.retain(|p| p != &base);
+    overlays.extend(collect_overlays(&paths.dotfiles_config, "task.", ".toml")?);
+    merge_overlay(
+        &base,
+        &merged_path,
+        &overlays,
+        &paths.dotfiles,
+        skip_source_norms,
+    )?;
+    Ok(merged_path)
+}
+
 // ── Alacritty ───────────────────────────────────────────────────────────
 
 pub fn merge_alacritty(

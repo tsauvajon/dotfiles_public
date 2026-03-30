@@ -9,30 +9,20 @@ signing_key = "0000000000000000"  # 16-char hex key ID — run: gpg --list-secre
 # See: https://github.com/tsauvajon/goto
 api_url = "http://your-host:50002"
 
-[task]
-# Optional — override the default workspace directory paths used by `task`.
-# Defaults match the values in config/task/config.toml.
-# repos_dir = "~/dev/repos"
-# wt_dir = "~/dev/wt"
-# detached_dir = "~/dev/detached"
-
-# Private repos to install via `task detach install`. Each entry becomes an
-# [[install]] block in the generated task config (appended after the public
-# entries in config/task/config.toml). `repo` is the repo key used by task
-# detach. Optional `path` specifies a sub-directory for Cargo workspaces.
-# [[task_install]]
-# repo = "gitlab.example.com/org/tool"
-# [[task_install]]
-# repo = "gitlab.example.com/org/workspace"
-# path = "crates/cli"
-
-[vscodium]
-# See: https://github.com/tsauvajon/task
-# Trusted workspace roots — injected into ~/.config/task/config.toml under [vscodium].trusted_roots
-trusted_roots = [
-  "/home/youruser/dev/wt/github.com/youruser",
-  "/home/youruser/dev/repos/github.com/youruser",
-]
+# task config uses the overlay-append pattern — no task entries belong here.
+# Place private overlays at ~/.config/dotfiles/task.<name>.toml; they are
+# appended to config/task/config.toml in filename order. For example:
+#
+#   ~/.config/dotfiles/task.install.toml
+#     [[install]]
+#     repo = "gitlab.example.com/org/tool"
+#
+#   ~/.config/dotfiles/task.vscodium.toml
+#     [vscodium]
+#     trusted_roots = [
+#         "/home/youruser/dev/wt/github.com/youruser",
+#         "/home/youruser/dev/repos/github.com/youruser",
+#     ]
 
 [dotfiles]
 # Destination paths to skip, matched as a suffix relative to $HOME.

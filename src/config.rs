@@ -72,12 +72,7 @@ pub enum RulesMode {
 pub struct PrivateConfig {
     pub git: Option<GitConfig>,
     pub goto: Option<GotoConfig>,
-    #[allow(dead_code)]
-    pub task: Option<TaskConfig>,
-    pub vscodium: Option<VscodiumConfig>,
     pub dotfiles: Option<DotfilesConfig>,
-    #[serde(default)]
-    pub task_install: Vec<TaskInstallEntry>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -90,27 +85,6 @@ pub struct GitConfig {
 #[derive(Debug, Deserialize)]
 pub struct GotoConfig {
     pub api_url: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct TaskConfig {
-    #[allow(dead_code)]
-    pub repos_dir: Option<String>,
-    #[allow(dead_code)]
-    pub wt_dir: Option<String>,
-    #[allow(dead_code)]
-    pub detached_dir: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct VscodiumConfig {
-    pub trusted_roots: Option<Vec<String>>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct TaskInstallEntry {
-    pub repo: String,
-    pub path: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -209,23 +183,11 @@ impl PrivateConfig {
             ".git.signing_key",
             ".goto.api_url",
         ];
-        let mut missing: Vec<&str> = required
+        required
             .iter()
             .filter(|k| self.get_str(k).is_none())
             .copied()
-            .collect();
-
-        // Also check vscodium.trusted_roots exists and is non-empty
-        let has_roots = self
-            .vscodium
-            .as_ref()
-            .and_then(|v| v.trusted_roots.as_ref())
-            .is_some();
-        if !has_roots {
-            missing.push(".vscodium.trusted_roots");
-        }
-
-        missing
+            .collect()
     }
 }
 
@@ -511,9 +473,6 @@ signing_key = "ABCD1234ABCD1234"
 
 [goto]
 api_url = "http://localhost:50002"
-
-[vscodium]
-trusted_roots = ["/home/test/dev"]
 
 [dotfiles]
 skip_destinations = [".config/hypr"]

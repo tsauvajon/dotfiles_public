@@ -251,6 +251,7 @@ fn run_setup(
     merge::merge_aerospace(paths, skip_norms, skip_source_norms)?;
     merge::merge_cargo(paths, skip_norms, skip_source_norms)?;
     merge::merge_alacritty(paths, skip_norms, skip_source_norms)?;
+    merge::merge_task(paths, skip_norms, skip_source_norms)?;
 
     log("Ensuring workspace directories");
     let dev = &paths.dev_root;
@@ -346,6 +347,7 @@ fn run_check(
     merge::merge_aerospace_to(&shadow_paths, skip_source_norms)?;
     merge::merge_cargo_to(&shadow_paths, skip_source_norms)?;
     merge::merge_alacritty_to(&shadow_paths, skip_source_norms)?;
+    merge::merge_task_to(&shadow_paths, skip_source_norms)?;
     generate::generate_private_files_to(&shadow_paths, private_cfg)?;
 
     // Compare generated files
