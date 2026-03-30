@@ -16,6 +16,16 @@ api_url = "http://your-host:50002"
 # wt_dir = "~/dev/wt"
 # detached_dir = "~/dev/detached"
 
+# Private repos to install via `task detach install`. Each entry becomes an
+# [[install]] block in the generated task config (appended after the public
+# entries in config/task/config.toml). `repo` is the repo key used by task
+# detach. Optional `path` specifies a sub-directory for Cargo workspaces.
+# [[task_install]]
+# repo = "gitlab.example.com/org/tool"
+# [[task_install]]
+# repo = "gitlab.example.com/org/workspace"
+# path = "crates/cli"
+
 [vscodium]
 # See: https://github.com/tsauvajon/task
 # Trusted workspace roots — injected into ~/.config/task/config.toml under [vscodium].trusted_roots

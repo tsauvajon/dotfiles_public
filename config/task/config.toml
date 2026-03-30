@@ -1,3 +1,9 @@
 repos_dir = "~/dev/repos"
 wt_dir = "~/dev/wt"
 detached_dir = "~/dev/detached"
+
+[[install]]
+repo = "github.com/tsauvajon/goto"
+
+[[install]]
+repo = "github.com/bahdotsh/mdterm"

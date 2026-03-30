@@ -76,6 +76,8 @@ pub struct PrivateConfig {
     pub task: Option<TaskConfig>,
     pub vscodium: Option<VscodiumConfig>,
     pub dotfiles: Option<DotfilesConfig>,
+    #[serde(default)]
+    pub task_install: Vec<TaskInstallEntry>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -103,6 +105,12 @@ pub struct TaskConfig {
 #[derive(Debug, Deserialize)]
 pub struct VscodiumConfig {
     pub trusted_roots: Option<Vec<String>>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TaskInstallEntry {
+    pub repo: String,
+    pub path: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]
