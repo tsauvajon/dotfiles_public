@@ -10,7 +10,6 @@ alias top='htop'
 alias btop='htop'
 alias du='dust'
 alias find='fd'
-alias oc='opencode'
 
 # Vim aliases
 alias vi='nvim'
@@ -118,6 +117,13 @@ alias grv='git remote --verbose'
 alias grb='git fetch && git rebase --interactive --autosquash'
 alias gf='git fetch' 
 
+# Shorthands
+alias oc='opencode'
+alias md='mdterm'
+
 # Task
 alias cdt='cd-task'
+alias t='task'
 alias ts='task start'
+alias tp='task path'
+alias td='task detach'
