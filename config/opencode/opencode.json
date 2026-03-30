@@ -1,5 +1,6 @@
 {
-  "$schema": "https://opencode.ai/config.json",  "model": "anthropic/claude-opus-4.6",
+  "$schema": "https://opencode.ai/config.json",
+  "model": "anthropic/claude-opus-4.6",
   "small_model": "anthropic/claude-sonnet-4.6",
   "theme": "opencode",
   "autoupdate": false,
@@ -217,6 +218,7 @@
       "xargs *": "allow",
       "xxd *": "allow",
       "xz *": "allow",
+      "~/dev/dotfiles/setup.sh": "allow",
       "~/dev/dotfiles/setup.sh *": "allow",
       "API_KEY=*": "allow",
       "BASE_REF=*": "allow",

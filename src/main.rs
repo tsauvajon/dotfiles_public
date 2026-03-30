@@ -244,7 +244,7 @@ fn run_setup(
         skip_source_norms,
         paths,
     )?;
-    merge::merge_opencode_json(paths, skip_norms)?;
+    merge::merge_opencode_json(paths, skip_norms, skip_source_norms)?;
     merge::merge_rules(paths, skip_norms, rules_mode)?;
     merge::merge_skills(paths, skip_norms)?;
     merge::merge_agents(paths, skip_norms)?;
@@ -340,7 +340,7 @@ fn run_check(
     };
 
     // Generate all files into temp
-    merge::merge_opencode_json_to(&shadow_paths)?;
+    merge::merge_opencode_json_to(&shadow_paths, skip_source_norms)?;
     merge::merge_rules_to(&shadow_paths, rules_mode)?;
     merge::merge_skills_to(&shadow_paths)?;
     merge::merge_agents_to(&shadow_paths)?;

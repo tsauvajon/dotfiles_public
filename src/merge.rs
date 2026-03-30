@@ -41,7 +41,11 @@ fn deep_merge_json(base: serde_json::Value, overlay: serde_json::Value) -> serde
     }
 }
 
-pub fn merge_opencode_json(paths: &Paths, skip_norms: &[String]) -> Result<()> {
+pub fn merge_opencode_json(
+    paths: &Paths,
+    skip_norms: &[String],
+    skip_source_norms: &[String],
+) -> Result<()> {
     let dest_link = paths.home.join(".config/opencode/opencode.json");
     if config::should_skip_dest(&dest_link, &paths.home, skip_norms) {
         crate::log(&format!("Skipping {}", dest_link.display()));
@@ -49,12 +53,21 @@ pub fn merge_opencode_json(paths: &Paths, skip_norms: &[String]) -> Result<()> {
         return Ok(());
     }
 
-    let merged_path = merge_opencode_json_to(paths)?;
+    let merged_path = merge_opencode_json_to(paths, skip_source_norms)?;
     link::force_symlink(&merged_path, &dest_link)
 }
 
 /// Generate merged opencode.json into dist, returning the path.
-pub fn merge_opencode_json_to(paths: &Paths) -> Result<std::path::PathBuf> {
+///
+/// Merge order (each layer wins over the previous):
+///   1. Public base (`config/opencode/opencode.json`)
+///   2. Repo-level JSON fragments (`config/opencode/opencode.*.json`, LC_ALL=C sorted)
+///   3. Private JSON fragments (`~/.config/dotfiles/opencode/opencode.*.json`, LC_ALL=C sorted)
+///   4. Private overlay (`~/.config/dotfiles/opencode/opencode.json`)
+pub fn merge_opencode_json_to(
+    paths: &Paths,
+    skip_source_norms: &[String],
+) -> Result<std::path::PathBuf> {
     let public_config = paths.dotfiles.join("config/opencode/opencode.json");
     let merged_path = paths.dist.join("opencode/opencode.json");
     std::fs::create_dir_all(merged_path.parent().unwrap())?;
@@ -64,15 +77,45 @@ pub fn merge_opencode_json_to(paths: &Paths) -> Result<std::path::PathBuf> {
     let public_json: serde_json::Value = serde_json::from_str(&public_content)
         .with_context(|| format!("parsing {}", public_config.display()))?;
 
-    let merged = if paths.opencode_json.exists() {
+    let mut merged = public_json;
+
+    // Collect repo-level fragments (opencode.*.json next to the base), excluding the base itself
+    let mut fragments = collect_overlays_from(
+        &paths.dotfiles.join("config/opencode"),
+        "opencode.",
+        ".json",
+    )?;
+    fragments.retain(|p| p != &public_config);
+
+    // Collect private fragments (opencode.*.json next to the private overlay), excluding it
+    let private_dir = paths
+        .opencode_json
+        .parent()
+        .expect("opencode_json has a parent dir");
+    let mut private_fragments = collect_overlays_from(private_dir, "opencode.", ".json")?;
+    private_fragments.retain(|p| p != &paths.opencode_json);
+    fragments.extend(private_fragments);
+
+    // Apply fragments in sorted order, respecting skip_sources
+    for frag_path in &fragments {
+        if config::should_skip_source(frag_path, &paths.dotfiles, skip_source_norms) {
+            continue;
+        }
+        let frag_content = std::fs::read_to_string(frag_path)
+            .with_context(|| format!("reading fragment {}", frag_path.display()))?;
+        let frag_json: serde_json::Value = serde_json::from_str(&frag_content)
+            .with_context(|| format!("parsing fragment {}", frag_path.display()))?;
+        merged = deep_merge_json(merged, frag_json);
+    }
+
+    // Apply private overlay last (wins over all fragments)
+    if paths.opencode_json.exists() {
         let private_content = std::fs::read_to_string(&paths.opencode_json)
             .with_context(|| format!("reading {}", paths.opencode_json.display()))?;
         let private_json: serde_json::Value = serde_json::from_str(&private_content)
             .with_context(|| format!("parsing {}", paths.opencode_json.display()))?;
-        deep_merge_json(public_json, private_json)
-    } else {
-        public_json
-    };
+        merged = deep_merge_json(merged, private_json);
+    }
 
     let mut output =
         serde_json::to_string_pretty(&merged).context("serializing merged opencode.json")?;
@@ -637,6 +680,79 @@ mod tests {
         });
         let merged = deep_merge_json(base, overlay);
         assert_eq!(merged["items"], serde_json::json!([4, 5]));
+    }
+
+    #[test]
+    fn json_fragments_merged_in_order_private_overlay_wins() {
+        let dir = std::env::temp_dir().join("dotfiles-test-json-fragments");
+        let _ = std::fs::remove_dir_all(&dir);
+
+        // Set up a fake dotfiles structure
+        let dotfiles = dir.join("dotfiles");
+        let public_opencode = dotfiles.join("config/opencode");
+        std::fs::create_dir_all(&public_opencode).unwrap();
+
+        // Public base
+        std::fs::write(
+            public_opencode.join("opencode.json"),
+            r#"{"model": "base", "mcp": {"existing": {"type": "remote"}}}"#,
+        )
+        .unwrap();
+
+        // Repo-level fragment
+        std::fs::write(
+            public_opencode.join("opencode.extra.json"),
+            r#"{"mcp": {"from-fragment": {"type": "local", "command": ["frag"]}}}"#,
+        )
+        .unwrap();
+
+        // Private config directory
+        let private_dir = dir.join("private/opencode");
+        std::fs::create_dir_all(&private_dir).unwrap();
+
+        // Private fragment
+        std::fs::write(
+            private_dir.join("opencode.private-frag.json"),
+            r#"{"mcp": {"private-tool": {"type": "local", "command": ["priv"]}}}"#,
+        )
+        .unwrap();
+
+        // Private overlay (wins over all)
+        std::fs::write(
+            private_dir.join("opencode.json"),
+            r#"{"model": "overlay-wins", "mcp": {"from-fragment": {"type": "local", "command": ["overridden"]}}}"#,
+        )
+        .unwrap();
+
+        let paths = Paths {
+            dotfiles: dotfiles.clone(),
+            home: dir.join("home"),
+            dev_root: dir.join("dev"),
+            dotfiles_config: dir.join("private"),
+            config_toml: dir.join("private/config.toml"),
+            opencode_json: private_dir.join("opencode.json"),
+            opencode_skills: private_dir.join("skills"),
+            opencode_rules: private_dir.join("rules"),
+            opencode_agents: private_dir.join("agents"),
+            dist: dir.join("dist"),
+        };
+
+        std::fs::create_dir_all(&paths.dist).unwrap();
+
+        let result_path = merge_opencode_json_to(&paths, &[]).unwrap();
+        let content = std::fs::read_to_string(&result_path).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&content).unwrap();
+
+        // Private overlay wins over base
+        assert_eq!(json["model"], "overlay-wins");
+        // Fragment-added key present
+        assert!(json["mcp"]["private-tool"].is_object());
+        // Fragment key overridden by private overlay
+        assert_eq!(json["mcp"]["from-fragment"]["command"][0], "overridden");
+        // Base MCP entry preserved
+        assert!(json["mcp"]["existing"].is_object());
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
