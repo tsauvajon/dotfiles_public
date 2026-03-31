@@ -190,6 +190,7 @@
       "rg *": "allow",
       "rm *": "allow",
       "rustc *": "allow",
+      "sbs *": "allow",
       "sccache *": "allow",
       "security *": "allow",
       "sed *": "allow",
