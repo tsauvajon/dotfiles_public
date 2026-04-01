@@ -30,13 +30,22 @@
             config.allowUnfree = true;
             overlays = [ rust-overlay.overlays.default ];
           };
-          nightlyRust = pkgs.rust-bin.nightly.latest.default.override {
+          stableRust = pkgs.rust-bin.stable.latest.default.override {
             extensions = [
               "clippy"
               "rust-analyzer"
-              "rustfmt"
+              "rust-src"
             ];
           };
+          nightlyRustfmtToolchain = pkgs.rust-bin.selectLatestNightlyWith (
+            toolchain:
+            toolchain.default.override {
+              extensions = [ "rustfmt" ];
+            }
+          );
+          nightlyRustfmt = pkgs.writeShellScriptBin "rustfmt" ''
+            exec ${nightlyRustfmtToolchain}/bin/rustfmt "$@"
+          '';
           basePackages = with pkgs; [
             asdf-vm
             delta
@@ -49,7 +58,8 @@
             jq
             just
             nix-direnv
-            nightlyRust
+            stableRust
+            nightlyRustfmt
             opencode
             ripgrep
             sccache
