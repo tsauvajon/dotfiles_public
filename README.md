@@ -132,6 +132,20 @@ opencode mcp auth GitLab
 opencode mcp list
 ```
 
+### OpenCode plugins
+
+Place public plugin files in `config/opencode/plugins/` and private plugins in
+`~/.config/dotfiles/opencode/plugins/`. `setup.sh` merges them into
+`~/.local/share/dotfiles/opencode/plugins/` and links that to `~/.config/opencode/plugins`.
+
+Plugin dependencies go in `config/opencode/package.json` (public) or
+`~/.config/dotfiles/opencode/package.json` (private overlay). After `setup.sh`, install
+dependencies with:
+
+```bash
+bun install --cwd ~/.config/opencode
+```
+
 ## Notifications (Hyprland)
 
 - Notification daemon: `mako` (Wayland-native)

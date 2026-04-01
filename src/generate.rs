@@ -124,6 +124,8 @@ mod tests {
             opencode_skills: dir.join("config/opencode/skills"),
             opencode_rules: dir.join("config/opencode/rules"),
             opencode_agents: dir.join("config/opencode/agents"),
+            opencode_plugins: dir.join("config/opencode/plugins"),
+            opencode_package_json: dir.join("config/opencode/package.json"),
             dist: dir.join("dist"),
         };
         std::fs::create_dir_all(&paths.dist).unwrap();

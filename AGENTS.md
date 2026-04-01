@@ -99,6 +99,26 @@ Public agents (`config/opencode/agents/<name>.md`) and private agents
 Private agents overwrite public ones on filename collision. Adding a new public agent only
 requires placing a `.md` file in `config/opencode/agents/` and re-running `setup.sh`.
 
+### Plugins merge
+
+Public plugins (`config/opencode/plugins/<name>.ts`) and private plugins
+(`~/.config/dotfiles/opencode/plugins/<name>.ts`) are merged into a real directory at
+`~/.local/share/dotfiles/opencode/plugins/`, with each plugin as a symlink inside it.
+`~/.config/opencode/plugins` then points at this merge directory.
+
+Private plugins overwrite public ones on filename collision. After changing plugins,
+run `bun install --cwd ~/.config/opencode` to install any new dependencies.
+
+### package.json merge
+
+Public base (`config/opencode/package.json`) and optional private overlay
+(`~/.config/dotfiles/opencode/package.json`) are deep-merged into
+`~/.local/share/dotfiles/opencode/package.json`. `~/.config/opencode/package.json`
+then points at this generated file.
+
+If neither source exists, no output is produced. After `setup.sh`, run
+`bun install --cwd ~/.config/opencode` to install plugin dependencies.
+
 ### Overlay-append merges (Cargo, AeroSpace, Alacritty, task)
 
 These configs are built by appending overlays onto a base file:
@@ -135,6 +155,8 @@ Everything private lives **outside the repo** at `~/.config/dotfiles/`:
 | `~/.config/dotfiles/opencode/skills/` | Private OpenCode skills (not committed) |
 | `~/.config/dotfiles/opencode/rules/` | Private AGENTS.md rules overlays (not committed) |
 | `~/.config/dotfiles/opencode/agents/` | Private OpenCode agents (not committed) |
+| `~/.config/dotfiles/opencode/plugins/` | Private OpenCode plugins (not committed) |
+| `~/.config/dotfiles/opencode/package.json` | Private plugin dependency overlay (not committed) |
 | `~/.config/dotfiles/opencode/opencode.json` | Private OpenCode config overlay (for MCP servers and local-only overrides) |
 
 Copy `config.toml.example` to get started. Private skills need no registration — drop a
@@ -152,6 +174,8 @@ points to that generated merged file.
 | `config/opencode/opencode.json` | Model selection, slash commands, bash permissions |
 | `config/opencode/AGENTS.md` | System prompt injected into every OpenCode session |
 | `config/opencode/skills/<name>/SKILL.md` | Loadable skill workflows |
+| `config/opencode/plugins/<name>.ts` | Global OpenCode plugins (auto-loaded at startup) |
+| `config/opencode/package.json` | Plugin dependency manifest |
 
 To add a new skill: create `config/opencode/skills/<name>/SKILL.md` and register a
 matching command in `opencode.json` (see existing commands for the pattern). Re-run

@@ -248,6 +248,8 @@ fn run_setup(
     merge::merge_rules(paths, skip_norms, rules_mode)?;
     merge::merge_skills(paths, skip_norms)?;
     merge::merge_agents(paths, skip_norms)?;
+    merge::merge_plugins(paths, skip_norms)?;
+    merge::merge_opencode_package_json(paths, skip_norms)?;
     merge::merge_aerospace(paths, skip_norms, skip_source_norms)?;
     merge::merge_cargo(paths, skip_norms, skip_source_norms)?;
     merge::merge_alacritty(paths, skip_norms, skip_source_norms)?;
@@ -287,6 +289,12 @@ fn run_setup(
         println!(
             "tip: place private opencode rules overlays under {}/<name>.md",
             paths.opencode_rules.display()
+        );
+    }
+    if !paths.opencode_plugins.exists() {
+        println!(
+            "tip: place private opencode plugins under {}/<name>.ts",
+            paths.opencode_plugins.display()
         );
     }
     if !paths.opencode_json.exists() {
@@ -344,6 +352,8 @@ fn run_check(
     merge::merge_rules_to(&shadow_paths, rules_mode)?;
     merge::merge_skills_to(&shadow_paths)?;
     merge::merge_agents_to(&shadow_paths)?;
+    merge::merge_plugins_to(&shadow_paths)?;
+    merge::merge_opencode_package_json_to(&shadow_paths)?;
     merge::merge_aerospace_to(&shadow_paths, skip_source_norms)?;
     merge::merge_cargo_to(&shadow_paths, skip_source_norms)?;
     merge::merge_alacritty_to(&shadow_paths, skip_source_norms)?;
@@ -380,6 +390,7 @@ fn run_check(
     let generated_files = [
         "opencode/opencode.json",
         "opencode/AGENTS.md",
+        "opencode/package.json",
         "gitconfig",
         "goto/config.yml",
         "task/config.toml",
@@ -459,6 +470,12 @@ fn run_check(
         &paths.dist.join("opencode/agents"),
         &shadow_build.join("opencode/agents"),
         "opencode/agents",
+        &mut diffs,
+    );
+    compare_symlink_dir(
+        &paths.dist.join("opencode/plugins"),
+        &shadow_build.join("opencode/plugins"),
+        "opencode/plugins",
         &mut diffs,
     );
 

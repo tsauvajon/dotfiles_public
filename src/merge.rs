@@ -327,6 +327,116 @@ pub fn merge_agents_to(paths: &Paths) -> Result<std::path::PathBuf> {
     Ok(merge_dir)
 }
 
+// ── Plugins directory merge ─────────────────────────────────────────────
+
+pub fn merge_plugins(paths: &Paths, skip_norms: &[String]) -> Result<()> {
+    let dest_link = paths.home.join(".config/opencode/plugins");
+    if config::should_skip_dest(&dest_link, &paths.home, skip_norms) {
+        crate::log(&format!("Skipping {}", dest_link.display()));
+        link::remove_managed_link_if_present(&dest_link, paths)?;
+        return Ok(());
+    }
+
+    let merge_dir = merge_plugins_to(paths)?;
+    link::force_symlink(&merge_dir, &dest_link)
+}
+
+/// Generate merged plugins directory, returning the path.
+/// Plugins are individual `.ts` or `.js` files (not subdirectories like skills).
+pub fn merge_plugins_to(paths: &Paths) -> Result<std::path::PathBuf> {
+    let merge_dir = paths.dist.join("opencode/plugins");
+    std::fs::create_dir_all(&merge_dir)?;
+
+    // Link public plugins
+    let public_plugins = paths.dotfiles.join("config/opencode/plugins");
+    if public_plugins.is_dir() {
+        for entry in std::fs::read_dir(&public_plugins)? {
+            let entry = entry?;
+            if entry.path().is_file() {
+                let name = entry.file_name();
+                link::force_symlink(&entry.path(), &merge_dir.join(&name))?;
+            }
+        }
+    }
+
+    // Link private plugins (overwrites public on collision)
+    if paths.opencode_plugins.is_dir() {
+        for entry in std::fs::read_dir(&paths.opencode_plugins)? {
+            let entry = entry?;
+            if entry.path().is_file() {
+                let name = entry.file_name();
+                link::force_symlink(&entry.path(), &merge_dir.join(&name))?;
+            }
+        }
+    }
+
+    Ok(merge_dir)
+}
+
+// ── package.json deep merge ────────────────────────────────────────────
+
+pub fn merge_opencode_package_json(paths: &Paths, skip_norms: &[String]) -> Result<()> {
+    let dest_link = paths.home.join(".config/opencode/package.json");
+    if config::should_skip_dest(&dest_link, &paths.home, skip_norms) {
+        crate::log(&format!("Skipping {}", dest_link.display()));
+        link::remove_managed_link_if_present(&dest_link, paths)?;
+        return Ok(());
+    }
+
+    let merged_path = merge_opencode_package_json_to(paths)?;
+    // Only link if a merged file was actually produced
+    if let Some(path) = merged_path {
+        link::force_symlink(&path, &dest_link)
+    } else {
+        link::remove_managed_link_if_present(&dest_link, paths)?;
+        Ok(())
+    }
+}
+
+/// Generate merged package.json into dist, returning the path if any source exists.
+///
+/// Merge order (each layer wins over the previous):
+///   1. Public base (`config/opencode/package.json`)
+///   2. Private overlay (`~/.config/dotfiles/opencode/package.json`)
+pub fn merge_opencode_package_json_to(paths: &Paths) -> Result<Option<std::path::PathBuf>> {
+    let public_config = paths.dotfiles.join("config/opencode/package.json");
+    let merged_path = paths.dist.join("opencode/package.json");
+    std::fs::create_dir_all(merged_path.parent().unwrap())?;
+
+    let has_public = public_config.exists();
+    let has_private = paths.opencode_package_json.exists();
+
+    if !has_public && !has_private {
+        // No package.json sources at all — clean up stale output
+        let _ = std::fs::remove_file(&merged_path);
+        return Ok(None);
+    }
+
+    let mut merged: serde_json::Value = if has_public {
+        let content = std::fs::read_to_string(&public_config)
+            .with_context(|| format!("reading {}", public_config.display()))?;
+        serde_json::from_str(&content)
+            .with_context(|| format!("parsing {}", public_config.display()))?
+    } else {
+        serde_json::Value::Object(serde_json::Map::new())
+    };
+
+    if has_private {
+        let content = std::fs::read_to_string(&paths.opencode_package_json)
+            .with_context(|| format!("reading {}", paths.opencode_package_json.display()))?;
+        let private_json: serde_json::Value = serde_json::from_str(&content)
+            .with_context(|| format!("parsing {}", paths.opencode_package_json.display()))?;
+        merged = deep_merge_json(merged, private_json);
+    }
+
+    let mut output =
+        serde_json::to_string_pretty(&merged).context("serializing merged package.json")?;
+    output.push('\n');
+    std::fs::write(&merged_path, &output)?;
+
+    Ok(Some(merged_path))
+}
+
 /// Append a trailing `/` to a path, matching bash glob `*/` behavior.
 fn append_slash(p: &Path) -> std::ffi::OsString {
     let mut s = p.as_os_str().to_os_string();
@@ -734,6 +844,8 @@ mod tests {
             opencode_skills: private_dir.join("skills"),
             opencode_rules: private_dir.join("rules"),
             opencode_agents: private_dir.join("agents"),
+            opencode_plugins: private_dir.join("plugins"),
+            opencode_package_json: private_dir.join("package.json"),
             dist: dir.join("dist"),
         };
 
@@ -853,6 +965,161 @@ mod tests {
         assert!(content.contains("[base]"));
         assert!(!content.contains("[darwin]"));
         assert!(content.contains("[linux]"));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    fn test_paths(dir: &Path) -> Paths {
+        let dotfiles = dir.join("dotfiles");
+        let private_dir = dir.join("private/opencode");
+        Paths {
+            dotfiles: dotfiles.clone(),
+            home: dir.join("home"),
+            dev_root: dir.join("dev"),
+            dotfiles_config: dir.join("private"),
+            config_toml: dir.join("private/config.toml"),
+            opencode_json: private_dir.join("opencode.json"),
+            opencode_skills: private_dir.join("skills"),
+            opencode_rules: private_dir.join("rules"),
+            opencode_agents: private_dir.join("agents"),
+            opencode_plugins: private_dir.join("plugins"),
+            opencode_package_json: private_dir.join("package.json"),
+            dist: dir.join("dist"),
+        }
+    }
+
+    #[test]
+    fn merge_plugins_links_public() {
+        let dir = std::env::temp_dir().join("dotfiles-test-merge-plugins-public");
+        let _ = std::fs::remove_dir_all(&dir);
+        let paths = test_paths(&dir);
+
+        let public_plugins = paths.dotfiles.join("config/opencode/plugins");
+        std::fs::create_dir_all(&public_plugins).unwrap();
+        std::fs::write(public_plugins.join("my-plugin.ts"), "export const P = 1").unwrap();
+        std::fs::create_dir_all(&paths.dist).unwrap();
+
+        let merge_dir = merge_plugins_to(&paths).unwrap();
+        let link_target = std::fs::read_link(merge_dir.join("my-plugin.ts")).unwrap();
+        assert_eq!(link_target, public_plugins.join("my-plugin.ts"));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn merge_plugins_private_overrides_public() {
+        let dir = std::env::temp_dir().join("dotfiles-test-merge-plugins-override");
+        let _ = std::fs::remove_dir_all(&dir);
+        let paths = test_paths(&dir);
+
+        let public_plugins = paths.dotfiles.join("config/opencode/plugins");
+        std::fs::create_dir_all(&public_plugins).unwrap();
+        std::fs::write(public_plugins.join("shared.ts"), "public").unwrap();
+
+        std::fs::create_dir_all(&paths.opencode_plugins).unwrap();
+        std::fs::write(paths.opencode_plugins.join("shared.ts"), "private").unwrap();
+        std::fs::write(paths.opencode_plugins.join("private-only.ts"), "priv").unwrap();
+
+        std::fs::create_dir_all(&paths.dist).unwrap();
+
+        let merge_dir = merge_plugins_to(&paths).unwrap();
+
+        // Private wins on collision
+        let shared_target = std::fs::read_link(merge_dir.join("shared.ts")).unwrap();
+        assert_eq!(shared_target, paths.opencode_plugins.join("shared.ts"));
+
+        // Private-only plugin present
+        let priv_target = std::fs::read_link(merge_dir.join("private-only.ts")).unwrap();
+        assert_eq!(priv_target, paths.opencode_plugins.join("private-only.ts"));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn merge_plugins_empty_when_no_sources() {
+        let dir = std::env::temp_dir().join("dotfiles-test-merge-plugins-empty");
+        let _ = std::fs::remove_dir_all(&dir);
+        let paths = test_paths(&dir);
+        std::fs::create_dir_all(&paths.dist).unwrap();
+
+        let merge_dir = merge_plugins_to(&paths).unwrap();
+        assert!(merge_dir.is_dir());
+        let entries: Vec<_> = std::fs::read_dir(&merge_dir).unwrap().collect();
+        assert!(entries.is_empty());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn merge_package_json_public_only() {
+        let dir = std::env::temp_dir().join("dotfiles-test-pkg-public");
+        let _ = std::fs::remove_dir_all(&dir);
+        let paths = test_paths(&dir);
+
+        let public_opencode = paths.dotfiles.join("config/opencode");
+        std::fs::create_dir_all(&public_opencode).unwrap();
+        std::fs::write(
+            public_opencode.join("package.json"),
+            r#"{"dependencies": {"@opencode-ai/plugin": "1.0.0"}}"#,
+        )
+        .unwrap();
+        std::fs::create_dir_all(&paths.dist).unwrap();
+
+        let result = merge_opencode_package_json_to(&paths).unwrap();
+        assert!(result.is_some());
+        let content = std::fs::read_to_string(result.unwrap()).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&content).unwrap();
+        assert_eq!(json["dependencies"]["@opencode-ai/plugin"], "1.0.0");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn merge_package_json_private_overlay_wins() {
+        let dir = std::env::temp_dir().join("dotfiles-test-pkg-overlay");
+        let _ = std::fs::remove_dir_all(&dir);
+        let paths = test_paths(&dir);
+
+        let public_opencode = paths.dotfiles.join("config/opencode");
+        std::fs::create_dir_all(&public_opencode).unwrap();
+        std::fs::write(
+            public_opencode.join("package.json"),
+            r#"{"dependencies": {"@opencode-ai/plugin": "1.0.0", "zod": "3.0.0"}}"#,
+        )
+        .unwrap();
+
+        std::fs::create_dir_all(paths.opencode_package_json.parent().unwrap()).unwrap();
+        std::fs::write(
+            &paths.opencode_package_json,
+            r#"{"dependencies": {"@opencode-ai/plugin": "2.0.0", "private-dep": "1.0.0"}}"#,
+        )
+        .unwrap();
+        std::fs::create_dir_all(&paths.dist).unwrap();
+
+        let result = merge_opencode_package_json_to(&paths).unwrap();
+        assert!(result.is_some());
+        let content = std::fs::read_to_string(result.unwrap()).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&content).unwrap();
+
+        // Private overlay wins on version
+        assert_eq!(json["dependencies"]["@opencode-ai/plugin"], "2.0.0");
+        // Public dep preserved
+        assert_eq!(json["dependencies"]["zod"], "3.0.0");
+        // Private-only dep added
+        assert_eq!(json["dependencies"]["private-dep"], "1.0.0");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn merge_package_json_none_when_no_sources() {
+        let dir = std::env::temp_dir().join("dotfiles-test-pkg-none");
+        let _ = std::fs::remove_dir_all(&dir);
+        let paths = test_paths(&dir);
+        std::fs::create_dir_all(&paths.dist).unwrap();
+
+        let result = merge_opencode_package_json_to(&paths).unwrap();
+        assert!(result.is_none());
 
         let _ = std::fs::remove_dir_all(&dir);
     }

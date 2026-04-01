@@ -14,6 +14,8 @@ pub struct Paths {
     pub opencode_skills: PathBuf,
     pub opencode_rules: PathBuf,
     pub opencode_agents: PathBuf,
+    pub opencode_plugins: PathBuf,
+    pub opencode_package_json: PathBuf,
     pub dist: PathBuf,
 }
 
@@ -52,6 +54,8 @@ impl Paths {
             opencode_skills: dotfiles_config.join("opencode/skills"),
             opencode_rules: dotfiles_config.join("opencode/rules"),
             opencode_agents: dotfiles_config.join("opencode/agents"),
+            opencode_plugins: dotfiles_config.join("opencode/plugins"),
+            opencode_package_json: dotfiles_config.join("opencode/package.json"),
             dist: home.join(".local/share/dotfiles"),
             dotfiles_config,
             dotfiles,
