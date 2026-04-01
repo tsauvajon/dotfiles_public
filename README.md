@@ -105,8 +105,9 @@ OpenCode config is at `config/opencode/opencode.json`.
 
 ### Private OpenCode overrides (MCP, local-only)
 
-Use `~/.config/dotfiles/private-opencode.json` for private OpenCode settings you do not want in git.
-`setup.sh` deep-merges it over `config/opencode/opencode.json` and generates
+Use `~/.config/dotfiles/opencode/opencode.json` for private OpenCode settings you do not want in git.
+You can also add private fragments such as `~/.config/dotfiles/opencode/opencode.git.json`.
+`setup.sh` deep-merges private fragments and the private overlay over `config/opencode/opencode.json` and generates
 `~/.local/share/dotfiles/opencode/opencode.json`, then links that to `~/.config/opencode/opencode.json`.
 
 Example GitLab MCP config:
@@ -123,7 +124,7 @@ Example GitLab MCP config:
 }
 ```
 
-After updating your private file:
+After updating your private OpenCode config:
 
 ```bash
 ./setup.sh
