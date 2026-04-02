@@ -233,140 +233,88 @@ pub fn merge_rules_to(paths: &Paths, mode: RulesMode) -> Result<std::path::PathB
     Ok(merged_path)
 }
 
-// ── Skills directory merge ──────────────────────────────────────────────
+// ── OpenCode directory merges (commands, skills, agents, plugins) ────────
 
-pub fn merge_skills(paths: &Paths, skip_norms: &[String]) -> Result<()> {
-    let dest_link = paths.home.join(".config/opencode/skills");
-    if config::should_skip_dest(&dest_link, &paths.home, skip_norms) {
-        crate::log(&format!("Skipping {}", dest_link.display()));
-        link::remove_managed_link_if_present(&dest_link, paths)?;
-        return Ok(());
-    }
-
-    let merge_dir = merge_skills_to(paths)?;
-    link::force_symlink(&merge_dir, &dest_link)
+#[derive(Clone, Copy)]
+enum MergeStyle {
+    /// Symlink individual files (commands, agents, plugins)
+    FlatFiles,
+    /// Symlink subdirectories with trailing slash (skills)
+    Subdirectories,
 }
 
-/// Generate merged skills directory, returning the path.
-pub fn merge_skills_to(paths: &Paths) -> Result<std::path::PathBuf> {
-    let merge_dir = paths.dist.join("opencode/skills");
+struct MergedDir {
+    name: &'static str,
+    style: MergeStyle,
+}
+
+/// Declarative list of OpenCode directories that are merged from
+/// public (`config/opencode/{name}`) and private (`~/.config/dotfiles/opencode/{name}`)
+/// sources into `~/.local/share/dotfiles/opencode/{name}`.
+const MERGED_DIRS: &[MergedDir] = &[
+    MergedDir {
+        name: "commands",
+        style: MergeStyle::FlatFiles,
+    },
+    MergedDir {
+        name: "skills",
+        style: MergeStyle::Subdirectories,
+    },
+    MergedDir {
+        name: "agents",
+        style: MergeStyle::FlatFiles,
+    },
+    MergedDir {
+        name: "plugins",
+        style: MergeStyle::FlatFiles,
+    },
+];
+
+/// Merge and link all OpenCode directories listed in MERGED_DIRS.
+pub fn merge_all_dirs(paths: &Paths, skip_norms: &[String]) -> Result<()> {
+    for spec in MERGED_DIRS {
+        let dest_link = paths.home.join(format!(".config/opencode/{}", spec.name));
+        if config::should_skip_dest(&dest_link, &paths.home, skip_norms) {
+            crate::log(&format!("Skipping {}", dest_link.display()));
+            link::remove_managed_link_if_present(&dest_link, paths)?;
+            continue;
+        }
+        let merge_dir = merge_dir_to(paths, spec)?;
+        link::force_symlink(&merge_dir, &dest_link)?;
+    }
+    Ok(())
+}
+
+/// Generate all merged OpenCode directories into dist (for --check).
+pub fn merge_all_dirs_to(paths: &Paths) -> Result<()> {
+    for spec in MERGED_DIRS {
+        merge_dir_to(paths, spec)?;
+    }
+    Ok(())
+}
+
+fn merge_dir_to(paths: &Paths, spec: &MergedDir) -> Result<std::path::PathBuf> {
+    let merge_dir = paths.dist.join(format!("opencode/{}", spec.name));
+    let public_dir = paths
+        .dotfiles
+        .join(format!("config/opencode/{}", spec.name));
+    let private_dir = paths
+        .dotfiles_config
+        .join(format!("opencode/{}", spec.name));
+
+    if merge_dir.exists() {
+        std::fs::remove_dir_all(&merge_dir)?;
+    }
     std::fs::create_dir_all(&merge_dir)?;
 
-    // Link public skills
-    // Bash glob `*/` produces paths with trailing slash; `ln -snf` preserves it.
-    // We replicate this so symlink targets are byte-identical.
-    let public_skills = paths.dotfiles.join("config/opencode/skills");
-    if public_skills.is_dir() {
-        for entry in std::fs::read_dir(&public_skills)? {
-            let entry = entry?;
-            if entry.path().is_dir() {
-                let name = entry.file_name();
-                let src = append_slash(&entry.path());
-                link::force_symlink(Path::new(&src), &merge_dir.join(&name))?;
-            }
+    match spec.style {
+        MergeStyle::FlatFiles => {
+            link_flat_files(&public_dir, &merge_dir)?;
+            link_flat_files(&private_dir, &merge_dir)?;
         }
-    }
-
-    // Link private skills (overwrites public on collision)
-    if paths.opencode_skills.is_dir() {
-        for entry in std::fs::read_dir(&paths.opencode_skills)? {
-            let entry = entry?;
-            if entry.path().is_dir() {
-                let name = entry.file_name();
-                let src = append_slash(&entry.path());
-                link::force_symlink(Path::new(&src), &merge_dir.join(&name))?;
-            }
-        }
-    }
-
-    Ok(merge_dir)
-}
-
-// ── Agents directory merge ───────────────────────────────────────────
-
-pub fn merge_agents(paths: &Paths, skip_norms: &[String]) -> Result<()> {
-    let dest_link = paths.home.join(".config/opencode/agents");
-    if config::should_skip_dest(&dest_link, &paths.home, skip_norms) {
-        crate::log(&format!("Skipping {}", dest_link.display()));
-        link::remove_managed_link_if_present(&dest_link, paths)?;
-        return Ok(());
-    }
-
-    let merge_dir = merge_agents_to(paths)?;
-    link::force_symlink(&merge_dir, &dest_link)
-}
-
-/// Generate merged agents directory, returning the path.
-pub fn merge_agents_to(paths: &Paths) -> Result<std::path::PathBuf> {
-    let merge_dir = paths.dist.join("opencode/agents");
-    std::fs::create_dir_all(&merge_dir)?;
-
-    // Symlink public agents (flat .md files)
-    let public_agents = paths.dotfiles.join("config/opencode/agents");
-    if public_agents.is_dir() {
-        for entry in std::fs::read_dir(&public_agents)? {
-            let entry = entry?;
-            if entry.path().is_file() {
-                let name = entry.file_name();
-                link::force_symlink(&entry.path(), &merge_dir.join(&name))?;
-            }
-        }
-    }
-
-    // Symlink private agents (overwrites public on collision)
-    if paths.opencode_agents.is_dir() {
-        for entry in std::fs::read_dir(&paths.opencode_agents)? {
-            let entry = entry?;
-            if entry.path().is_file() {
-                let name = entry.file_name();
-                link::force_symlink(&entry.path(), &merge_dir.join(&name))?;
-            }
-        }
-    }
-
-    Ok(merge_dir)
-}
-
-// ── Plugins directory merge ─────────────────────────────────────────────
-
-pub fn merge_plugins(paths: &Paths, skip_norms: &[String]) -> Result<()> {
-    let dest_link = paths.home.join(".config/opencode/plugins");
-    if config::should_skip_dest(&dest_link, &paths.home, skip_norms) {
-        crate::log(&format!("Skipping {}", dest_link.display()));
-        link::remove_managed_link_if_present(&dest_link, paths)?;
-        return Ok(());
-    }
-
-    let merge_dir = merge_plugins_to(paths)?;
-    link::force_symlink(&merge_dir, &dest_link)
-}
-
-/// Generate merged plugins directory, returning the path.
-/// Plugins are individual `.ts` or `.js` files (not subdirectories like skills).
-pub fn merge_plugins_to(paths: &Paths) -> Result<std::path::PathBuf> {
-    let merge_dir = paths.dist.join("opencode/plugins");
-    std::fs::create_dir_all(&merge_dir)?;
-
-    // Link public plugins
-    let public_plugins = paths.dotfiles.join("config/opencode/plugins");
-    if public_plugins.is_dir() {
-        for entry in std::fs::read_dir(&public_plugins)? {
-            let entry = entry?;
-            if entry.path().is_file() {
-                let name = entry.file_name();
-                link::force_symlink(&entry.path(), &merge_dir.join(&name))?;
-            }
-        }
-    }
-
-    // Link private plugins (overwrites public on collision)
-    if paths.opencode_plugins.is_dir() {
-        for entry in std::fs::read_dir(&paths.opencode_plugins)? {
-            let entry = entry?;
-            if entry.path().is_file() {
-                let name = entry.file_name();
-                link::force_symlink(&entry.path(), &merge_dir.join(&name))?;
-            }
+        MergeStyle::Subdirectories => {
+            link_subdirs(&public_dir, &merge_dir)?;
+            link_subdirs(&private_dir, &merge_dir)?;
         }
     }
 
@@ -442,6 +390,33 @@ fn append_slash(p: &Path) -> std::ffi::OsString {
     let mut s = p.as_os_str().to_os_string();
     s.push("/");
     s
+}
+
+fn link_flat_files(src_dir: &Path, merge_dir: &Path) -> Result<()> {
+    if !src_dir.is_dir() {
+        return Ok(());
+    }
+    for entry in std::fs::read_dir(src_dir)? {
+        let entry = entry?;
+        if entry.path().is_file() {
+            link::force_symlink(&entry.path(), &merge_dir.join(entry.file_name()))?;
+        }
+    }
+    Ok(())
+}
+
+fn link_subdirs(src_dir: &Path, merge_dir: &Path) -> Result<()> {
+    if !src_dir.is_dir() {
+        return Ok(());
+    }
+    for entry in std::fs::read_dir(src_dir)? {
+        let entry = entry?;
+        if entry.path().is_dir() {
+            let src = append_slash(&entry.path());
+            link::force_symlink(Path::new(&src), &merge_dir.join(entry.file_name()))?;
+        }
+    }
+    Ok(())
 }
 
 // ── Generic overlay-append merges ───────────────────────────────────────
@@ -841,10 +816,7 @@ mod tests {
             dotfiles_config: dir.join("private"),
             config_toml: dir.join("private/config.toml"),
             opencode_json: private_dir.join("opencode.json"),
-            opencode_skills: private_dir.join("skills"),
             opencode_rules: private_dir.join("rules"),
-            opencode_agents: private_dir.join("agents"),
-            opencode_plugins: private_dir.join("plugins"),
             opencode_package_json: private_dir.join("package.json"),
             dist: dir.join("dist"),
         };
@@ -970,82 +942,159 @@ mod tests {
     }
 
     fn test_paths(dir: &Path) -> Paths {
-        let dotfiles = dir.join("dotfiles");
         let private_dir = dir.join("private/opencode");
         Paths {
-            dotfiles: dotfiles.clone(),
+            dotfiles: dir.join("dotfiles"),
             home: dir.join("home"),
             dev_root: dir.join("dev"),
             dotfiles_config: dir.join("private"),
             config_toml: dir.join("private/config.toml"),
             opencode_json: private_dir.join("opencode.json"),
-            opencode_skills: private_dir.join("skills"),
             opencode_rules: private_dir.join("rules"),
-            opencode_agents: private_dir.join("agents"),
-            opencode_plugins: private_dir.join("plugins"),
             opencode_package_json: private_dir.join("package.json"),
             dist: dir.join("dist"),
         }
     }
 
     #[test]
-    fn merge_plugins_links_public() {
-        let dir = std::env::temp_dir().join("dotfiles-test-merge-plugins-public");
+    fn merge_dirs_links_public_files() {
+        let dir = std::env::temp_dir().join("dotfiles-test-merge-dirs-public");
         let _ = std::fs::remove_dir_all(&dir);
         let paths = test_paths(&dir);
 
         let public_plugins = paths.dotfiles.join("config/opencode/plugins");
+        let public_commands = paths.dotfiles.join("config/opencode/commands");
         std::fs::create_dir_all(&public_plugins).unwrap();
+        std::fs::create_dir_all(&public_commands).unwrap();
         std::fs::write(public_plugins.join("my-plugin.ts"), "export const P = 1").unwrap();
+        std::fs::write(
+            public_commands.join("test.md"),
+            "---\ndescription: Test\n---\nRun test",
+        )
+        .unwrap();
         std::fs::create_dir_all(&paths.dist).unwrap();
 
-        let merge_dir = merge_plugins_to(&paths).unwrap();
-        let link_target = std::fs::read_link(merge_dir.join("my-plugin.ts")).unwrap();
-        assert_eq!(link_target, public_plugins.join("my-plugin.ts"));
+        merge_all_dirs_to(&paths).unwrap();
+
+        let plugin_target =
+            std::fs::read_link(paths.dist.join("opencode/plugins/my-plugin.ts")).unwrap();
+        assert_eq!(plugin_target, public_plugins.join("my-plugin.ts"));
+
+        let cmd_target = std::fs::read_link(paths.dist.join("opencode/commands/test.md")).unwrap();
+        assert_eq!(cmd_target, public_commands.join("test.md"));
 
         let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
-    fn merge_plugins_private_overrides_public() {
-        let dir = std::env::temp_dir().join("dotfiles-test-merge-plugins-override");
+    fn merge_dirs_private_overrides_public() {
+        let dir = std::env::temp_dir().join("dotfiles-test-merge-dirs-override");
         let _ = std::fs::remove_dir_all(&dir);
         let paths = test_paths(&dir);
 
+        let public_commands = paths.dotfiles.join("config/opencode/commands");
+        let private_commands = paths.dotfiles_config.join("opencode/commands");
+        std::fs::create_dir_all(&public_commands).unwrap();
+        std::fs::write(public_commands.join("shared.md"), "public").unwrap();
+
+        std::fs::create_dir_all(&private_commands).unwrap();
+        std::fs::write(private_commands.join("shared.md"), "private").unwrap();
+        std::fs::write(private_commands.join("private-only.md"), "priv").unwrap();
+
         let public_plugins = paths.dotfiles.join("config/opencode/plugins");
+        let private_plugins = paths.dotfiles_config.join("opencode/plugins");
         std::fs::create_dir_all(&public_plugins).unwrap();
         std::fs::write(public_plugins.join("shared.ts"), "public").unwrap();
 
-        std::fs::create_dir_all(&paths.opencode_plugins).unwrap();
-        std::fs::write(paths.opencode_plugins.join("shared.ts"), "private").unwrap();
-        std::fs::write(paths.opencode_plugins.join("private-only.ts"), "priv").unwrap();
+        std::fs::create_dir_all(&private_plugins).unwrap();
+        std::fs::write(private_plugins.join("shared.ts"), "private").unwrap();
+        std::fs::write(private_plugins.join("private-only.ts"), "priv").unwrap();
 
         std::fs::create_dir_all(&paths.dist).unwrap();
 
-        let merge_dir = merge_plugins_to(&paths).unwrap();
+        merge_all_dirs_to(&paths).unwrap();
 
-        // Private wins on collision
-        let shared_target = std::fs::read_link(merge_dir.join("shared.ts")).unwrap();
-        assert_eq!(shared_target, paths.opencode_plugins.join("shared.ts"));
+        // Commands: private wins on collision
+        let shared_cmd =
+            std::fs::read_link(paths.dist.join("opencode/commands/shared.md")).unwrap();
+        assert_eq!(shared_cmd, private_commands.join("shared.md"));
+        let priv_cmd =
+            std::fs::read_link(paths.dist.join("opencode/commands/private-only.md")).unwrap();
+        assert_eq!(priv_cmd, private_commands.join("private-only.md"));
 
-        // Private-only plugin present
-        let priv_target = std::fs::read_link(merge_dir.join("private-only.ts")).unwrap();
-        assert_eq!(priv_target, paths.opencode_plugins.join("private-only.ts"));
+        // Plugins: private wins on collision
+        let shared_plug =
+            std::fs::read_link(paths.dist.join("opencode/plugins/shared.ts")).unwrap();
+        assert_eq!(shared_plug, private_plugins.join("shared.ts"));
+        let priv_plug =
+            std::fs::read_link(paths.dist.join("opencode/plugins/private-only.ts")).unwrap();
+        assert_eq!(priv_plug, private_plugins.join("private-only.ts"));
 
         let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
-    fn merge_plugins_empty_when_no_sources() {
-        let dir = std::env::temp_dir().join("dotfiles-test-merge-plugins-empty");
+    fn merge_dirs_empty_when_no_sources() {
+        let dir = std::env::temp_dir().join("dotfiles-test-merge-dirs-empty");
         let _ = std::fs::remove_dir_all(&dir);
         let paths = test_paths(&dir);
         std::fs::create_dir_all(&paths.dist).unwrap();
 
-        let merge_dir = merge_plugins_to(&paths).unwrap();
-        assert!(merge_dir.is_dir());
-        let entries: Vec<_> = std::fs::read_dir(&merge_dir).unwrap().collect();
-        assert!(entries.is_empty());
+        merge_all_dirs_to(&paths).unwrap();
+
+        for name in &["commands", "skills", "agents", "plugins"] {
+            let merge_dir = paths.dist.join(format!("opencode/{}", name));
+            assert!(merge_dir.is_dir());
+            let entries: Vec<_> = std::fs::read_dir(&merge_dir).unwrap().collect();
+            assert!(entries.is_empty(), "{} should be empty", name);
+        }
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn merge_dirs_skills_links_subdirectories() {
+        let dir = std::env::temp_dir().join("dotfiles-test-merge-dirs-skills");
+        let _ = std::fs::remove_dir_all(&dir);
+        let paths = test_paths(&dir);
+
+        let public_skills = paths.dotfiles.join("config/opencode/skills");
+        std::fs::create_dir_all(public_skills.join("my-skill")).unwrap();
+        std::fs::write(public_skills.join("my-skill/SKILL.md"), "# skill").unwrap();
+        std::fs::create_dir_all(&paths.dist).unwrap();
+
+        merge_all_dirs_to(&paths).unwrap();
+
+        let link = paths.dist.join("opencode/skills/my-skill");
+        let target = std::fs::read_link(&link).unwrap();
+        // Target should have trailing slash (subdirectory style)
+        let expected = format!("{}/", public_skills.join("my-skill").display());
+        assert_eq!(target.to_string_lossy(), expected);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn merge_dirs_removes_stale_entries_before_rebuild() {
+        let dir = std::env::temp_dir().join("dotfiles-test-merge-dirs-stale-cleanup");
+        let _ = std::fs::remove_dir_all(&dir);
+        let paths = test_paths(&dir);
+
+        let public_commands = paths.dotfiles.join("config/opencode/commands");
+        std::fs::create_dir_all(&public_commands).unwrap();
+        std::fs::create_dir_all(&paths.dist).unwrap();
+        std::fs::write(public_commands.join("keep.md"), "keep").unwrap();
+        std::fs::write(public_commands.join("remove.md"), "remove").unwrap();
+
+        merge_all_dirs_to(&paths).unwrap();
+        assert!(paths.dist.join("opencode/commands/remove.md").exists());
+
+        std::fs::remove_file(public_commands.join("remove.md")).unwrap();
+
+        merge_all_dirs_to(&paths).unwrap();
+
+        assert!(paths.dist.join("opencode/commands/keep.md").exists());
+        assert!(!paths.dist.join("opencode/commands/remove.md").exists());
 
         let _ = std::fs::remove_dir_all(&dir);
     }

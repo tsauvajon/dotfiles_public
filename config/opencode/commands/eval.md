@@ -1,0 +1,4 @@
+---
+description: Evaluate options and recommend best approach
+---
+You are evaluating a decision question. If $ARGUMENTS is non-empty, treat it as the target proposal/question. If $ARGUMENTS is empty, use the most recent unresolved assistant question in this chat that asks the user to choose between two or more solutions. If no clear unresolved multi-option question exists, do not guess; ask the user to paste the exact question to evaluate. Requirements: 1) Propose 2-4 viable approaches. 2) For each approach, weigh pros and cons, including risks and effort. 3) Explore at least one alternative that could improve on the leading option. 4) End with one clear recommendation and why it is the best tradeoff. Output format: Options considered; Tradeoffs (pros/cons); Better alternatives explored; Final recommendation.

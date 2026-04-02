@@ -45,14 +45,15 @@ fn main() -> Result<()> {
         );
     }
 
+    let private_opencode_skills = paths.dotfiles_config.join("opencode/skills");
     if config::migrate_dir(
         &paths.dotfiles_config.join("private-skills"),
-        &paths.opencode_skills,
+        &private_opencode_skills,
     )? {
         println!(
             "MIGRATED: moved skills from {}/private-skills to {}",
             paths.dotfiles_config.display(),
-            paths.opencode_skills.display()
+            private_opencode_skills.display()
         );
     }
 
@@ -246,9 +247,7 @@ fn run_setup(
     )?;
     merge::merge_opencode_json(paths, skip_norms, skip_source_norms)?;
     merge::merge_rules(paths, skip_norms, rules_mode)?;
-    merge::merge_skills(paths, skip_norms)?;
-    merge::merge_agents(paths, skip_norms)?;
-    merge::merge_plugins(paths, skip_norms)?;
+    merge::merge_all_dirs(paths, skip_norms)?;
     merge::merge_opencode_package_json(paths, skip_norms)?;
     merge::merge_aerospace(paths, skip_norms, skip_source_norms)?;
     merge::merge_cargo(paths, skip_norms, skip_source_norms)?;
@@ -273,28 +272,21 @@ fn run_setup(
         );
     }
 
-    if !paths.opencode_skills.exists() {
-        println!(
-            "tip: place private opencode skills under {}/<skill-name>/SKILL.md",
-            paths.opencode_skills.display()
-        );
-    }
-    if !paths.opencode_agents.exists() {
-        println!(
-            "tip: place private opencode agents under {}/<name>.md",
-            paths.opencode_agents.display()
-        );
+    let opencode_private = &paths.dotfiles_config.join("opencode");
+    for name in &["commands", "skills", "agents", "plugins"] {
+        let dir = opencode_private.join(name);
+        if !dir.exists() {
+            println!(
+                "tip: place private opencode {} under {}",
+                name,
+                dir.display()
+            );
+        }
     }
     if !paths.opencode_rules.exists() {
         println!(
             "tip: place private opencode rules overlays under {}/<name>.md",
             paths.opencode_rules.display()
-        );
-    }
-    if !paths.opencode_plugins.exists() {
-        println!(
-            "tip: place private opencode plugins under {}/<name>.ts",
-            paths.opencode_plugins.display()
         );
     }
     if !paths.opencode_json.exists() {
@@ -350,9 +342,7 @@ fn run_check(
     // Generate all files into temp
     merge::merge_opencode_json_to(&shadow_paths, skip_source_norms)?;
     merge::merge_rules_to(&shadow_paths, rules_mode)?;
-    merge::merge_skills_to(&shadow_paths)?;
-    merge::merge_agents_to(&shadow_paths)?;
-    merge::merge_plugins_to(&shadow_paths)?;
+    merge::merge_all_dirs_to(&shadow_paths)?;
     merge::merge_opencode_package_json_to(&shadow_paths)?;
     merge::merge_aerospace_to(&shadow_paths, skip_source_norms)?;
     merge::merge_cargo_to(&shadow_paths, skip_source_norms)?;
@@ -460,6 +450,12 @@ fn run_check(
         }
     };
 
+    compare_symlink_dir(
+        &paths.dist.join("opencode/commands"),
+        &shadow_build.join("opencode/commands"),
+        "opencode/commands",
+        &mut diffs,
+    );
     compare_symlink_dir(
         &paths.dist.join("opencode/skills"),
         &shadow_build.join("opencode/skills"),

@@ -121,10 +121,7 @@ mod tests {
             dotfiles_config: dir.join("config"),
             config_toml: dir.join("config/config.toml"),
             opencode_json: dir.join("config/opencode/opencode.json"),
-            opencode_skills: dir.join("config/opencode/skills"),
             opencode_rules: dir.join("config/opencode/rules"),
-            opencode_agents: dir.join("config/opencode/agents"),
-            opencode_plugins: dir.join("config/opencode/plugins"),
             opencode_package_json: dir.join("config/opencode/package.json"),
             dist: dir.join("dist"),
         };

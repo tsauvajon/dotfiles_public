@@ -101,7 +101,7 @@ When multiple local repos match a short name, `task` asks you to choose (via `fz
 - `oc-codex` -> OpenAI Codex model
 - `oc-claude` -> Anthropic Claude model
 
-OpenCode config is at `config/opencode/opencode.json`.
+OpenCode config is split across `config/opencode/opencode.json` and `config/opencode/commands/`.
 
 ### Private OpenCode overrides (MCP, local-only)
 
@@ -109,6 +109,10 @@ Use `~/.config/dotfiles/opencode/opencode.json` for private OpenCode settings yo
 You can also add private fragments such as `~/.config/dotfiles/opencode/opencode.git.json`.
 `setup.sh` deep-merges private fragments and the private overlay over `config/opencode/opencode.json` and generates
 `~/.local/share/dotfiles/opencode/opencode.json`, then links that to `~/.config/opencode/opencode.json`.
+
+Place public commands in `config/opencode/commands/` and private commands in
+`~/.config/dotfiles/opencode/commands/`. `setup.sh` merges them into
+`~/.local/share/dotfiles/opencode/commands/` and links that to `~/.config/opencode/commands`.
 
 Example GitLab MCP config:
 

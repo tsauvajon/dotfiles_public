@@ -19,8 +19,9 @@ dotfiles/
 ├── config.toml.example        # Template; real file lives at ~/.config/dotfiles/config.toml
 ├── config/                   # XDG config files, symlinked into ~/.config/
 │   ├── opencode/
-│   │   ├── opencode.json     # OpenCode config (model, commands, permissions)
+│   │   ├── opencode.json     # OpenCode config (model, permissions, MCP)
 │   │   ├── AGENTS.md         # OpenCode system prompt (loaded in every session)
+│   │   ├── commands/         # OpenCode slash commands as markdown files
 │   │   └── skills/           # OpenCode skills, one subdirectory per skill
 │   ├── fish/                 # Fish shell config
 │   ├── hypr/                 # Hyprland WM
@@ -53,7 +54,7 @@ verify that generated files match the current output without changing anything.
 
 1. **Records** the dotfiles path to `~/.config/dotfiles/path`.
 2. **Links** files from `home/` and `config/` into `$HOME` using symlinks.
-3. **Builds merged OpenCode AGENTS and skills** — see below.
+3. **Builds merged OpenCode AGENTS, commands, and skills** — see below.
 4. **Installs the Nix toolchain** from `home/flakes/toolchain#toolchain` via `nix profile`.
 5. **Reads** `~/.config/dotfiles/config.toml` (if present) to inject private values
    (git identity, API URLs) into generated files under `~/.local/share/dotfiles/`,
@@ -78,6 +79,16 @@ The setup tool builds a merged file at `~/.local/share/dotfiles/opencode/AGENTS.
 copying the public AGENTS and appending each non-empty readable file from that directory,
 sorted by filename (byte order, equivalent to `LC_ALL=C`).
 `~/.config/opencode/AGENTS.md` then points at this generated file.
+
+### Commands merge
+
+Public commands (`config/opencode/commands/<name>.md`) and private commands
+(`~/.config/dotfiles/opencode/commands/<name>.md`) are merged into a real directory at
+`~/.local/share/dotfiles/opencode/commands/`, with each command as a symlink inside it.
+`~/.config/opencode/commands` then points at this merge directory.
+
+Private commands overwrite public ones on filename collision. Adding a new public command only
+requires placing a `.md` file in `config/opencode/commands/` and re-running `setup.sh`.
 
 ### Skills merge
 
@@ -153,6 +164,7 @@ Everything private lives **outside the repo** at `~/.config/dotfiles/`:
 |---|---|
 | `~/.config/dotfiles/config.toml` | Git identity, API URLs, trusted roots |
 | `~/.config/dotfiles/opencode/skills/` | Private OpenCode skills (not committed) |
+| `~/.config/dotfiles/opencode/commands/` | Private OpenCode commands (not committed) |
 | `~/.config/dotfiles/opencode/rules/` | Private AGENTS.md rules overlays (not committed) |
 | `~/.config/dotfiles/opencode/agents/` | Private OpenCode agents (not committed) |
 | `~/.config/dotfiles/opencode/plugins/` | Private OpenCode plugins (not committed) |
@@ -161,6 +173,9 @@ Everything private lives **outside the repo** at `~/.config/dotfiles/`:
 
 Copy `config.toml.example` to get started. Private skills need no registration — drop a
 `<skill-name>/SKILL.md` directory into `opencode/skills/` and re-run `setup.sh`.
+
+Private commands also need no registration — drop a `<name>.md` file into
+`opencode/commands/` and re-run `setup.sh`.
 
 The setup tool also supports an optional `~/.config/dotfiles/opencode/opencode.json` file.
 When present, it is deep-merged over `config/opencode/opencode.json` to generate
@@ -171,18 +186,19 @@ points to that generated merged file.
 
 | File | Purpose |
 |---|---|
-| `config/opencode/opencode.json` | Model selection, slash commands, bash permissions |
+| `config/opencode/opencode.json` | Model selection, bash permissions, MCP config |
 | `config/opencode/AGENTS.md` | System prompt injected into every OpenCode session |
+| `config/opencode/commands/<name>.md` | Custom slash commands |
 | `config/opencode/skills/<name>/SKILL.md` | Loadable skill workflows |
 | `config/opencode/plugins/<name>.ts` | Global OpenCode plugins (auto-loaded at startup) |
 | `config/opencode/package.json` | Plugin dependency manifest |
 
 To add a new skill: create `config/opencode/skills/<name>/SKILL.md` and register a
-matching command in `opencode.json` (see existing commands for the pattern). Re-run
-`setup.sh` to add it to the merge dir.
+matching command in `config/opencode/commands/<name>.md`. Re-run `setup.sh` to add both
+to the merged OpenCode config.
 
 To add a new slash command that does not need a skill file, add it directly to the
-`command` block in `opencode.json`.
+`config/opencode/commands/` directory as a markdown file.
 
 ## Key invariants
 
