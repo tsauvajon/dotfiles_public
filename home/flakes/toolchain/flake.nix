@@ -43,9 +43,6 @@
               extensions = [ "rustfmt" ];
             }
           );
-          nightlyRustfmt = pkgs.writeShellScriptBin "rustfmt" ''
-            exec ${nightlyRustfmtToolchain}/bin/rustfmt "$@"
-          '';
           basePackages = with pkgs; [
             asdf-vm
             delta
@@ -59,7 +56,6 @@
             just
             nix-direnv
             stableRust
-            nightlyRustfmt
             opencode
             ripgrep
             sccache
@@ -74,6 +70,11 @@
             toolchain = pkgs.symlinkJoin {
               name = "dotfiles-toolchain";
               paths = basePackages;
+              postBuild = ''
+                rm -f "$out/bin/rustfmt" "$out/bin/cargo-fmt"
+                ln -s ${nightlyRustfmtToolchain}/bin/rustfmt "$out/bin/rustfmt"
+                ln -s ${nightlyRustfmtToolchain}/bin/cargo-fmt "$out/bin/cargo-fmt"
+              '';
             };
 
             default = self.packages.${system}.toolchain;
