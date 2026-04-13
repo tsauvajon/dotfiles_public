@@ -52,6 +52,7 @@
             fzf
             gh
             git
+            helix
             jq
             just
             nix-direnv
