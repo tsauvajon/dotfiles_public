@@ -5,7 +5,7 @@
 	name = YOUR_NAME
 	signingkey = YOUR_GPG_KEY_ID
 [core]
-	editor = vim
+	editor = hx
 	pager = delta
 [push]
 	autoSetupRemote = true
