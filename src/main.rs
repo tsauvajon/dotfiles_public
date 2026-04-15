@@ -197,6 +197,13 @@ fn run_setup(
         paths,
     )?;
     link::managed_link(
+        &d.join("config/helix"),
+        &h.join(".config/helix"),
+        skip_norms,
+        skip_source_norms,
+        paths,
+    )?;
+    link::managed_link(
         &d.join("config/hypr"),
         &h.join(".config/hypr"),
         skip_norms,
