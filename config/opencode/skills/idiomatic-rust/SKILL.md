@@ -1,6 +1,6 @@
 ---
 name: idiomatic-rust
-description: Guide for writing idiomatic Rust. Use when authoring, reviewing, or refactoring Rust code to apply project conventions - strong types over strings, enum parsing, impl Display, extracting functions and modules, early returns, boundary types, re-exports, and named arguments.
+description: Guide for writing idiomatic Rust. Use when authoring, reviewing, or refactoring Rust code to apply project conventions - strong types over strings, enum parsing, impl Display, self-documenting code without comments, extracting functions, splitting big files into modules, early returns, boundary types, re-exports, and named arguments.
 compatibility: opencode
 metadata:
   status: experimental
@@ -106,7 +106,31 @@ log::info!("cache miss for {key}");
 
 ### B. Extract aggressively
 
-#### 5. Inline calculations - extract a function or a strong type
+#### 5. No code comments - prefer strong types, names, and extracted functions
+
+A comment describing *what* the next line does is a signal to rename a variable, introduce a newtype, or extract a function. The code should read the same as the comment would. Keep comments only for *why* something non-obvious is done: business rules, workarounds, links to tickets.
+
+Before:
+```rust
+// check if user can send more than their daily limit
+if amount > 10_000 && !user.is_premium {
+    return Err(Error::OverLimit);
+}
+
+// convert satoshis to BTC for display
+let display = amount as f64 / 100_000_000.0;
+```
+
+After:
+```rust
+if exceeds_daily_limit(amount, &user) {
+    return Err(Error::OverLimit);
+}
+
+let display = Btc::from(amount);
+```
+
+#### 6. Inline calculations - extract a function or a strong type
 
 `for` loops with counters, accumulators, or running state hide logic. Lift them into a named function, or a small type with a method.
 
@@ -131,22 +155,19 @@ fn settled_average(txs: &[Tx]) -> u64 {
 }
 ```
 
-#### 6. Functions with section comments - extract a function
+#### 7. Long functions doing multiple things - extract helpers
 
-`// --- validate ---` inside a fn body means the fn is doing more than one thing. Each section becomes its own function.
+If a function has distinct steps (validate, fetch, format), each step becomes its own function. The top-level function reads as a short summary of what it does.
 
 Before:
 ```rust
 fn handle(req: Request) -> Response {
-    // --- validate ---
     if req.user.is_empty() { return Response::bad(); }
     if req.chain.is_empty() { return Response::bad(); }
 
-    // --- fetch ---
     let acct = db.get(&req.user)?;
     let bal  = chain_client.balance(&req.chain, &acct)?;
 
-    // --- format ---
     Response::ok(format!("{bal}"))
 }
 ```
@@ -160,33 +181,51 @@ fn handle(req: Request) -> Response {
 }
 ```
 
-#### 7. Modules with section delimiters - extract a module
+#### 8. Big files with section separators - split into modules
 
-If you are writing `// ===== parsing =====` inside `mod foo`, parsing wants to be its own module.
+If a file is large enough that you want `// --- foo ---` or `// ===== foo =====` banners inside it to find your way around, that is the signal to split the file into sibling module files. Think about the natural seams (parsing, dispatch, types, errors) and give each one its own file.
 
 Before:
 ```rust
-mod proxy {
-    // ===== parsing =====
-    fn parse_request(...) { ... }
-    fn parse_header(...)  { ... }
+// src/proxy.rs
+// ===== parsing =====
+fn parse_request(...) { ... }
+fn parse_header(...)  { ... }
 
-    // ===== dispatch =====
-    fn dispatch(...)      { ... }
-}
+// ===== dispatch =====
+fn dispatch(...) { ... }
+
+// ===== errors =====
+pub enum ProxyError { ... }
 ```
 
 After:
 ```rust
-mod proxy {
-    mod parsing  { pub fn request(...) { ... } pub fn header(...) { ... } }
-    mod dispatch { pub fn dispatch(...) { ... } }
-}
+// src/proxy/mod.rs
+mod parsing;
+mod dispatch;
+mod errors;
+
+pub use dispatch::dispatch;
+pub use errors::ProxyError;
+```
+```rust
+// src/proxy/parsing.rs
+pub fn request(...) { ... }
+pub fn header(...)  { ... }
+```
+```rust
+// src/proxy/dispatch.rs
+pub fn dispatch(...) { ... }
+```
+```rust
+// src/proxy/errors.rs
+pub enum ProxyError { ... }
 ```
 
 ### C. Control flow
 
-#### 8. Nested `if` / nested `for` - early return or extract
+#### 9. Nested `if` / nested `for` - early return or extract
 
 Flatten with guard clauses, `let ... else`, `?`, or by lifting the inner body into a helper. Keep the happy path aligned to the left.
 
@@ -216,7 +255,7 @@ fn process(opt: Option<Req>) -> Result<Res, Error> {
 
 ### D. Boundaries and API design
 
-#### 9. Boundary types - strong types, custom `Deserialize`
+#### 10. Boundary types - strong types, custom `Deserialize`
 
 At I/O edges (HTTP bodies, Kafka messages, DB rows, env vars) prefer strong types with a `Deserialize` or `TryFrom<String>` impl over carrying `String` through the code.
 
@@ -244,7 +283,7 @@ fn handler(b: Body) {
 }
 ```
 
-#### 10. Re-exports over new dependencies
+#### 11. Re-exports over new dependencies
 
 Before adding a crate, check `cargo tree` and the re-exports of crates already in the tree. Common sources: `anyhow`, `tokio`, `serde`, workspace-internal prelude crates.
 
@@ -260,7 +299,7 @@ After:
 use tokio::sync::Mutex;
 ```
 
-#### 11. Avoid positional arguments
+#### 12. Avoid positional arguments
 
 For functions with 3+ parameters, or any two of the same type, or any `bool` / `Option<_>`, use a parameter struct or newtypes. Use the builder pattern for optional config.
 
@@ -294,24 +333,25 @@ Run this pass against existing Rust. Cite rule numbers in review comments.
 - [ ] `match s.as_str() { ... }` over a closed set -> rule 2
 - [ ] Hand-rolled `FromStr` / `Display` for a plain enum -> rule 3
 - [ ] `format!` building a domain representation at a call site -> rule 4
-- [ ] `for` loop mutating counters/accumulators outside the loop -> rule 5
-- [ ] `// --- step N ---` or `// validate` inside a function body -> rule 6
-- [ ] `// ===== section =====` inside a module -> rule 7
-- [ ] `if let Some(x) = a { if let Some(y) = b { ... } }` -> rule 8
-- [ ] `Deserialize` struct carrying raw `String` for a validated domain -> rule 9
-- [ ] New direct dependency where a transitive re-export exists -> rule 10
-- [ ] `fn(bool, bool, ...)`, `fn(String, String, ...)`, or 3+ positional params -> rule 11
+- [ ] Comment describing *what* the next line or block does -> rule 5
+- [ ] `for` loop mutating counters/accumulators outside the loop -> rule 6
+- [ ] Function with distinct steps (validate / fetch / format) in one body -> rule 7
+- [ ] `// --- foo ---` or `// ===== foo =====` banners inside a single file -> rule 8
+- [ ] `if let Some(x) = a { if let Some(y) = b { ... } }` -> rule 9
+- [ ] `Deserialize` struct carrying raw `String` for a validated domain -> rule 10
+- [ ] New direct dependency where a transitive re-export exists -> rule 11
+- [ ] `fn(bool, bool, ...)`, `fn(String, String, ...)`, or 3+ positional params -> rule 12
 
 ## Application order
 
 When refactoring an existing file, apply rules in this order so each step compiles cleanly:
 
 1. Introduce strong types and enums (rules 1, 2).
-2. Add `Display` / `Deserialize` / derive impls (rules 3, 4, 9).
-3. Extract helper functions and modules (rules 5, 6, 7).
-4. Flatten control flow (rule 8).
-5. Swap positional calls for named / struct args last - this touches call sites (rule 11).
-6. Drop redundant dependencies last (rule 10), after the code compiles on the re-export.
+2. Add `Display` / `Deserialize` / derive impls (rules 3, 4, 10).
+3. Drop explanatory comments, extract helpers, split big files into modules (rules 5, 6, 7, 8).
+4. Flatten control flow (rule 9).
+5. Swap positional calls for named / struct args last - this touches call sites (rule 12).
+6. Drop redundant dependencies last (rule 11), after the code compiles on the re-export.
 
 ## Constraints
 
