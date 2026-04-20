@@ -3,6 +3,7 @@ mod external;
 mod generate;
 mod link;
 mod merge;
+mod plists;
 
 use anyhow::Result;
 use config::{Paths, PrivateConfig, RulesMode};
@@ -252,6 +253,10 @@ fn run_setup(
         skip_source_norms,
         paths,
     )?;
+
+    log("Linking LaunchAgents plists");
+    plists::link_all(paths, skip_norms, skip_source_norms)?;
+
     merge::merge_opencode_json(paths, skip_norms, skip_source_norms)?;
     merge::merge_rules(paths, skip_norms, rules_mode)?;
     merge::merge_all_dirs(paths, skip_norms)?;
