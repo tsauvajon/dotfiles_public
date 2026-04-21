@@ -33,6 +33,7 @@
           stableRust = pkgs.rust-bin.stable.latest.default.override {
             extensions = [
               "clippy"
+              "llvm-tools-preview"
               "rust-analyzer"
               "rust-src"
             ];
@@ -43,28 +44,32 @@
               extensions = [ "rustfmt" ];
             }
           );
-          basePackages = with pkgs; [
-            asdf-vm
-            delta
-            direnv
-            fd
-            fish
-            fzf
-            gh
-            git
-            helix
-            jq
-            just
-            nix-direnv
-            stableRust
-            opencode
-            ripgrep
-            sccache
-            tmux
-            vim
-            vscodium
-            zoxide
-          ] ++ (if pkgs.stdenv.isLinux then [ pkgs.mako ] else [ ]);
+          basePackages =
+            with pkgs;
+            [
+              asdf-vm
+              cargo-llvm-cov
+              delta
+              direnv
+              fd
+              fish
+              fzf
+              gh
+              git
+              helix
+              jq
+              just
+              nix-direnv
+              stableRust
+              opencode
+              ripgrep
+              sccache
+              tmux
+              vim
+              vscodium
+              zoxide
+            ]
+            ++ (if pkgs.stdenv.isLinux then [ pkgs.mako ] else [ ]);
         in
         {
           packages = {
