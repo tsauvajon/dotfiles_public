@@ -6,4 +6,10 @@ detached_dir = "~/dev/detached"
 repo = "github.com/tsauvajon/goto"
 
 [[install]]
+repo = "github.com/tsauvajon/task"
+
+[[install]]
 repo = "github.com/bahdotsh/mdterm"
+
+[[install]]
+repo = "github.com/jrobhoward/dumap"
