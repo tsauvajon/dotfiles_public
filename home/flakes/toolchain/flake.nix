@@ -46,6 +46,13 @@
               extensions = [ "rustfmt" ];
             }
           );
+          yazelixProfilePackage = pkgs.symlinkJoin {
+            name = "yazelix-profile";
+            paths = [ yazelix.packages.${system}.yazelix ];
+            postBuild = ''
+              rm -f "$out/libexec/nix"
+            '';
+          };
           basePackages =
             with pkgs;
             [
@@ -69,7 +76,7 @@
               tmux
               vim
               vscodium
-              yazelix.packages.${system}.yazelix
+              yazelixProfilePackage
               zoxide
             ]
             ++ (if pkgs.stdenv.isLinux then [ pkgs.mako ] else [ ]);
