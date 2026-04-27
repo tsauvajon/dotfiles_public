@@ -50,7 +50,7 @@
               asdf-vm
               cargo-llvm-cov
               delta
-              direnv
+              (direnv.overrideAttrs { doCheck = false; })
               fd
               fish
               fzf

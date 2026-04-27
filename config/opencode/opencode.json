@@ -214,7 +214,8 @@
       "~/.local/share/**": "allow",
       "~/dev/**": "allow",
       "/mnt/linux/dotfiles/**": "allow",
-      "/mnt/linux/dev/**": "allow"
+      "/mnt/linux/dev/**": "allow",
+      "/tmp/**": "allow"
     },
     "webfetch": "allow",
     "websearch": "allow"
