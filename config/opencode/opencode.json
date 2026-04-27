@@ -141,6 +141,7 @@
       "ps *": "allow",
       "psql -h *": "allow",
       "psql *": "allow",
+      "pwd *": "allow",
       "python *": "allow",
       "python3 *": "allow",
       "readlink *": "allow",
