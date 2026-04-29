@@ -8,7 +8,6 @@
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    yazelix.url = "github:luccahuguet/yazelix";
   };
 
   outputs =
@@ -17,7 +16,6 @@
       nixpkgs,
       flake-utils,
       rust-overlay,
-      yazelix,
     }:
     flake-utils.lib.eachSystem
       [
@@ -46,13 +44,6 @@
               extensions = [ "rustfmt" ];
             }
           );
-          yazelixProfilePackage = pkgs.symlinkJoin {
-            name = "yazelix-profile";
-            paths = [ yazelix.packages.${system}.yazelix ];
-            postBuild = ''
-              rm -f "$out/libexec/nix"
-            '';
-          };
           basePackages =
             with pkgs;
             [
@@ -76,7 +67,6 @@
               tmux
               vim
               vscodium
-              yazelixProfilePackage
               zoxide
             ]
             ++ (if pkgs.stdenv.isLinux then [ pkgs.mako ] else [ ]);
