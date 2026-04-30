@@ -254,6 +254,62 @@ pub fn migrate_skip_links(private_toml: &Path) -> Result<bool> {
     Ok(true)
 }
 
+/// Mapping of legacy `home/...` source paths to the new `config/<tool>/...`
+/// locations after the public files were spread across `config/`. Used by
+/// [`migrate_skip_sources_paths`] to rewrite stale `[dotfiles].skip_sources`
+/// entries in private config without breaking existing setups.
+const SKIP_SOURCES_PATH_MIGRATIONS: &[(&str, &str)] = &[
+    ("home/aerospace.toml", "config/aerospace/aerospace.toml"),
+    ("home/cargo-config.toml", "config/cargo/cargo-config.toml"),
+    ("home/cargo.darwin.toml", "config/cargo/cargo.darwin.toml"),
+    ("home/gitconfig", "config/git/gitconfig"),
+    ("home/nix-channels", "config/nix/nix-channels"),
+    ("home/tool-versions", "config/asdf/tool-versions"),
+    ("home/profile", "config/shell/profile"),
+    ("home/bashrc", "config/shell/bashrc"),
+    ("home/bash_profile", "config/shell/bash_profile"),
+    ("home/fish_profile", "config/shell/fish_profile"),
+    (
+        "home/task.bash-completion",
+        "config/task/task.bash-completion",
+    ),
+    ("home/tmux.conf", "config/tmux/tmux.conf"),
+    ("home/flakes", "config/nix/flakes"),
+    ("home/tmux", "config/tmux"),
+];
+
+/// Auto-rewrite obsolete `home/...` `skip_sources` entries in `config.toml`
+/// to their new `config/<tool>/...` paths. Returns true if anything was
+/// rewritten. Touches values inside double-quoted strings only, so unrelated
+/// uses of the substring elsewhere in the file are left alone.
+pub fn migrate_skip_sources_paths(config_toml: &Path) -> Result<bool> {
+    if !config_toml.exists() {
+        return Ok(false);
+    }
+
+    let content = std::fs::read_to_string(config_toml)
+        .with_context(|| format!("reading {}", config_toml.display()))?;
+
+    let mut migrated = content.clone();
+    for (old, new) in SKIP_SOURCES_PATH_MIGRATIONS {
+        // Match the legacy path inside a TOML double-quoted string. The leading
+        // `"` and either a trailing `"` (exact) or `/` (path prefix) anchor the
+        // match so we do not accidentally rewrite e.g. comment text.
+        let exact = format!("\"{old}\"");
+        let prefix = format!("\"{old}/");
+        migrated = migrated.replace(&exact, &format!("\"{new}\""));
+        migrated = migrated.replace(&prefix, &format!("\"{new}/"));
+    }
+
+    if migrated == content {
+        return Ok(false);
+    }
+
+    std::fs::write(config_toml, &migrated)
+        .with_context(|| format!("writing {}", config_toml.display()))?;
+    Ok(true)
+}
+
 /// Auto-rewrite the legacy `agents_mode` key to `rules_mode` in private.toml.
 /// Returns true if the file was rewritten.
 /// Errors if both agents_mode and rules_mode are present.
@@ -498,36 +554,36 @@ skip_destinations = [".config/hypr", ".config/mako"]
     fn parse_skip_sources() {
         let content = r#"
 [dotfiles]
-skip_sources = ["home/cargo.darwin.toml", "config/hypr"]
+skip_sources = ["config/cargo/cargo.darwin.toml", "config/hypr"]
 "#;
         let cfg: PrivateConfig = toml::from_str(content).unwrap();
         let norms = cfg.skip_source_norms();
-        assert_eq!(norms, vec!["home/cargo.darwin.toml", "config/hypr"]);
+        assert_eq!(norms, vec!["config/cargo/cargo.darwin.toml", "config/hypr"]);
     }
 
     #[test]
     fn skip_sources_strips_dot_slash() {
         let content = r#"
 [dotfiles]
-skip_sources = ["./home/cargo.darwin.toml"]
+skip_sources = ["./config/cargo/cargo.darwin.toml"]
 "#;
         let cfg: PrivateConfig = toml::from_str(content).unwrap();
         let norms = cfg.skip_source_norms();
-        assert_eq!(norms, vec!["home/cargo.darwin.toml"]);
+        assert_eq!(norms, vec!["config/cargo/cargo.darwin.toml"]);
     }
 
     #[test]
     fn should_skip_source_matches() {
         let root = Path::new("/mnt/dotfiles");
-        let skips = vec!["home/cargo.darwin.toml".to_string()];
+        let skips = vec!["config/cargo/cargo.darwin.toml".to_string()];
 
         assert!(should_skip_source(
-            Path::new("/mnt/dotfiles/home/cargo.darwin.toml"),
+            Path::new("/mnt/dotfiles/config/cargo/cargo.darwin.toml"),
             root,
             &skips
         ));
         assert!(!should_skip_source(
-            Path::new("/mnt/dotfiles/home/cargo-config.toml"),
+            Path::new("/mnt/dotfiles/config/cargo/cargo-config.toml"),
             root,
             &skips
         ));
@@ -665,5 +721,54 @@ skip_sources = ["./home/cargo.darwin.toml"]
         let legacy = dir.join("private-AGENTS");
         let new_dir = dir.join("opencode/rules");
         assert!(!migrate_dir(&legacy, &new_dir).unwrap());
+    }
+
+    #[test]
+    fn migrate_skip_sources_paths_rewrites_known_entries() {
+        let dir = std::env::temp_dir().join("dotfiles-test-migrate-skip-sources");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let toml_path = dir.join("config.toml");
+        std::fs::write(
+            &toml_path,
+            r#"[dotfiles]
+skip_sources = ["home/cargo.darwin.toml", "home/flakes/toolchain", "config/hypr"]
+"#,
+        )
+        .unwrap();
+
+        assert!(migrate_skip_sources_paths(&toml_path).unwrap());
+        let content = std::fs::read_to_string(&toml_path).unwrap();
+        assert!(content.contains("\"config/cargo/cargo.darwin.toml\""));
+        assert!(content.contains("\"config/nix/flakes/toolchain\""));
+        assert!(content.contains("\"config/hypr\""));
+        assert!(!content.contains("home/"));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn migrate_skip_sources_paths_noop_when_no_legacy_paths() {
+        let dir = std::env::temp_dir().join("dotfiles-test-migrate-skip-sources-noop");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let toml_path = dir.join("config.toml");
+        let original = "[dotfiles]\nskip_sources = [\"config/hypr\"]\n";
+        std::fs::write(&toml_path, original).unwrap();
+
+        assert!(!migrate_skip_sources_paths(&toml_path).unwrap());
+        assert_eq!(std::fs::read_to_string(&toml_path).unwrap(), original);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn migrate_skip_sources_paths_noop_when_missing() {
+        let path =
+            std::env::temp_dir().join("dotfiles-test-migrate-skip-sources-missing/config.toml");
+        let _ = std::fs::remove_file(&path);
+        assert!(!migrate_skip_sources_paths(&path).unwrap());
     }
 }

@@ -509,7 +509,7 @@ pub fn merge_aerospace(
         return Ok(());
     }
 
-    let base = paths.dotfiles.join("home/aerospace.toml");
+    let base = paths.dotfiles.join("config/aerospace/aerospace.toml");
     if !base.exists() {
         crate::warn(&format!(
             "aerospace base config not found at {}",
@@ -526,9 +526,13 @@ pub fn merge_aerospace_to(
     paths: &Paths,
     skip_source_norms: &[String],
 ) -> Result<std::path::PathBuf> {
-    let base = paths.dotfiles.join("home/aerospace.toml");
+    let base = paths.dotfiles.join("config/aerospace/aerospace.toml");
     let merged_path = paths.dist.join("aerospace.toml");
-    let mut overlays = collect_overlays_from(&paths.dotfiles.join("home"), "aerospace.", ".toml")?;
+    let mut overlays = collect_overlays_from(
+        &paths.dotfiles.join("config/aerospace"),
+        "aerospace.",
+        ".toml",
+    )?;
     overlays.retain(|p| p != &base);
     overlays.extend(collect_overlays(
         &paths.dotfiles_config,
@@ -559,7 +563,7 @@ pub fn merge_cargo(
         return Ok(());
     }
 
-    let base = paths.dotfiles.join("home/cargo-config.toml");
+    let base = paths.dotfiles.join("config/cargo/cargo-config.toml");
     if !base.exists() {
         crate::warn(&format!(
             "cargo base config not found at {}",
@@ -576,10 +580,11 @@ pub fn merge_cargo(
 }
 
 pub fn merge_cargo_to(paths: &Paths, skip_source_norms: &[String]) -> Result<std::path::PathBuf> {
-    let base = paths.dotfiles.join("home/cargo-config.toml");
+    let base = paths.dotfiles.join("config/cargo/cargo-config.toml");
     let merged_path = paths.dist.join("cargo-config.toml");
-    // Repo-level overlays first (e.g. home/cargo.darwin.toml), then private overlays
-    let mut overlays = collect_overlays_from(&paths.dotfiles.join("home"), "cargo.", ".toml")?;
+    // Repo-level overlays first (e.g. config/cargo/cargo.darwin.toml), then private overlays
+    let mut overlays =
+        collect_overlays_from(&paths.dotfiles.join("config/cargo"), "cargo.", ".toml")?;
     overlays.extend(collect_overlays(&paths.dotfiles_config, "cargo.", ".toml")?);
     merge_overlay(
         &base,
@@ -844,19 +849,19 @@ mod tests {
         let dir = std::env::temp_dir().join("dotfiles-test-merge-overlay-noskip");
         let _ = std::fs::remove_dir_all(&dir);
         let dotfiles = dir.join("dotfiles");
-        std::fs::create_dir_all(dotfiles.join("home")).unwrap();
+        std::fs::create_dir_all(dotfiles.join("config/cargo")).unwrap();
 
-        std::fs::write(dotfiles.join("home/base.toml"), "[base]\nkey = 1\n").unwrap();
+        std::fs::write(dotfiles.join("config/cargo/base.toml"), "[base]\nkey = 1\n").unwrap();
         std::fs::write(
-            dotfiles.join("home/cargo.darwin.toml"),
+            dotfiles.join("config/cargo/cargo.darwin.toml"),
             "[env]\nCC = \"clang\"\n",
         )
         .unwrap();
 
         let merged = dir.join("merged.toml");
-        let overlays = vec![dotfiles.join("home/cargo.darwin.toml")];
+        let overlays = vec![dotfiles.join("config/cargo/cargo.darwin.toml")];
         merge_overlay(
-            &dotfiles.join("home/base.toml"),
+            &dotfiles.join("config/cargo/base.toml"),
             &merged,
             &overlays,
             &dotfiles,
@@ -876,20 +881,20 @@ mod tests {
         let dir = std::env::temp_dir().join("dotfiles-test-merge-overlay-skip");
         let _ = std::fs::remove_dir_all(&dir);
         let dotfiles = dir.join("dotfiles");
-        std::fs::create_dir_all(dotfiles.join("home")).unwrap();
+        std::fs::create_dir_all(dotfiles.join("config/cargo")).unwrap();
 
-        std::fs::write(dotfiles.join("home/base.toml"), "[base]\nkey = 1\n").unwrap();
+        std::fs::write(dotfiles.join("config/cargo/base.toml"), "[base]\nkey = 1\n").unwrap();
         std::fs::write(
-            dotfiles.join("home/cargo.darwin.toml"),
+            dotfiles.join("config/cargo/cargo.darwin.toml"),
             "[env]\nCC = \"clang\"\n",
         )
         .unwrap();
 
         let merged = dir.join("merged.toml");
-        let overlays = vec![dotfiles.join("home/cargo.darwin.toml")];
-        let skip = vec!["home/cargo.darwin.toml".to_string()];
+        let overlays = vec![dotfiles.join("config/cargo/cargo.darwin.toml")];
+        let skip = vec!["config/cargo/cargo.darwin.toml".to_string()];
         merge_overlay(
-            &dotfiles.join("home/base.toml"),
+            &dotfiles.join("config/cargo/base.toml"),
             &merged,
             &overlays,
             &dotfiles,
@@ -912,20 +917,24 @@ mod tests {
         let dir = std::env::temp_dir().join("dotfiles-test-merge-overlay-partial");
         let _ = std::fs::remove_dir_all(&dir);
         let dotfiles = dir.join("dotfiles");
-        std::fs::create_dir_all(dotfiles.join("home")).unwrap();
+        std::fs::create_dir_all(dotfiles.join("config/cargo")).unwrap();
 
-        std::fs::write(dotfiles.join("home/base.toml"), "[base]\n").unwrap();
-        std::fs::write(dotfiles.join("home/cargo.darwin.toml"), "[darwin]\n").unwrap();
-        std::fs::write(dotfiles.join("home/cargo.linux.toml"), "[linux]\n").unwrap();
+        std::fs::write(dotfiles.join("config/cargo/base.toml"), "[base]\n").unwrap();
+        std::fs::write(
+            dotfiles.join("config/cargo/cargo.darwin.toml"),
+            "[darwin]\n",
+        )
+        .unwrap();
+        std::fs::write(dotfiles.join("config/cargo/cargo.linux.toml"), "[linux]\n").unwrap();
 
         let merged = dir.join("merged.toml");
         let overlays = vec![
-            dotfiles.join("home/cargo.darwin.toml"),
-            dotfiles.join("home/cargo.linux.toml"),
+            dotfiles.join("config/cargo/cargo.darwin.toml"),
+            dotfiles.join("config/cargo/cargo.linux.toml"),
         ];
-        let skip = vec!["home/cargo.darwin.toml".to_string()];
+        let skip = vec!["config/cargo/cargo.darwin.toml".to_string()];
         merge_overlay(
-            &dotfiles.join("home/base.toml"),
+            &dotfiles.join("config/cargo/base.toml"),
             &merged,
             &overlays,
             &dotfiles,

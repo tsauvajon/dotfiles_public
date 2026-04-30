@@ -28,6 +28,13 @@ fn main() -> Result<()> {
         );
     }
 
+    if config::migrate_skip_sources_paths(&paths.config_toml)? {
+        println!(
+            "MIGRATED: rewrote home/* paths to config/* in skip_sources of {}",
+            paths.config_toml.display()
+        );
+    }
+
     if config::migrate_rules_mode_key(&paths.config_toml)? {
         println!(
             "MIGRATED: renamed agents_mode to rules_mode in {}",
@@ -111,65 +118,67 @@ fn run_setup(
     let d = &paths.dotfiles;
     let h = &paths.home;
     link::managed_link(
-        &d.join("home/tmux.conf"),
+        &d.join("config/tmux/tmux.conf"),
         &h.join(".tmux.conf"),
         skip_norms,
         skip_source_norms,
         paths,
     )?;
     link::managed_link(
-        &d.join("home/profile"),
+        &d.join("config/shell/profile"),
         &h.join(".profile"),
         skip_norms,
         skip_source_norms,
         paths,
     )?;
     link::managed_link(
-        &d.join("home/fish_profile"),
+        &d.join("config/shell/fish_profile"),
         &h.join(".fish_profile"),
         skip_norms,
         skip_source_norms,
         paths,
     )?;
     link::managed_link(
-        &d.join("home/bashrc"),
+        &d.join("config/shell/bashrc"),
         &h.join(".bashrc"),
         skip_norms,
         skip_source_norms,
         paths,
     )?;
     link::managed_link(
-        &d.join("home/bash_profile"),
+        &d.join("config/shell/bash_profile"),
         &h.join(".bash_profile"),
         skip_norms,
         skip_source_norms,
         paths,
     )?;
     link::managed_link(
-        &d.join("home/nix-channels"),
+        &d.join("config/nix/nix-channels"),
         &h.join(".nix-channels"),
         skip_norms,
         skip_source_norms,
         paths,
     )?;
     link::managed_link(
-        &d.join("home/tool-versions"),
+        &d.join("config/asdf/tool-versions"),
         &h.join(".tool-versions"),
         skip_norms,
         skip_source_norms,
         paths,
     )?;
-    // Trailing slash matches bash: managed_link "$DOTFILES/home/flakes/" "$HOME/flakes"
+    // Trailing slash matches bash: managed_link "$DOTFILES/config/nix/flakes/" "$HOME/flakes"
     link::managed_link_raw(
-        &format!("{}/home/flakes/", d.display()),
+        &format!("{}/config/nix/flakes/", d.display()),
         &h.join("flakes"),
         skip_norms,
         skip_source_norms,
         paths,
     )?;
+    // ~/.tmux is a real directory; only ~/.tmux/plugins is a symlink so the
+    // tmux config source can live alongside its plugins under config/tmux/.
     link::managed_link_raw(
-        &format!("{}/home/tmux/", d.display()),
-        &h.join(".tmux"),
+        &format!("{}/config/tmux/plugins/", d.display()),
+        &h.join(".tmux/plugins"),
         skip_norms,
         skip_source_norms,
         paths,

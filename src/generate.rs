@@ -68,7 +68,7 @@ pub fn generate_private_files_to(paths: &Paths, cfg: &PrivateConfig) -> Result<(
     std::fs::create_dir_all(paths.dist.join("goto"))?;
 
     // gitconfig
-    let template = std::fs::read_to_string(paths.dotfiles.join("home/gitconfig"))
+    let template = std::fs::read_to_string(paths.dotfiles.join("config/git/gitconfig"))
         .context("reading gitconfig template")?;
     let gitconfig = template
         .replace("YOUR_NAME", git_name)
@@ -92,11 +92,11 @@ mod tests {
 
     fn setup_templates(dir: &std::path::Path) {
         let dotfiles = dir.join("dotfiles");
-        std::fs::create_dir_all(dotfiles.join("home")).unwrap();
+        std::fs::create_dir_all(dotfiles.join("config/git")).unwrap();
         std::fs::create_dir_all(dotfiles.join("config/goto")).unwrap();
 
         std::fs::write(
-            dotfiles.join("home/gitconfig"),
+            dotfiles.join("config/git/gitconfig"),
             "[user]\n\temail = YOUR_EMAIL\n\tname = YOUR_NAME\n\tsigningkey = YOUR_GPG_KEY_ID\n",
         )
         .unwrap();

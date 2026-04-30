@@ -13,11 +13,11 @@ pub fn install_nix_toolchain(paths: &Paths) -> Result<()> {
 
     let flake_ref = format!(
         "path:{}#toolchain",
-        paths.dotfiles.join("home/flakes/toolchain").display()
+        paths.dotfiles.join("config/nix/flakes/toolchain").display()
     );
 
     crate::log(&format!(
-        "Installing Nix toolchain from {}/home/flakes/toolchain",
+        "Installing Nix toolchain from {}/config/nix/flakes/toolchain",
         paths.dotfiles.display()
     ));
 

@@ -34,11 +34,10 @@ To verify the generated output without changing anything:
 On each run it:
 
 - records the repo path at `~/.config/dotfiles/path`
-- symlinks files from `home/` into `$HOME`
-- symlinks files from `config/` into `~/.config/`
+- symlinks files from `config/` into the matching `$HOME` and `~/.config/` paths
 - generates merged config under `~/.local/share/dotfiles/` and links that into place
 - creates workspace directories under `~/dev/{repos,wt,detached}` unless `DEV_ROOT` is set
-- installs the Nix toolchain from `home/flakes/toolchain#toolchain` when `nix` is available
+- installs the Nix toolchain from `config/nix/flakes/toolchain#toolchain` when `nix` is available
 - runs `task bootstrap` when the `task` binary is installed
 
 The setup is intended to be idempotent, so re-running `./setup.sh` is normal.
@@ -62,7 +61,7 @@ Most entries are direct symlinks to files in this repo, so edits take effect imm
 
 Some outputs are generated or merged first, then linked into place:
 
-- `~/.gitconfig` from `home/gitconfig` plus private values from `config.toml`
+- `~/.gitconfig` from `config/git/gitconfig` plus private values from `config.toml`
 - `~/.config/goto/config.yml` from `config/goto/config.yml` plus private values from `config.toml`
 - `~/.config/task/config.toml` from `config/task/config.toml` plus repo and private overlays
 - `~/.config/opencode/*` from repo and private overlays

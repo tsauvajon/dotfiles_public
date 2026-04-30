@@ -16,32 +16,34 @@ dotfiles/
 │   ├── merge.rs              # AGENTS.md, opencode.json, skills, overlay-append merges
 │   ├── generate.rs           # Template substitution (gitconfig, goto, task)
 │   └── external.rs           # Nix toolchain install, task bootstrap
-├── config.toml.example        # Template; real file lives at ~/.config/dotfiles/config.toml
-├── config/                   # XDG config files, symlinked into ~/.config/
-│   ├── opencode/
-│   │   ├── opencode.json     # OpenCode config (model, permissions, MCP)
-│   │   ├── AGENTS.md         # OpenCode system prompt (loaded in every session)
-│   │   ├── commands/         # OpenCode slash commands as markdown files
-│   │   └── skills/           # OpenCode skills, one subdirectory per skill
-│   ├── fish/                 # Fish shell config
-│   ├── hypr/                 # Hyprland WM
-│   ├── kitty/                # Terminal emulator
-│   ├── waybar/               # Status bar
-│   ├── mako/                 # Notification daemon
-│   ├── rofi/                 # App launcher
-│   ├── espflash/             # ESP flashing tool
-│   ├── goto/                 # goto config template (private values injected by setup)
-│   └── task/                 # task base config (overlay-append pattern, see below)
-└── home/                     # Files symlinked directly into $HOME
-    ├── gitconfig             # Git config template (private values injected by setup)
-    ├── flakes/               # Nix flakes directory
-    │   └── toolchain/        # Toolchain flake — defines the dev profile
-    ├── tmux/                 # tmux plugins
-    ├── tmux.conf
-    ├── profile / bashrc / bash_profile / fish_profile
-    ├── nix-channels
-    ├── tool-versions         # asdf global tool versions
-    └── task.bash-completion
+├── config.toml.example       # Template; real file lives at ~/.config/dotfiles/config.toml
+└── config/                   # All sources live here, grouped by tool
+    ├── opencode/
+    │   ├── opencode.json     # OpenCode config (model, permissions, MCP)
+    │   ├── AGENTS.md         # OpenCode system prompt (loaded in every session)
+    │   ├── commands/         # OpenCode slash commands as markdown files
+    │   └── skills/           # OpenCode skills, one subdirectory per skill
+    ├── aerospace/            # AeroSpace base config (overlay-append into ~/.aerospace.toml)
+    ├── alacritty/            # Alacritty + themes submodule
+    ├── asdf/                 # tool-versions → ~/.tool-versions
+    ├── cargo/                # cargo-config.toml + platform overlays → ~/.cargo/config.toml
+    ├── espflash/             # ESP flashing tool
+    ├── fish/                 # Fish shell XDG config (full-dir symlink to ~/.config/fish/)
+    ├── git/                  # gitconfig template → ~/.gitconfig
+    ├── goto/                 # goto config template (private values injected by setup)
+    ├── helix/                # Helix editor
+    ├── hypr/                 # Hyprland WM
+    ├── kitty/                # Terminal emulator
+    ├── mako/                 # Notification daemon
+    ├── nix/
+    │   ├── nix-channels      # → ~/.nix-channels
+    │   └── flakes/toolchain/ # Toolchain flake — defines the dev profile, → ~/flakes/
+    ├── rofi/                 # App launcher
+    ├── shell/                # bashrc, bash_profile, profile, fish_profile → $HOME
+    ├── ssh/                  # ssh config (includes private overlay first)
+    ├── task/                 # task base config (overlay-append) + bash completion
+    ├── tmux/                 # tmux.conf + plugins/ submodules
+    └── waybar/               # Status bar
 ```
 
 ## How setup works
@@ -53,9 +55,9 @@ The setup tool is idempotent — run it any time to re-apply. Use `--check` to
 verify that generated files match the current output without changing anything.
 
 1. **Records** the dotfiles path to `~/.config/dotfiles/path`.
-2. **Links** files from `home/` and `config/` into `$HOME` using symlinks.
+2. **Links** files from `config/` into the appropriate `$HOME` and `$HOME/.config/` paths.
 3. **Builds merged OpenCode AGENTS, commands, and skills** — see below.
-4. **Installs the Nix toolchain** from `home/flakes/toolchain#toolchain` via `nix profile`.
+4. **Installs the Nix toolchain** from `config/nix/flakes/toolchain#toolchain` via `nix profile`.
 5. **Reads** `~/.config/dotfiles/config.toml` (if present) to inject private values
    (git identity, API URLs) into generated files under `~/.local/share/dotfiles/`,
    then symlinks those into `~/.config/`.
@@ -134,8 +136,8 @@ If neither source exists, no output is produced. After `setup.sh`, run
 
 These configs are built by appending overlays onto a base file:
 
-1. **Base file** — e.g. `home/cargo-config.toml`, `config/task/config.toml`
-2. **Repo overlays** — e.g. `home/cargo.darwin.toml` (platform-specific, tracked in git)
+1. **Base file** — e.g. `config/cargo/cargo-config.toml`, `config/task/config.toml`
+2. **Repo overlays** — e.g. `config/cargo/cargo.darwin.toml` (platform-specific, tracked in git)
 3. **Private overlays** — e.g. `~/.config/dotfiles/cargo.*.toml`, `~/.config/dotfiles/task.*.toml` (machine-local, not tracked)
 
 Overlays are sorted by filename (byte order) within each group. Repo overlays are appended
@@ -150,7 +152,7 @@ Two skip lists in `config.toml` control what gets linked/merged:
   platform-specific outputs (e.g. skip `.config/hypr` on macOS).
 - **`skip_sources`** — suffix-matched against source paths relative to the dotfiles repo root.
   Prevents a source file from being linked or included in a merge. Use this to exclude
-  platform-specific overlays (e.g. skip `home/cargo.darwin.toml` on Linux).
+  platform-specific overlays (e.g. skip `config/cargo/cargo.darwin.toml` on Linux).
 
 Source filtering happens before merge; destination filtering happens at link time.
 

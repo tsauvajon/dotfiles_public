@@ -35,7 +35,7 @@ skip_destinations = []
 # Prevents specific repo files from being linked or merged into config.
 # Useful for excluding platform-specific overlays (e.g. macOS cargo config on Linux).
 # Example: skip macOS-only Cargo overlay on Linux:
-# skip_sources = ["home/cargo.darwin.toml"]
+# skip_sources = ["config/cargo/cargo.darwin.toml"]
 skip_sources = []
 
 # Controls how ~/.config/opencode/AGENTS.md is built:
