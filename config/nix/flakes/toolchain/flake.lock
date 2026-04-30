@@ -18,30 +18,6 @@
         "type": "github"
       }
     },
-    "helix-steel": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ],
-        "rust-overlay": [
-          "rust-overlay"
-        ]
-      },
-      "locked": {
-        "lastModified": 1776313770,
-        "narHash": "sha256-pmMsgiKQavlqqdPk6tfz1Y+3JHFT6LUXiOuVMH0I12k=",
-        "owner": "mattwparas",
-        "repo": "helix",
-        "rev": "cba44fdf36d1c728468da73a5373348c7d831fb7",
-        "type": "github"
-      },
-      "original": {
-        "owner": "mattwparas",
-        "ref": "steel-event-system",
-        "repo": "helix",
-        "type": "github"
-      }
-    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1777395829,
@@ -61,7 +37,6 @@
     "root": {
       "inputs": {
         "flake-utils": "flake-utils",
-        "helix-steel": "helix-steel",
         "nixpkgs": "nixpkgs",
         "rust-overlay": "rust-overlay"
       }

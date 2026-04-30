@@ -37,7 +37,7 @@ On each run it:
 - symlinks files from `config/` into the matching `$HOME` and `~/.config/` paths
 - generates merged config under `~/.local/share/dotfiles/` and links that into place
 - creates workspace directories under `~/dev/{repos,wt,detached}` unless `DEV_ROOT` is set
-- installs the Nix toolchain from `config/nix/flakes/toolchain#toolchain` when `nix` is available
+- installs Nix profiles for the general toolchain, Helix language tooling, and Steel-enabled Helix plugins when `nix` is available
 - runs `task bootstrap` when the `task` binary is installed
 
 The setup is intended to be idempotent, so re-running `./setup.sh` is normal.

@@ -1,1 +1,7 @@
 theme = "catppuccin_mocha"
+
+[keys.normal]
+C-d = ":half-page-down-smooth"
+C-u = ":half-page-up-smooth"
+pageup = ":page-up-smooth"
+pagedown = ":page-down-smooth"

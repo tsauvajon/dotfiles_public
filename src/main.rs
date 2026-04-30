@@ -284,6 +284,7 @@ fn run_setup(
 
     external::install_nix_toolchain(paths)?;
     external::install_helix_language_tools(paths)?;
+    external::install_helix_plugins(paths)?;
     external::run_task_bootstrap(&paths.home)?;
 
     if paths.config_toml.exists() {

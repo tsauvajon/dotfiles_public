@@ -14,6 +14,11 @@ pub fn install_helix_language_tools(paths: &Paths) -> Result<()> {
     install_nix_profile(paths, "helix-langs")
 }
 
+/// Install the Steel-enabled Helix package with pinned plugins.
+pub fn install_helix_plugins(paths: &Paths) -> Result<()> {
+    install_nix_profile(paths, "helix-plugins")
+}
+
 fn install_nix_profile(paths: &Paths, name: &str) -> Result<()> {
     if !command_exists("nix") {
         crate::warn("nix not found. Install Nix first to use the flake toolchain.");

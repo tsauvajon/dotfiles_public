@@ -15,7 +15,7 @@ dotfiles/
 │   ├── link.rs               # Symlink operations (managed_link, skip-links, cleanup)
 │   ├── merge.rs              # AGENTS.md, opencode.json, skills, overlay-append merges
 │   ├── generate.rs           # Template substitution (gitconfig, goto, task)
-│   └── external.rs           # Nix toolchain install, task bootstrap
+│   └── external.rs           # Nix profile installs, task bootstrap
 ├── config.toml.example       # Template; real file lives at ~/.config/dotfiles/config.toml
 └── config/                   # All sources live here, grouped by tool
     ├── opencode/
@@ -37,7 +37,7 @@ dotfiles/
     ├── mako/                 # Notification daemon
     ├── nix/
     │   ├── nix-channels      # → ~/.nix-channels
-    │   └── flakes/toolchain/ # Toolchain flake — defines the dev profile, → ~/flakes/
+    │   └── flakes/           # Nix profile flakes: toolchain, Helix language tools, Helix plugins
     ├── rofi/                 # App launcher
     ├── shell/                # bashrc, bash_profile, profile, fish_profile → $HOME
     ├── ssh/                  # ssh config (includes private overlay first)
@@ -57,7 +57,7 @@ verify that generated files match the current output without changing anything.
 1. **Records** the dotfiles path to `~/.config/dotfiles/path`.
 2. **Links** files from `config/` into the appropriate `$HOME` and `$HOME/.config/` paths.
 3. **Builds merged OpenCode AGENTS, commands, and skills** — see below.
-4. **Installs the Nix toolchain** from `config/nix/flakes/toolchain#toolchain` via `nix profile`.
+4. **Installs Nix profiles** from `config/nix/flakes/` for the toolchain, Helix language tools, and Helix plugins.
 5. **Reads** `~/.config/dotfiles/config.toml` (if present) to inject private values
    (git identity, API URLs) into generated files under `~/.local/share/dotfiles/`,
    then symlinks those into `~/.config/`.
