@@ -1,0 +1,51 @@
+[language-server.harper-ls]
+command = "harper-ls"
+args = ["--stdio"]
+
+[[language]]
+name = "python"
+language-servers = ["ty", "ruff"]
+formatter = { command = "ruff", args = ["format", "-"] }
+
+[[language]]
+name = "nix"
+language-servers = ["nil"]
+formatter = { command = "nixfmt" }
+
+[[language]]
+name = "markdown"
+language-servers = ["marksman", "harper-ls"]
+
+[[language]]
+name = "toml"
+language-servers = ["taplo"]
+formatter = { command = "taplo", args = ["format", "-"] }
+
+[[language]]
+name = "yaml"
+language-servers = ["yaml-language-server"]
+formatter = { command = "yamlfmt", args = ["-"] }
+
+[[language]]
+name = "gitlab-ci"
+language-servers = ["yaml-language-server", "gitlab-ci-ls"]
+
+[[language]]
+name = "bash"
+formatter = { command = "shfmt", args = ["-"] }
+
+[[language]]
+name = "javascript"
+
+[language.debugger]
+name = "js-debug-dap"
+transport = "tcp"
+command = "js-debug"
+port-arg = "{} 127.0.0.1"
+quirks = { absolute-paths = true }
+
+[[language.debugger.templates]]
+name = "source"
+request = "launch"
+completion = [{ name = "main", completion = "filename", default = "index.js" }]
+args = { program = "{0}", skipFiles = ["<node_internals>/**"] }

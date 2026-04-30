@@ -176,6 +176,7 @@ fn run_setup(
     )?;
     // ~/.tmux is a real directory; only ~/.tmux/plugins is a symlink so the
     // tmux config source can live alongside its plugins under config/tmux/.
+    ensure_tmux_dir(paths)?;
     link::managed_link_raw(
         &format!("{}/config/tmux/plugins/", d.display()),
         &h.join(".tmux/plugins"),
@@ -282,6 +283,7 @@ fn run_setup(
     std::fs::create_dir_all(dev.join("detached"))?;
 
     external::install_nix_toolchain(paths)?;
+    external::install_helix_language_tools(paths)?;
     external::run_task_bootstrap(&paths.home)?;
 
     if paths.config_toml.exists() {
@@ -334,6 +336,13 @@ fn run_setup(
     println!("  2) Run opencode and /connect once");
     println!("  3) Run task doctor");
 
+    Ok(())
+}
+
+fn ensure_tmux_dir(paths: &Paths) -> Result<()> {
+    let tmux_dir = paths.home.join(".tmux");
+    link::remove_managed_link_if_present(&tmux_dir, paths)?;
+    std::fs::create_dir_all(tmux_dir)?;
     Ok(())
 }
 

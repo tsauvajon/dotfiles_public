@@ -6,29 +6,53 @@ use crate::config::Paths;
 
 /// Install the Nix toolchain from the dotfiles flake.
 pub fn install_nix_toolchain(paths: &Paths) -> Result<()> {
+    install_nix_profile(paths, "toolchain")
+}
+
+/// Install Helix language tooling from the dotfiles flake.
+pub fn install_helix_language_tools(paths: &Paths) -> Result<()> {
+    install_nix_profile(paths, "helix-langs")
+}
+
+fn install_nix_profile(paths: &Paths, name: &str) -> Result<()> {
     if !command_exists("nix") {
         crate::warn("nix not found. Install Nix first to use the flake toolchain.");
         return Ok(());
     }
 
-    let flake_ref = format!(
-        "path:{}#toolchain",
-        paths.dotfiles.join("config/nix/flakes/toolchain").display()
-    );
+    let flake_dir = paths.dotfiles.join("config/nix/flakes").join(name);
+    let flake_ref = format!("path:{}#{name}", flake_dir.display());
 
     crate::log(&format!(
-        "Installing Nix toolchain from {}/config/nix/flakes/toolchain",
-        paths.dotfiles.display()
+        "Installing Nix profile {name} from {}",
+        flake_dir.display()
     ));
 
-    // Remove old profile entry (ignore failure)
+    let build_status = Command::new("nix")
+        .args([
+            "--extra-experimental-features",
+            "nix-command flakes",
+            "build",
+            "--no-link",
+            &flake_ref,
+        ])
+        .status()
+        .context("running nix build")?;
+
+    if !build_status.success() {
+        crate::warn(&format!(
+            "nix build failed for {name}; leaving profile unchanged"
+        ));
+        return Ok(());
+    }
+
     let _ = Command::new("nix")
         .args([
             "--extra-experimental-features",
             "nix-command flakes",
             "profile",
             "remove",
-            "toolchain",
+            name,
         ])
         .output();
 
@@ -44,7 +68,7 @@ pub fn install_nix_toolchain(paths: &Paths) -> Result<()> {
         .context("running nix profile add")?;
 
     if !status.success() {
-        crate::warn("nix profile add failed");
+        crate::warn(&format!("nix profile add failed for {name}"));
     }
 
     Ok(())
