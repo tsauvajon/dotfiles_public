@@ -8,6 +8,11 @@
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    helix-steel = {
+      url = "github:mattwparas/helix/steel-event-system";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.rust-overlay.follows = "rust-overlay";
+    };
   };
 
   outputs =
@@ -16,6 +21,7 @@
       nixpkgs,
       flake-utils,
       rust-overlay,
+      helix-steel,
     }:
     flake-utils.lib.eachSystem
       [
@@ -44,6 +50,20 @@
               extensions = [ "rustfmt" ];
             }
           );
+          helixWithSteel = (helix-steel.packages.${system}.default).overrideAttrs (old: {
+            cargoBuildFlags = (old.cargoBuildFlags or [ ]) ++ [
+              "--features"
+              "steel"
+            ];
+            cargoCheckFlags = (old.cargoCheckFlags or [ ]) ++ [
+              "--features"
+              "steel"
+            ];
+            cargoInstallFlags = (old.cargoInstallFlags or [ ]) ++ [
+              "--features"
+              "steel"
+            ];
+          });
           basePackages =
             with pkgs;
             [
@@ -56,7 +76,7 @@
               fzf
               gh
               git
-              helix
+              helixWithSteel
               jq
               just
               nix-direnv
