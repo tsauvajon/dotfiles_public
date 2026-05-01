@@ -196,7 +196,11 @@
             nativeBuildInputs = [ pkgs.makeWrapper ];
             postBuild = ''
               wrapProgram "$out/bin/hx" \
-                --set STEEL_HOME "${helixSteelHome}/lib/steel" \
+                --run 'export STEEL_HOME="''${STEEL_HOME:-''${XDG_DATA_HOME:-$HOME/.local/share}/steel}"' \
+                --run 'mkdir -p "$STEEL_HOME"' \
+                --run 'mkdir -p "$STEEL_HOME/native"' \
+                --run 'for dylib in "${helixSteelHome}/lib/steel/native"/*; do dest="$STEEL_HOME/native/$(basename "$dylib")"; if [ -L "$dest" ]; then rm "$dest"; fi; if [ ! -e "$dest" ]; then ln -s "$dylib" "$dest"; fi; done' \
+                --prefix STEEL_SEARCH_PATHS : "${helixSteelHome}/lib/steel/cogs" \
                 --prefix PATH : ${
                   pkgs.lib.makeBinPath [
                     steelPkg
