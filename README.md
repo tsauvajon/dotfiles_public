@@ -8,7 +8,7 @@ Prerequisite: install either `nix` or `cargo`.
 
 ```bash
 mkdir -p ~/.config/dotfiles
-cp config.toml.example ~/.config/dotfiles/config.toml
+cp dotfiles.example.toml ~/.config/dotfiles/config.toml
 $EDITOR ~/.config/dotfiles/config.toml
 ./setup.sh
 ```
@@ -74,7 +74,7 @@ Never edit the generated copies directly. Update the source file in this repo or
 Start with:
 
 ```bash
-cp config.toml.example ~/.config/dotfiles/config.toml
+cp dotfiles.example.toml ~/.config/dotfiles/config.toml
 ```
 
 Important fields in `config.toml`:
@@ -91,10 +91,10 @@ Private SSH entries belong in `~/.config/dotfiles/ssh/config`. The repo-managed 
 
 This repo currently manages config for things like:
 
-- shell startup files: `bash`, `fish`, `tmux`
+- shell startup files: `bash`, `fish`, `tmux`, `zsh`
 - editors and terminals: `helix`, `kitty`, `alacritty`
 - Linux desktop config: `hypr`, `mako`, `rofi`, `waybar`
-- developer tooling: `cargo`, `task`, `goto`, `ssh`
+- developer tooling: `cargo`, `task`, `goto`, `ssh`, `yazi`
 - OpenCode config, commands, skills, agents, and plugins
 
 ## Optional OpenCode customization

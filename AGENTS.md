@@ -16,7 +16,7 @@ dotfiles/
 │   ├── merge.rs              # AGENTS.md, opencode.json, skills, overlay-append merges
 │   ├── generate.rs           # Template substitution (gitconfig, goto, task)
 │   └── external.rs           # Nix profile installs, task bootstrap
-├── config.toml.example       # Template; real file lives at ~/.config/dotfiles/config.toml
+├── dotfiles.example.toml     # Template; real file lives at ~/.config/dotfiles/config.toml
 └── config/                   # All sources live here, grouped by tool
     ├── opencode/
     │   ├── opencode.json     # OpenCode config (model, permissions, MCP)
@@ -173,7 +173,7 @@ Everything private lives **outside the repo** at `~/.config/dotfiles/`:
 | `~/.config/dotfiles/opencode/package.json` | Private plugin dependency overlay (not committed) |
 | `~/.config/dotfiles/opencode/opencode.json` | Private OpenCode config overlay (for MCP servers and local-only overrides) |
 
-Copy `config.toml.example` to get started. Private skills need no registration — drop a
+Copy `dotfiles.example.toml` to get started. Private skills need no registration — drop a
 `<skill-name>/SKILL.md` directory into `opencode/skills/` and re-run `setup.sh`.
 
 Private commands also need no registration — drop a `<name>.md` file into
