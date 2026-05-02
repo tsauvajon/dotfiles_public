@@ -1,5 +1,8 @@
 theme = "catppuccin_mocha"
 
+[editor]
+insecure = true
+
 [keys.normal]
 C-d = ":half-page-down-smooth"
 C-u = ":half-page-up-smooth"
