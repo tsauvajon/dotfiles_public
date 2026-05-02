@@ -68,7 +68,8 @@
               vim
               vscodium
               yazi
-              zoxide
+               zoxide
+               eza
             ]
             ++ (if pkgs.stdenv.isLinux then [ pkgs.mako ] else [ ]);
         in
