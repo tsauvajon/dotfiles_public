@@ -37,7 +37,7 @@ dotfiles/
     ├── mako/                 # Notification daemon
     ├── nix/
     │   ├── nix-channels      # → ~/.nix-channels
-    │   └── flakes/           # Nix profile flakes: toolchain, Helix language tools, Helix plugins
+    │   └── flakes/           # Nix profile flakes: rust/git/fs/shell/editors/desktop, Helix tools
     ├── rofi/                 # App launcher
     ├── shell/                # bashrc, bash_profile, profile, fish_profile → $HOME
     ├── ssh/                  # ssh config (includes private overlay first)
@@ -57,7 +57,7 @@ verify that generated files match the current output without changing anything.
 1. **Records** the dotfiles path to `~/.config/dotfiles/path`.
 2. **Links** files from `config/` into the appropriate `$HOME` and `$HOME/.config/` paths.
 3. **Builds merged OpenCode AGENTS, commands, and skills** — see below.
-4. **Installs Nix profiles** from `config/nix/flakes/` for the toolchain, Helix language tools, and Helix plugins.
+4. **Installs Nix profiles** from `config/nix/flakes/` for Rust, Git, filesystem, shell, editor, desktop, Helix language, and Helix plugin tooling.
 5. **Reads** `~/.config/dotfiles/config.toml` (if present) to inject private values
    (git identity, API URLs) into generated files under `~/.local/share/dotfiles/`,
    then symlinks those into `~/.config/`.

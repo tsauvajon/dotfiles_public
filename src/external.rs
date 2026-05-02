@@ -4,25 +4,42 @@ use anyhow::{Context, Result};
 
 use crate::config::Paths;
 
-/// Install the Nix toolchain from the dotfiles flake.
-pub fn install_nix_toolchain(paths: &Paths) -> Result<()> {
-    install_nix_profile(paths, "toolchain")
+const NIX_PROFILES: &[&str] = &["rust", "git", "fs", "shell", "editors", "desktop"];
+
+/// Install Nix profiles from the dotfiles flakes.
+pub fn install_nix_profiles(paths: &Paths) -> Result<()> {
+    if !command_exists("nix") {
+        crate::warn("nix not found. Install Nix first to use the flake profiles.");
+        return Ok(());
+    }
+
+    let mut all_installed = true;
+    for profile in NIX_PROFILES {
+        let installed = install_nix_profile(paths, profile)?;
+        all_installed = all_installed && installed;
+    }
+
+    if all_installed {
+        remove_nix_profile("toolchain");
+    }
+
+    Ok(())
 }
 
 /// Install Helix language tooling from the dotfiles flake.
 pub fn install_helix_language_tools(paths: &Paths) -> Result<()> {
-    install_nix_profile(paths, "helix-langs")
+    install_nix_profile(paths, "helix-langs").map(|_| ())
 }
 
 /// Install the Steel-enabled Helix package with pinned plugins.
 pub fn install_helix_plugins(paths: &Paths) -> Result<()> {
-    install_nix_profile(paths, "helix-plugins")
+    install_nix_profile(paths, "helix-plugins").map(|_| ())
 }
 
-fn install_nix_profile(paths: &Paths, name: &str) -> Result<()> {
+fn install_nix_profile(paths: &Paths, name: &str) -> Result<bool> {
     if !command_exists("nix") {
-        crate::warn("nix not found. Install Nix first to use the flake toolchain.");
-        return Ok(());
+        crate::warn("nix not found. Install Nix first to use the flake profiles.");
+        return Ok(false);
     }
 
     let flake_dir = paths.dotfiles.join("config/nix/flakes").join(name);
@@ -48,18 +65,10 @@ fn install_nix_profile(paths: &Paths, name: &str) -> Result<()> {
         crate::warn(&format!(
             "nix build failed for {name}; leaving profile unchanged"
         ));
-        return Ok(());
+        return Ok(false);
     }
 
-    let _ = Command::new("nix")
-        .args([
-            "--extra-experimental-features",
-            "nix-command flakes",
-            "profile",
-            "remove",
-            name,
-        ])
-        .output();
+    remove_nix_profile(name);
 
     let status = Command::new("nix")
         .args([
@@ -74,9 +83,22 @@ fn install_nix_profile(paths: &Paths, name: &str) -> Result<()> {
 
     if !status.success() {
         crate::warn(&format!("nix profile add failed for {name}"));
+        return Ok(false);
     }
 
-    Ok(())
+    Ok(true)
+}
+
+fn remove_nix_profile(name: &str) {
+    let _ = Command::new("nix")
+        .args([
+            "--extra-experimental-features",
+            "nix-command flakes",
+            "profile",
+            "remove",
+            name,
+        ])
+        .output();
 }
 
 /// Run `task bootstrap` if the task binary is available.
