@@ -1,16 +1,1 @@
-/**
- *
- * Author : Aditya Shakya (adi1090x)
- * Github : @adi1090x
- * 
- * Catppuccin Mocha Colors
- **/
-
-* {
-    background:     #1e1e2eFF;
-    background-alt: #313244FF;
-    foreground:     #cdd6f4FF;
-    selected:       #cba6f7FF;
-    active:         #a6e3a1FF;
-    urgent:         #f38ba8FF;
-}
+catppuccin/themes/catppuccin-mocha.rasi
