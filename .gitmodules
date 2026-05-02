@@ -18,3 +18,18 @@
 [submodule "config/yazi/catppuccin"]
 	path = config/yazi/catppuccin
 	url = https://github.com/catppuccin/yazi
+[submodule "config/bat/catppuccin"]
+	path = config/bat/catppuccin
+	url = https://github.com/catppuccin/bat
+[submodule "config/eza/catppuccin"]
+	path = config/eza/catppuccin
+	url = https://github.com/catppuccin/eza
+[submodule "config/fzf/catppuccin"]
+	path = config/fzf/catppuccin
+	url = https://github.com/catppuccin/fzf
+[submodule "config/rofi/catppuccin"]
+	path = config/rofi/catppuccin
+	url = https://github.com/catppuccin/rofi
+[submodule "config/mako/catppuccin"]
+	path = config/mako/catppuccin
+	url = https://github.com/catppuccin/mako

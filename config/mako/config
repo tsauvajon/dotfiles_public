@@ -10,9 +10,9 @@ ignore-timeout=1
 
 font=JetBrainsMono Nerd Font 11
 background-color=#1e1e2eee
-text-color=#cad3f5ff
-border-color=#8aadf4ff
+text-color=#cdd6f4ff
+border-color=#cba6f7ff
 
 [urgency=high]
-border-color=#ed8796ff
+border-color=#f38ba8ff
 default-timeout=0

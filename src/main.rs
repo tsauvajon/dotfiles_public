@@ -257,6 +257,20 @@ fn run_setup(
         paths,
     )?;
     link::managed_link(
+        &d.join("config/bat"),
+        &h.join(".config/bat"),
+        skip_norms,
+        skip_source_norms,
+        paths,
+    )?;
+    link::managed_link(
+        &d.join("config/eza"),
+        &h.join(".config/eza"),
+        skip_norms,
+        skip_source_norms,
+        paths,
+    )?;
+    link::managed_link(
         &d.join("config/yazi"),
         &h.join(".config/yazi"),
         skip_norms,
