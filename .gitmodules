@@ -15,3 +15,6 @@
 [submodule "config/tmux/plugins/catppuccin"]
 	path = config/tmux/plugins/catppuccin
 	url = https://github.com/catppuccin/tmux
+[submodule "config/yazi/catppuccin"]
+	path = config/yazi/catppuccin
+	url = https://github.com/catppuccin/yazi
