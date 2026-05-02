@@ -10,6 +10,7 @@ alias top='htop'
 alias btop='htop'
 alias du='dust'
 alias find='fd'
+alias cat='bat'
 
 # Editor aliases
 alias h='hx'

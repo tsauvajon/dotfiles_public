@@ -48,6 +48,7 @@
             with pkgs;
             [
               asdf-vm
+              bat
               cargo-llvm-cov
               delta
               (direnv.overrideAttrs { doCheck = false; })
