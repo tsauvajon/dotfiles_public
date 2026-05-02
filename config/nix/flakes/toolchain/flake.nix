@@ -66,6 +66,7 @@
               tmux
               vim
               vscodium
+              yazi
               zoxide
             ]
             ++ (if pkgs.stdenv.isLinux then [ pkgs.mako ] else [ ]);
