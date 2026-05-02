@@ -22,13 +22,18 @@
         let
           pkgs = import nixpkgs { inherit system; };
           packages = with pkgs; [
+            alacritty
             asdf-vm
             (direnv.overrideAttrs { doCheck = false; })
             fish
             jq
             just
+            kitty
             nix-direnv
             tmux
+            zsh
+            zsh-autosuggestions
+            zsh-completions
           ];
         in
         {

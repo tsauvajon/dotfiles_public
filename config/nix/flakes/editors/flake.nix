@@ -25,6 +25,7 @@
             config.allowUnfree = true;
           };
           packages = with pkgs; [
+            obsidian
             opencode
             vim
             vscodium

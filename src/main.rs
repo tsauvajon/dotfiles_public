@@ -243,6 +243,20 @@ fn run_setup(
         paths,
     )?;
     link::managed_link(
+        &d.join("config/obsidian"),
+        &h.join(".config/obsidian"),
+        skip_norms,
+        skip_source_norms,
+        paths,
+    )?;
+    link::managed_link(
+        &d.join("config/keepassxc"),
+        &h.join(".config/keepassxc"),
+        skip_norms,
+        skip_source_norms,
+        paths,
+    )?;
+    link::managed_link(
         &d.join("config/ssh/config"),
         &h.join(".ssh/config"),
         skip_norms,

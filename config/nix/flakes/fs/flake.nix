@@ -27,6 +27,8 @@
             fd
             fzf
             ripgrep
+            xz
+            yq
             yazi
             zoxide
           ];

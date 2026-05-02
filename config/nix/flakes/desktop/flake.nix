@@ -25,7 +25,13 @@
             if pkgs.stdenv.isLinux then
               pkgs.symlinkJoin {
                 name = "dotfiles-desktop";
-                paths = [ pkgs.mako ];
+                paths = with pkgs; [
+                  audacity
+                  keepassxc
+                  mako
+                  swappy
+                  waybar
+                ];
               }
             else
               pkgs.runCommand "dotfiles-desktop" { } ''
@@ -39,7 +45,18 @@
           };
 
           devShells.default = pkgs.mkShell {
-            packages = if pkgs.stdenv.isLinux then [ pkgs.mako ] else [ ];
+            packages =
+              if pkgs.stdenv.isLinux then
+                with pkgs;
+                [
+                  audacity
+                  keepassxc
+                  mako
+                  swappy
+                  waybar
+                ]
+              else
+                [ ];
           };
 
           formatter = pkgs.nixfmt;
