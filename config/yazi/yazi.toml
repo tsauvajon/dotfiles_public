@@ -1,0 +1,14 @@
+[opener]
+edit = [
+    { run = "hx %s", block = true, for = "unix" },
+]
+
+[[opener.bulk-rename]]
+run = "hx %s"
+block = true
+for = "unix"
+
+[open]
+prepend_rules = [
+    { url = "bulk-rename.txt", use = "bulk-rename" },
+]

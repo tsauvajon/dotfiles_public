@@ -11,7 +11,8 @@ alias btop='htop'
 alias du='dust'
 alias find='fd'
 
-# Vim aliases
+# Editor aliases
+alias h='hx'
 alias vi='nvim'
 alias vim='nvim'
 

@@ -257,6 +257,13 @@ fn run_setup(
         paths,
     )?;
     link::managed_link(
+        &d.join("config/yazi"),
+        &h.join(".config/yazi"),
+        skip_norms,
+        skip_source_norms,
+        paths,
+    )?;
+    link::managed_link(
         &paths.dotfiles_config.join("goto/database.yml"),
         &h.join(".config/goto/database.yml"),
         skip_norms,
