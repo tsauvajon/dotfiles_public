@@ -1,4 +1,6 @@
 # Format man pages
+set -gx EDITOR hx
+set -gx VISUAL hx
 set -x MANROFFOPT -c
 set -x MANPAGER "sh -c 'col -bx | bat -l man -p'"
 
@@ -75,4 +77,3 @@ fish_add_path ~/.spicetify
 # Go
 set --export GOPATH "$HOME/go"
 set --export PATH $GOPATH/bin $PATH
-
