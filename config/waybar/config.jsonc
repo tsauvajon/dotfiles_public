@@ -10,17 +10,7 @@
     "margin-right": 4,
     "modules-left": ["custom/rofi", "hyprland/workspaces", "mpris", "hyprland/window"],
     "modules-center": ["clock"],
-    "modules-right": [
-      "memory",
-      "tray",
-      "backlight",
-      "pulseaudio",
-      "battery",
-      "custom/color-picker",
-      "custom/screenshot",
-      "custom/wallpaper",
-      "custom/power"
-    ],
+    "modules-right": ["cpu", "memory", "network", "tray", "backlight", "pulseaudio", "battery", "custom/color-picker", "custom/power"],
     "custom/rofi": {
       "format": "\udb82\udcc7",
       "on-click": "rofi -show drun",
@@ -34,7 +24,7 @@
       "format": "{name}",
       "on-scroll-up": "hyprctl dispatch workspace e+1 1>/dev/null",
       "on-scroll-down": "hyprctl dispatch workspace e-1 1>/dev/null",
-      "sort-by-number": true,
+      "sort-by": "number",
       "active-only": false
     },
     "mpris": {
@@ -42,6 +32,7 @@
       "format-paused": "{status_icon} {artist} - {title}",
       "tooltip-format": "{player} ({status})\r{artist} - {title}\r\rLeft-Click:   Play / Pause\rMiddle-Click: Previous Track\rRight-Click:  Next Track",
       "title-len": 20,
+      "max-length": 40,
       "player-icons": {
         "default": "▶",
         "mpv": "",
@@ -54,6 +45,7 @@
     },
     "hyprland/window": {
       "format": "{title}",
+      "max-length": 70,
       "separate-outputs": true,
       "rewrite": {
         "(.*) — Mozilla Firefox": "󰈹  $1",
@@ -83,11 +75,25 @@
         }
       }
     },
+    "cpu": {
+      "interval": 2,
+      "format": " {usage}%",
+      "tooltip": false
+    },
     "memory": {
       "interval": 30,
-      "format": " Mem {used}GiB",
-      "max-length": 13,
+      "format": " {used:0.0f}G/{total:0.0f}G",
+      "unit": "GB",
       "tooltip": false
+    },
+    "network": {
+      "interval": 5,
+      "format-wifi": " {signalStrength}%",
+      "format-ethernet": "󰈀",
+      "format-disconnected": "󰖪",
+      "tooltip-format-wifi": "{essid} ({signalStrength}%)\n{ifname}: {ipaddr}/{cidr}",
+      "tooltip-format-ethernet": "{ifname}: {ipaddr}/{cidr}",
+      "tooltip-format-disconnected": "Disconnected"
     },
     "tray": {
       "icon-size": 45,
@@ -130,250 +136,10 @@
       "on-click": "hyprpicker -an && notify-send 'Colour copied to clipboard'", // Show the colour in the notification with wl-paste.
       "tooltip-format": "Color Picker"
     },
-    "custom/screenshot": {
-      "format": "",
-      "on-click": "~/.config/waybar/scripts/screenshot_full.sh",
-      "on-click-right": "~/.config/waybar/scripts/screenshot_area.sh",
-      "tooltip-format": "Left-click:  Full Screen Screenshot\nRight-click: Area Screenshot"
-    },
-    "custom/wallpaper": {
-      "format": "󰸉",
-      "on-click": "waypaper --random",
-      "on-click-right": "waypaper",
-      "tooltip-format": "Left-click:  Change Wallpaper\nRight-click: Open Wallpaper Picker"
-    },
     "custom/power": {
       "format": "",
       "tooltip": false,
       "on-click": "~/.config/rofi/powermenu.sh"
-    }
-  },
-  {
-    "layer": "top",
-    "position": "bottom",
-    // "modules-center": [
-      // "custom/file-manager",
-      // "custom/terminal",
-      // "custom/zen",
-      // "custom/spotify",
-      // "custom/obs-studio",
-      // "custom/discord",
-      // "custom/telegram",
-      // "custom/whatsapp",
-      // "custom/darktable",
-      // "custom/adobe-photoshop",
-      // "custom/gimp",
-      // "custom/pinta",
-      // "custom/inkscape",
-      // "custom/affinity-photo",
-      // "custom/affinity-designer",
-      // "custom/affinity-publisher",
-      // "custom/davinci-resolve",
-      // "custom/ryujinx",
-      // "custom/steam",
-      // "custom/heroic",
-      // "custom/unity",
-      // "custom/jetbrains-rider",
-      // "custom/jetbrains-idea",
-      // "custom/jetbrains-pycharm",
-      // "custom/jetbrains-webstorm",
-      // "custom/neovim",
-      // "custom/vs-code",
-      // "custom/docker",
-      // "custom/beekeeper-studio",
-      // "custom/postman",
-      // "custom/bruno",
-      // "custom/figma",
-      // "custom/excalidraw",
-      // "custom/anki",
-      // "custom/obsidian",
-      // "custom/calculator"
-    // ],
-    "custom/file-manager": {
-      "format": "{} ",
-      "tooltip-format": "File Manager",
-      "on-click": "pcmanfm",
-      "on-click-right": "kitty --class kitty-yazi --hold yazi"
-    },
-    "custom/terminal": {
-      "format": "{} ",
-      "tooltip-format": "Kitty",
-      "on-click": "kitty"
-    },
-    "custom/zen": {
-      "format": "{} ",
-      "tooltip-format": "Zen Browser",
-      "on-click": "flatpak run io.github.zen_browser.zen"
-    },
-    "custom/spotify": {
-      "format": "{} ",
-      "tooltip-format": "Spotify",
-      "on-click": "flatpak run com.spotify.Client"
-    },
-    "custom/obs-studio": {
-      "format": "{} ",
-      "tooltip-format": "OBS Studio",
-      "on-click": "obs"
-    },
-    "custom/discord": {
-      "format": "{} ",
-      "tooltip-format": "Discord",
-      "on-click": "flatpak run dev.vencord.Vesktop --enable-gpu-rasterization --ignore-gpu-blocklist --enable-features=VaapiVideoDecoder --use-gl=desktop --enable-zero-copy"
-    },
-    "custom/telegram": {
-      "format": "{} ",
-      "tooltip-format": "Telegram",
-      "on-click": "telegram-desktop"
-    },
-    "custom/whatsapp": {
-      "format": "{} ",
-      "tooltip-format": "WhatsApp",
-      "on-click": "firefoxpwa site launch 01J87X8PCDY36KMBX73TZZVH5H"
-    },
-    "custom/darktable": {
-      "format": "{} ",
-      "tooltip-format": "Darktable",
-      "on-click": "darktable"
-    },
-    "custom/adobe-photoshop": {
-      "format": "{} ",
-      "tooltip-format": "Adobe Photoshop",
-      "on-click": "~/.config/waybar/scripts/adobe_photoshop.sh"
-    },
-    "custom/affinity-photo": {
-      "format": "{} ",
-      "tooltip-format": "Affinity Photo",
-      "on-click": "~/.config/waybar/scripts/affinity_photo.sh"
-    },
-    "custom/affinity-designer": {
-      "format": "{} ",
-      "tooltip-format": "Affinity Designer",
-      "on-click": "~/.config/waybar/scripts/affinity_designer.sh"
-    },
-    "custom/affinity-publisher": {
-      "format": "{} ",
-      "tooltip-format": "Affinity Publisher",
-      "on-click": "~/.config/waybar/scripts/affinity_publisher.sh"
-    },
-    "custom/gimp": {
-      "format": "{} ",
-      "tooltip-format": "PhotoGIMP",
-      "on-click": "gimp"
-    },
-    "custom/pinta": {
-      "format": "{} ",
-      "tooltip-format": "Pinta",
-      "on-click": "pinta"
-    },
-    "custom/inkscape": {
-      "format": "{} ",
-      "tooltip-format": "Inkscape",
-      "on-click": "inkscape -g"
-    },
-    "custom/davinci-resolve": {
-      "format": "{} ",
-      "tooltip-format": "Davinci Resolve",
-      "on-click": "/opt/resolve/bin/resolve"
-    },
-    "custom/steam": {
-      "format": "{} ",
-      "tooltip-format": "Steam",
-      "on-click": "steam -forcedesktopscaling 1.75"
-    },
-    "custom/lutris": {
-      "format": "{} ",
-      "tooltip-format": "Lutris",
-      "on-click": "lutris"
-    },
-    "custom/heroic": {
-      "format": "{} ",
-      "tooltip-format": "Heroic Launcher",
-      "on-click": "heroic"
-    },
-    "custom/ryujinx": {
-      "format": "{} ",
-      "tooltip-format": "Ryujinx",
-      "on-click": "flatpak run --socket=wayland org.ryujinx.Ryujinx"
-    },
-    "custom/unity": {
-      "format": "{} ",
-      "tooltip-format": "Unity",
-      "on-click": "unityhub"
-    },
-    "custom/jetbrains-rider": {
-      "format": "{} ",
-      "tooltip-format": "Rider",
-      "on-click": "/opt/jetbrains-rider/bin/rider"
-    },
-    "custom/jetbrains-idea": {
-      "format": "{} ",
-      "tooltip-format": "IntelliJ Idea",
-      "on-click": "/opt/jetbrains-idea/bin/idea"
-    },
-    "custom/jetbrains-pycharm": {
-      "format": "{} ",
-      "tooltip-format": "PyCharm",
-      "on-click": "/opt/jetbrains-pycharm/bin/pycharm"
-    },
-    "custom/jetbrains-webstorm": {
-      "format": "{} ",
-      "tooltip-format": "WebStorm",
-      "on-click": "/opt/jetbrains-webstorm/bin/webstorm"
-    },
-    "custom/neovim": {
-      "format": "{} ",
-      "tooltip-format": "Neovim",
-      "on-click": "kitty --class kitty-neovim -d ~/Projects --hold nvim"
-    },
-    "custom/vs-code": {
-      "format": "{} ",
-      "tooltip-format": "Visual Studio Code",
-      "on-click": "vscodium"
-    },
-    "custom/docker": {
-      "format": "{} ",
-      "tooltip-format": "Docker Desktop",
-      "on-click": "systemctl --user start docker-desktop"
-    },
-    "custom/beekeeper-studio": {
-      "format": "{} ",
-      "tooltip-format": "Beekeeper Studio",
-      "on-click": "beekeeper-studio"
-    },
-    "custom/obsidian": {
-      "format": "{} ",
-      "tooltip-format": "Obsidian",
-      "on-click": "obsidian"
-    },
-    "custom/excalidraw": {
-      "format": "{} ",
-      "tooltip-format": "Excalidraw",
-      "on-click": "firefoxpwa site launch 01J87WZTDWK71S16B6EFCZK7KN"
-    },
-    "custom/figma": {
-      "format": "{} ",
-      "tooltip-format": "Figma",
-      "on-click": "figma-linux"
-    },
-    "custom/postman": {
-      "format": "{} ",
-      "tooltip-format": "Postman",
-      "on-click": "postman"
-    },
-    "custom/bruno": {
-      "format": "{} ",
-      "tooltip-format": "Bruno",
-      "on-click": "flatpak run com.usebruno.Bruno"
-    },
-    "custom/calculator": {
-      "format": "{} ",
-      "tooltip-format": "Calculator",
-      "on-click": "qalculate-gtk"
-    },
-    "custom/anki": {
-      "format": "{} ",
-      "tooltip-format": "Anki",
-      "on-click": "anki"
     }
   }
 ]

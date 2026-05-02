@@ -12,7 +12,9 @@
 
 #custom-rofi {
   margin-left: 7pt;
-  padding-right: 3pt;
+  padding: 0 6pt;
+  border-radius: 999px;
+  color: #{"@sky"};
   font-size: 12pt;
 }
 
@@ -60,9 +62,28 @@
   margin-right: 20pt;
 }
 
+#clock {
+  color: #{"@text"};
+}
+
+#cpu {
+  color: #{"@maroon"};
+  margin-right: 12pt;
+}
+
 #memory {
   color: #{"@peach"};
   margin-right: 12pt;
+}
+
+#network {
+  color: #{"@teal"};
+  margin-right: 12pt;
+}
+
+#network.disconnected,
+#network.disabled {
+  color: #{"@overlay1"};
 }
 
 #tray {
@@ -115,27 +136,23 @@
   color: #{"@red"};
   animation-name: blink;
   animation-duration: 0.5s;
-  animation-timing-function: linear;
+  animation-timing-function: steps(12);
   animation-iteration-count: infinite;
   animation-direction: alternate;
 }
 
 #custom-color-picker {
-  margin-right: 18pt;
-  font-size: 9pt;
-}
-
-#custom-screenshot {
-  margin-right: 18pt;
+  margin-right: 11pt;
+  padding: 0 6pt;
+  border-radius: 999px;
+  color: #{"@mauve"};
   font-size: 10pt;
-}
-
-#custom-wallpaper {
-  margin-right: 16pt;
-  font-size: 12pt;
 }
 
 #custom-power {
   margin-right: 11pt;
+  padding: 0 6pt;
+  border-radius: 999px;
+  color: #{"@red"};
   font-size: 10pt;
 }

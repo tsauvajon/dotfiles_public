@@ -27,7 +27,10 @@
                 name = "dotfiles-desktop";
                 paths = with pkgs; [
                   audacity
+                  dart-sass
+                  hyprpicker
                   keepassxc
+                  libnotify
                   mako
                   swappy
                   waybar
@@ -50,7 +53,10 @@
                 with pkgs;
                 [
                   audacity
+                  dart-sass
+                  hyprpicker
                   keepassxc
+                  libnotify
                   mako
                   swappy
                   waybar

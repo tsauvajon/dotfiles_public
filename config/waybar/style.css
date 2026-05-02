@@ -12,7 +12,9 @@
 
 #custom-rofi {
   margin-left: 7pt;
-  padding-right: 3pt;
+  padding: 0 6pt;
+  border-radius: 999px;
+  color: @sky;
   font-size: 12pt;
 }
 
@@ -53,9 +55,24 @@
   margin-right: 20pt;
 }
 
+#cpu {
+  color: @maroon;
+  margin-right: 12pt;
+}
+
 #memory {
   color: @peach;
   margin-right: 12pt;
+}
+
+#network {
+  color: @teal;
+  margin-right: 12pt;
+}
+
+#network.disconnected,
+#network.disabled {
+  color: @overlay1;
 }
 
 #tray {
@@ -104,393 +121,25 @@
   color: @red;
   animation-name: blink;
   animation-duration: 0.5s;
-  animation-timing-function: linear;
+  animation-timing-function: steps(12);
   animation-iteration-count: infinite;
   animation-direction: alternate;
 }
 
 #custom-color-picker {
   margin-right: 18pt;
-  font-size: 9pt;
-}
-
-#custom-screenshot {
-  margin-right: 18pt;
+  padding: 0 6pt;
+  border-radius: 999px;
+  color: @mauve;
   font-size: 10pt;
-}
-
-#custom-wallpaper {
-  margin-right: 16pt;
-  font-size: 12pt;
 }
 
 #custom-power {
   margin-right: 11pt;
+  padding: 0 6pt;
+  border-radius: 999px;
+  color: @red;
   font-size: 10pt;
-}
-
-#waybar.bottom {
-  background: none;
-}
-#waybar.bottom box.modules-center {
-  background: @mantle;
-  margin-top: 5pt;
-  padding: 0 4pt;
-  border-top-left-radius: 10pt;
-  border-top-right-radius: 10pt;
-  box-shadow: 0 0 3pt @mantle;
-}
-
-#custom-file-manager {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/file-manager.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-terminal {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/terminal.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-zen {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/zen.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-spotify {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/spotify.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-obs-studio {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/obs-studio.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-discord {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/discord.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-telegram {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/telegram.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-whatsapp {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/whatsapp.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-adobe-photoshop {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/adobe-photoshop.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-gimp {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/gimp.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-pinta {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/pinta.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-inkscape {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/inkscape.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-davinci-resolve {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/davinci-resolve.png");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-steam {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/steam.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-heroic {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/heroic.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-ryujinx {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/ryujinx.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-lutris {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/lutris.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-obsidian {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/obsidian.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-unity {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/unity.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-jetbrains-rider {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/jetbrains-rider.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-jetbrains-idea {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/jetbrains-idea.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-jetbrains-pycharm {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/jetbrains-pycharm.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-jetbrains-webstorm {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/jetbrains-webstorm.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-neovim {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/neovim.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-vs-code {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/vs-code.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-docker {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/docker.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-beekeeper-studio {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/beekeeper-studio.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-excalidraw {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/excalidraw.png");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-figma {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/figma.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-bruno {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/bruno.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-calculator {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/calculator.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
-}
-
-#custom-anki {
-  background: transparent;
-  background-image: url("~/.config/waybar/icons/anki.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 28pt;
-  font-size: 28pt;
-  padding: 0 6pt;
-  margin: 0 2pt;
 }
 
 * {
