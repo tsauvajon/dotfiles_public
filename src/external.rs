@@ -50,16 +50,22 @@ fn install_nix_profile(paths: &Paths, name: &str) -> Result<bool> {
         flake_dir.display()
     ));
 
-    let build_status = Command::new("nix")
-        .args([
-            "--extra-experimental-features",
-            "nix-command flakes",
-            "build",
-            "--no-link",
-            &flake_ref,
-        ])
-        .status()
-        .context("running nix build")?;
+    let nvidia_driver_version = nvidia_driver_version();
+
+    let mut build = Command::new("nix");
+    build.args([
+        "--extra-experimental-features",
+        "nix-command flakes",
+        "build",
+        "--impure",
+        "--no-link",
+        &flake_ref,
+    ]);
+    if let Some(version) = nvidia_driver_version.as_deref() {
+        build.env("NIXGL_NVIDIA_VERSION", version);
+    }
+
+    let build_status = build.status().context("running nix build")?;
 
     if !build_status.success() {
         crate::warn(&format!(
@@ -70,16 +76,20 @@ fn install_nix_profile(paths: &Paths, name: &str) -> Result<bool> {
 
     remove_nix_profile(name);
 
-    let status = Command::new("nix")
-        .args([
-            "--extra-experimental-features",
-            "nix-command flakes",
-            "profile",
-            "add",
-            &flake_ref,
-        ])
-        .status()
-        .context("running nix profile add")?;
+    let mut profile_add = Command::new("nix");
+    profile_add.args([
+        "--extra-experimental-features",
+        "nix-command flakes",
+        "profile",
+        "add",
+        "--impure",
+        &flake_ref,
+    ]);
+    if let Some(version) = nvidia_driver_version.as_deref() {
+        profile_add.env("NIXGL_NVIDIA_VERSION", version);
+    }
+
+    let status = profile_add.status().context("running nix profile add")?;
 
     if !status.success() {
         crate::warn(&format!("nix profile add failed for {name}"));
@@ -128,4 +138,22 @@ fn command_exists(name: &str) -> bool {
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false)
+}
+
+fn nvidia_driver_version() -> Option<String> {
+    let output = Command::new("nvidia-smi")
+        .args(["--query-gpu=driver_version", "--format=csv,noheader"])
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    String::from_utf8(output.stdout)
+        .ok()?
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .map(str::to_owned)
 }
