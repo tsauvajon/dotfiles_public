@@ -243,15 +243,15 @@ fn run_setup(
         paths,
     )?;
     link::managed_link(
-        &d.join("config/obsidian"),
-        &h.join(".config/obsidian"),
+        &d.join("config/obsidian/Preferences"),
+        &h.join(".config/obsidian/Preferences"),
         skip_norms,
         skip_source_norms,
         paths,
     )?;
     link::managed_link(
-        &d.join("config/keepassxc"),
-        &h.join(".config/keepassxc"),
+        &d.join("config/keepassxc/keepassxc.ini"),
+        &h.join(".config/keepassxc/keepassxc.ini"),
         skip_norms,
         skip_source_norms,
         paths,
