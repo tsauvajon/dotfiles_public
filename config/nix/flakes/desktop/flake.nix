@@ -27,9 +27,11 @@
                 name = "dotfiles-desktop";
                 paths = with pkgs; [
                   audacity
+                  bibata-cursors
                   dart-sass
                   # firefox
                   hyprpicker
+                  nerd-fonts.jetbrains-mono
                   keepassxc
                   libnotify
                   mako
@@ -54,9 +56,11 @@
                 with pkgs;
                 [
                   audacity
+                  bibata-cursors
                   dart-sass
                   # firefox
                   hyprpicker
+                  nerd-fonts.jetbrains-mono
                   keepassxc
                   libnotify
                   mako
