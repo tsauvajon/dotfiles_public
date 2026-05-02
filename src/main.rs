@@ -264,6 +264,13 @@ fn run_setup(
         paths,
     )?;
     link::managed_link(
+        &d.join("config/fzf"),
+        &h.join(".config/fzf"),
+        skip_norms,
+        skip_source_norms,
+        paths,
+    )?;
+    link::managed_link(
         &d.join("config/eza"),
         &h.join(".config/eza"),
         skip_norms,
@@ -303,7 +310,7 @@ fn run_setup(
     std::fs::create_dir_all(dev.join("wt"))?;
     std::fs::create_dir_all(dev.join("detached"))?;
 
-    external::install_nix_toolchain(paths)?;
+    external::install_nix_profiles(paths)?;
     external::install_helix_language_tools(paths)?;
     external::install_helix_plugins(paths)?;
     external::run_task_bootstrap(&paths.home)?;

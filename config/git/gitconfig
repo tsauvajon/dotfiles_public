@@ -36,6 +36,7 @@
 	side-by-side = true
 	line-numbers = true
 	hyperlinks=true
+	syntax-theme = "Catppuccin Mocha"
 	# hyperlinks-file-link-format = "idea://open?file={path}&line={line}
 [merge]
 	conflictStyle = zdiff3
