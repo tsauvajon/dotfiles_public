@@ -8,9 +8,26 @@
     "margin-bottom": 0,
     "margin-left": 4,
     "margin-right": 4,
-    "modules-left": ["custom/rofi", "hyprland/workspaces", "mpris", "hyprland/window"],
-    "modules-center": ["clock"],
-    "modules-right": ["cpu", "memory", "network", "tray", "backlight", "pulseaudio", "battery", "custom/color-picker", "custom/power"],
+    "modules-left": [
+      "custom/rofi",
+      "hyprland/workspaces",
+      "mpris",
+      "hyprland/window"
+    ],
+    "modules-center": [
+      "clock"
+    ],
+    "modules-right": [
+      "cpu",
+      "memory",
+      "network",
+      "tray",
+      "backlight",
+      "pulseaudio",
+      "battery",
+      "custom/color-picker",
+      "custom/power"
+    ],
     "custom/rofi": {
       "format": "\udb82\udcc7",
       "on-click": "rofi -show drun",
@@ -82,7 +99,7 @@
     },
     "memory": {
       "interval": 30,
-      "format": " {used:0.0f}G/{total:0.0f}G",
+      "format": " {used:0.0f}/{total:0.0f}G",
       "unit": "GB",
       "tooltip": false
     },
@@ -101,7 +118,11 @@
     },
     "backlight": {
       "format": "{icon} <b>{percent}%</b>",
-      "format-icons": ["󰃞", "󰃟", "󰃠"],
+      "format-icons": [
+        "󰃞",
+        "󰃟",
+        "󰃠"
+      ],
       "tooltip": false
     },
     "pulseaudio": {
@@ -111,16 +132,30 @@
       "format-bluetooth-muted": "󰝟 ",
       "format-icons": {
         "headset": "",
-        "default": ["󰕿", "󰖀", "󰕾"]
+        "default": [
+          "󰕿",
+          "󰖀",
+          "󰕾"
+        ]
       },
       "tooltip": true,
       "on-click": "pavucontrol",
-      "ignored-sinks": ["JamesDSP Sink", "Easy Effects Sink", "HDA NVidia Digital Stereo (HDMI)"]
+      "ignored-sinks": [
+        "JamesDSP Sink",
+        "Easy Effects Sink",
+        "HDA NVidia Digital Stereo (HDMI)"
+      ]
     },
     "battery": {
       "format": "{icon} {capacity}%",
       "format-plugged": " {capacity}%",
-      "format-icons": ["", "", "", "", ""],
+      "format-icons": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
       "max-length": 25,
       "tooltip": true,
       "interval": 5,
