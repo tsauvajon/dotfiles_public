@@ -28,6 +28,7 @@
                 paths = with pkgs; [
                   audacity
                   dart-sass
+                  # firefox
                   hyprpicker
                   keepassxc
                   libnotify
@@ -54,6 +55,7 @@
                 [
                   audacity
                   dart-sass
+                  # firefox
                   hyprpicker
                   keepassxc
                   libnotify
