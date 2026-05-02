@@ -1,6 +1,6 @@
 @use "bar";
 
-// Press META + SHIFT + R to update the styles.
+// Run setup.sh to update the generated style.css.
 
 @import "catppuccin/themes/mocha.css";
 
@@ -8,7 +8,7 @@
   margin: 0;
   padding: 0;
   font-family: "JetBrainsMono Nerd Font";
-  font-size: 8.5pt;
+  font-size: 10pt;
   font-weight: 800;
   transition-property: background;
   transition-duration: 0.5s;

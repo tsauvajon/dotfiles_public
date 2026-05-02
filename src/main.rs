@@ -4,6 +4,7 @@ mod generate;
 mod link;
 mod merge;
 mod plists;
+mod waybar;
 
 use anyhow::Result;
 use config::{Paths, PrivateConfig, RulesMode};
@@ -263,13 +264,7 @@ fn run_setup(
         skip_source_norms,
         paths,
     )?;
-    link::managed_link(
-        &d.join("config/waybar"),
-        &h.join(".config/waybar"),
-        skip_norms,
-        skip_source_norms,
-        paths,
-    )?;
+    waybar::generate_and_link(paths, skip_norms, skip_source_norms)?;
     link::managed_link(
         &d.join("config/bat"),
         &h.join(".config/bat"),
@@ -421,6 +416,7 @@ fn run_check(
     merge::merge_cargo_to(&shadow_paths, skip_source_norms)?;
     merge::merge_alacritty_to(&shadow_paths, skip_source_norms)?;
     merge::merge_task_to(&shadow_paths, skip_source_norms)?;
+    waybar::generate_to(&shadow_paths, skip_source_norms)?;
     generate::generate_private_files_to(&shadow_paths, private_cfg)?;
 
     // Compare generated files
@@ -460,6 +456,7 @@ fn run_check(
         "aerospace.toml",
         "cargo-config.toml",
         "alacritty.toml",
+        "waybar/style.css",
     ];
 
     for rel in &generated_files {

@@ -6,8 +6,5 @@ killall -q waybar .waybar-wrapped
 # Wait until the processes have been shut down
 while pgrep -x waybar >/dev/null; do sleep 1; done
 
-# Update the waybar stylesheets
-sass --no-source-map ~/.config/waybar/styles/index.scss ~/.config/waybar/style.css
-
 # Launch main
 waybar
