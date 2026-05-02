@@ -294,6 +294,20 @@ fn run_setup(
         paths,
     )?;
     link::managed_link(
+        &d.join("config/zellij/config.kdl"),
+        &h.join(".config/zellij/config.kdl"),
+        skip_norms,
+        skip_source_norms,
+        paths,
+    )?;
+    link::managed_link(
+        &d.join("config/zellij/catppuccin/catppuccin.kdl"),
+        &h.join(".config/zellij/themes/catppuccin.kdl"),
+        skip_norms,
+        skip_source_norms,
+        paths,
+    )?;
+    link::managed_link(
         &paths.dotfiles_config.join("goto/database.yml"),
         &h.join(".config/goto/database.yml"),
         skip_norms,

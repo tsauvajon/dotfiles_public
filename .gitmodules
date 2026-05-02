@@ -36,3 +36,6 @@
 [submodule "config/waybar/catppuccin"]
 	path = config/waybar/catppuccin
 	url = https://github.com/catppuccin/waybar
+[submodule "config/zellij/catppuccin"]
+	path = config/zellij/catppuccin
+	url = https://github.com/catppuccin/zellij
