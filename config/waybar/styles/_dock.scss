@@ -1,9 +1,8 @@
 @use "sass:string";
-@use "colours";
 
 $iconSize: 28pt;
 $iconGap: 2pt;
-$iconDir: "#{$HOME}/.config/waybar/icons/";
+$iconDir: "~/.config/waybar/icons/";
 $icons: (
   "file-manager.svg",
   "terminal.svg",
@@ -48,12 +47,12 @@ $icons: (
   background: none;
 
   box.modules-center {
-    background: colours.$mocha-mantle;
+    background: #{"@mantle"};
     margin-top: 5pt;
-    padding: 0 4pt;
+    padding:0 4pt;
     border-top-left-radius: 10pt;
     border-top-right-radius: 10pt;
-    box-shadow: 0 0 3pt colours.$mocha-mantle;
+    box-shadow: 0 0 3pt #{"@mantle"};
   }
 }
 
@@ -67,7 +66,7 @@ $icons: (
     background-repeat: no-repeat;
     background-size: $iconSize;
     font-size: $iconSize;
-    padding: 0 6pt;
-    margin: 0 $iconGap;
+    padding:0 6pt;
+    margin:0 $iconGap;
   }
 }

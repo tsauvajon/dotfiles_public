@@ -1,9 +1,10 @@
+@import "catppuccin/themes/mocha.css";
 #waybar.top {
   background: none;
 }
 #waybar.top > box.horizontal {
-  background: #11111b;
-  box-shadow: 0 0 4pt #11111b;
+  background: @crust;
+  box-shadow: 0 0 4pt @crust;
   border-radius: 12pt;
   margin: 6pt;
   padding: 2pt;
@@ -19,16 +20,16 @@
   margin-left: 12pt;
 }
 #workspaces button {
-  color: #585b70;
+  color: @surface2;
 }
 #workspaces button:not(:first-child) {
   margin-left: 2pt;
 }
 #workspaces button.visible {
-  color: #89b4fa;
+  color: @blue;
 }
 #workspaces button.active {
-  color: #f38ba8;
+  color: @red;
 }
 #workspaces button:hover, #workspaces button:focus {
   background: none;
@@ -36,12 +37,12 @@
   box-shadow: none;
 }
 #workspaces button:hover:not(.active):not(.visible), #workspaces button:focus:not(.active):not(.visible) {
-  color: #9399b2;
+  color: @overlay2;
 }
 
 #mpris {
-  background: #1e1e2e;
-  color: #a6e3a1;
+  background: @base;
+  color: @green;
   border-radius: 12pt;
   margin-left: 15pt;
   padding: 0 8pt;
@@ -53,7 +54,7 @@
 }
 
 #memory {
-  color: #fab387;
+  color: @peach;
   margin-right: 12pt;
 }
 
@@ -61,7 +62,7 @@
   margin-right: 10pt;
 }
 #tray menu {
-  background: #1e1e2e;
+  background: @base;
   padding: 2pt;
 }
 #tray menu * {
@@ -73,22 +74,22 @@
 
 @keyframes blink {
   to {
-    background-color: rgba(30, 34, 42, 0.5);
-    color: #cdd6f4;
+    background-color: alpha(@base, 0.5);
+    color: @text;
   }
 }
 #backlight {
-  color: #cba6f7;
+  color: @mauve;
   margin-right: 10pt;
 }
 
 #pulseaudio {
-  color: #74c7ec;
+  color: @sapphire;
   margin-right: 10pt;
 }
 
 #battery {
-  color: #f9e2af;
+  color: @yellow;
   margin-right: 15pt;
 }
 
@@ -96,11 +97,11 @@
 #battery.good,
 #battery.charging,
 #battery.plugged {
-  color: #a6e3a1;
+  color: @green;
 }
 
 #battery.critical:not(.charging) {
-  color: #f38ba8;
+  color: @red;
   animation-name: blink;
   animation-duration: 0.5s;
   animation-timing-function: linear;
@@ -132,12 +133,12 @@
   background: none;
 }
 #waybar.bottom box.modules-center {
-  background: #181825;
+  background: @mantle;
   margin-top: 5pt;
   padding: 0 4pt;
   border-top-left-radius: 10pt;
   border-top-right-radius: 10pt;
-  box-shadow: 0 0 3pt #181825;
+  box-shadow: 0 0 3pt @mantle;
 }
 
 #custom-file-manager {
@@ -503,9 +504,7 @@
 }
 
 tooltip {
-  background: #11111b;
-  color: #cdd6f4;
+  background: @crust;
+  color: @text;
   border-radius: 5pt;
 }
-
-/*# sourceMappingURL=style.css.map */

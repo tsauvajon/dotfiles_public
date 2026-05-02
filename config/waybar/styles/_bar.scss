@@ -1,11 +1,9 @@
-@use "colours";
-
 #waybar.top {
   background: none;
 
   >box.horizontal {
-    background: colours.$mocha-crust;
-    box-shadow: 0 0 4pt colours.$mocha-crust;
+    background: #{"@crust"};
+    box-shadow: 0 0 4pt #{"@crust"};
     border-radius: 12pt;
     margin: 6pt;
     padding: 2pt;
@@ -22,18 +20,18 @@
   margin-left: 12pt;
 
   button {
-    color: colours.$mocha-surface2;
+    color: #{"@surface2"};
 
     &:not(:first-child) {
       margin-left: 2pt;
     }
 
     &.visible {
-      color: colours.$mocha-blue;
+      color: #{"@blue"};
     }
 
     &.active {
-      color: colours.$mocha-red;
+      color: #{"@red"};
     }
 
     &:hover,
@@ -43,15 +41,15 @@
       box-shadow: none;
 
       &:not(.active):not(.visible) {
-        color: colours.$mocha-overlay2;
+        color: #{"@overlay2"};
       }
     }
   }
 }
 
 #mpris {
-  background: colours.$mocha-base;
-  color: colours.$mocha-green;
+  background: #{"@base"};
+  color: #{"@green"};
   border-radius: 12pt;
   margin-left: 15pt;
   padding: 0 8pt;
@@ -63,7 +61,7 @@
 }
 
 #memory {
-  color: colours.$mocha-peach;
+  color: #{"@peach"};
   margin-right: 12pt;
 }
 
@@ -71,7 +69,7 @@
   margin-right: 10pt;
 
   menu {
-    background: colours.$mocha-base;
+    background: #{"@base"};
     padding: 2pt;
 
     * {
@@ -86,23 +84,23 @@
 
 @keyframes blink {
   to {
-    background-color: rgba(30, 34, 42, 0.5);
-    color: colours.$mocha-text;
+    background-color: #{"alpha(@base, 0.5)"};
+    color: #{"@text"};
   }
 }
 
 #backlight {
-  color: colours.$mocha-mauve;
+  color: #{"@mauve"};
   margin-right: 10pt;
 }
 
 #pulseaudio {
-  color: colours.$mocha-sapphire;
+  color: #{"@sapphire"};
   margin-right: 10pt;
 }
 
 #battery {
-  color: colours.$mocha-yellow;
+  color: #{"@yellow"};
   margin-right: 15pt;
 }
 
@@ -110,11 +108,11 @@
 #battery.good,
 #battery.charging,
 #battery.plugged {
-  color: colours.$mocha-green;
+  color: #{"@green"};
 }
 
 #battery.critical:not(.charging) {
-  color: colours.$mocha-red;
+  color: #{"@red"};
   animation-name: blink;
   animation-duration: 0.5s;
   animation-timing-function: linear;

@@ -33,3 +33,6 @@
 [submodule "config/mako/catppuccin"]
 	path = config/mako/catppuccin
 	url = https://github.com/catppuccin/mako
+[submodule "config/waybar/catppuccin"]
+	path = config/waybar/catppuccin
+	url = https://github.com/catppuccin/waybar
