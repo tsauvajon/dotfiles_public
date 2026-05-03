@@ -9,7 +9,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     helix-steel = {
-      url = "github:mattwparas/helix/steel-event-system";
+      url = "github:mattwparas/helix/steel-event-system?shallow=1";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.rust-overlay.follows = "rust-overlay";
     };
