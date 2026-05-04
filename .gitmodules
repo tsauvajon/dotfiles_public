@@ -12,8 +12,8 @@
 [submodule "config/alacritty/themes"]
 	path = config/alacritty/themes
 	url = https://github.com/alacritty/alacritty-theme.git
-[submodule "config/tmux/plugins/catppuccin"]
-	path = config/tmux/plugins/catppuccin
+[submodule "config/tmux/plugins/tmux"]
+	path = config/tmux/plugins/tmux
 	url = https://github.com/catppuccin/tmux
 [submodule "config/yazi/catppuccin"]
 	path = config/yazi/catppuccin
