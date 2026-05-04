@@ -167,14 +167,9 @@ fn run_setup(
         skip_source_norms,
         paths,
     )?;
-    // Trailing slash matches bash: managed_link "$DOTFILES/config/nix/flakes/" "$HOME/flakes"
-    link::managed_link_raw(
-        &format!("{}/config/nix/flakes/", d.display()),
-        &h.join("flakes"),
-        skip_norms,
-        skip_source_norms,
-        paths,
-    )?;
+    // Phase 2 retired the ~/flakes convenience symlink along with the
+    // per-domain flakes; clean up any stale link from a previous setup.
+    link::remove_managed_link_if_present(&h.join("flakes"), paths)?;
     // ~/.tmux is a real directory; only ~/.tmux/plugins is a symlink so the
     // tmux config source can live alongside its plugins under config/tmux/.
     ensure_tmux_dir(paths)?;
@@ -333,9 +328,7 @@ fn run_setup(
     std::fs::create_dir_all(dev.join("wt"))?;
     std::fs::create_dir_all(dev.join("detached"))?;
 
-    external::install_nix_profiles(paths)?;
-    external::install_helix_language_tools(paths)?;
-    external::install_helix_plugins(paths)?;
+    external::install_home_manager(paths)?;
     external::run_task_bootstrap(&paths.home)?;
 
     if paths.config_toml.exists() {

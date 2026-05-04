@@ -4,51 +4,36 @@ use anyhow::{Context, Result};
 
 use crate::config::Paths;
 
-const NIX_PROFILES: &[&str] = &["rust", "git", "fs", "shell", "editors", "desktop"];
+/// Legacy per-domain Nix profile names installed by previous setup-tool
+/// versions. Removed once on first Phase 2 run so they don't shadow the
+/// Home Manager generation in `~/.nix-profile`.
+const LEGACY_NIX_PROFILES: &[&str] = &[
+    "desktop",
+    "editors",
+    "fs",
+    "git",
+    "helix-langs",
+    "helix-plugins",
+    "rust",
+    "shell",
+    "toolchain",
+];
 
-/// Install Nix profiles from the dotfiles flakes.
-pub fn install_nix_profiles(paths: &Paths) -> Result<()> {
+/// Build and activate the Home Manager generation defined in the
+/// dotfiles flake. Replaces the per-flake `nix profile add` loop.
+pub fn install_home_manager(paths: &Paths) -> Result<()> {
     if !command_exists("nix") {
-        crate::warn("nix not found. Install Nix first to use the flake profiles.");
+        crate::warn("nix not found. Install Nix first to use the dotfiles flake.");
         return Ok(());
     }
 
-    let mut all_installed = true;
-    for profile in NIX_PROFILES {
-        let installed = install_nix_profile(paths, profile)?;
-        all_installed = all_installed && installed;
-    }
+    let host = detect_host()?;
+    let flake_ref = format!(
+        "path:{}#homeConfigurations.{host}.activationPackage",
+        paths.dotfiles.display()
+    );
 
-    if all_installed {
-        remove_nix_profile("toolchain");
-    }
-
-    Ok(())
-}
-
-/// Install Helix language tooling from the dotfiles flake.
-pub fn install_helix_language_tools(paths: &Paths) -> Result<()> {
-    install_nix_profile(paths, "helix-langs").map(|_| ())
-}
-
-/// Install the Steel-enabled Helix package with pinned plugins.
-pub fn install_helix_plugins(paths: &Paths) -> Result<()> {
-    install_nix_profile(paths, "helix-plugins").map(|_| ())
-}
-
-fn install_nix_profile(paths: &Paths, name: &str) -> Result<bool> {
-    if !command_exists("nix") {
-        crate::warn("nix not found. Install Nix first to use the flake profiles.");
-        return Ok(false);
-    }
-
-    let flake_dir = paths.dotfiles.join("config/nix/flakes").join(name);
-    let flake_ref = format!("path:{}#{name}", flake_dir.display());
-
-    crate::log(&format!(
-        "Installing Nix profile {name} from {}",
-        flake_dir.display()
-    ));
+    crate::log(&format!("Building home-manager generation for {host}"));
 
     let nvidia_driver_version = nvidia_driver_version();
 
@@ -59,56 +44,81 @@ fn install_nix_profile(paths: &Paths, name: &str) -> Result<bool> {
         "build",
         "--impure",
         "--no-link",
+        "--print-out-paths",
         &flake_ref,
     ]);
     if let Some(version) = nvidia_driver_version.as_deref() {
         build.env("NIXGL_NVIDIA_VERSION", version);
     }
 
-    let build_status = build.status().context("running nix build")?;
-
-    if !build_status.success() {
+    let build_output = build.output().context("running nix build for home-manager")?;
+    if !build_output.status.success() {
+        let stderr = String::from_utf8_lossy(&build_output.stderr);
         crate::warn(&format!(
-            "nix build failed for {name}; leaving profile unchanged"
+            "nix build failed for home-manager#{host}; leaving profile unchanged\n{stderr}"
         ));
-        return Ok(false);
+        return Ok(());
     }
 
-    remove_nix_profile(name);
+    let out_path = String::from_utf8(build_output.stdout)
+        .context("decoding nix build stdout")?
+        .trim()
+        .to_string();
+    if out_path.is_empty() {
+        crate::warn("nix build produced no output path for home-manager");
+        return Ok(());
+    }
 
-    let mut profile_add = Command::new("nix");
-    profile_add.args([
-        "--extra-experimental-features",
-        "nix-command flakes",
-        "profile",
-        "add",
-        "--impure",
-        &flake_ref,
-    ]);
+    cleanup_legacy_profiles();
+
+    let activate_script = Path::new(&out_path).join("activate");
+    crate::log(&format!(
+        "Activating home-manager generation: {}",
+        activate_script.display()
+    ));
+
+    let mut activate = Command::new(&activate_script);
     if let Some(version) = nvidia_driver_version.as_deref() {
-        profile_add.env("NIXGL_NVIDIA_VERSION", version);
+        activate.env("NIXGL_NVIDIA_VERSION", version);
+    }
+    let activate_status = activate.status().context("running activation script")?;
+    if !activate_status.success() {
+        crate::warn("home-manager activation failed");
     }
 
-    let status = profile_add.status().context("running nix profile add")?;
-
-    if !status.success() {
-        crate::warn(&format!("nix profile add failed for {name}"));
-        return Ok(false);
-    }
-
-    Ok(true)
+    Ok(())
 }
 
-fn remove_nix_profile(name: &str) {
-    let _ = Command::new("nix")
-        .args([
-            "--extra-experimental-features",
-            "nix-command flakes",
-            "profile",
-            "remove",
-            name,
-        ])
-        .output();
+/// Determine the homeConfigurations attribute name for the current host.
+/// `DOTFILES_HOST` overrides the platform default.
+fn detect_host() -> Result<String> {
+    if let Ok(value) = std::env::var("DOTFILES_HOST") {
+        if !value.is_empty() {
+            return Ok(value);
+        }
+    }
+    Ok(match std::env::consts::OS {
+        "macos" => "thomas-darwin".into(),
+        "linux" => "thomas-linux".into(),
+        other => anyhow::bail!("unsupported OS for dotfiles: {other}"),
+    })
+}
+
+/// Best-effort removal of legacy per-domain Nix profiles. Errors are
+/// swallowed because the profile may already be absent on a fresh
+/// machine.
+fn cleanup_legacy_profiles() {
+    for name in LEGACY_NIX_PROFILES {
+        let _ = Command::new("nix")
+            .args([
+                "--extra-experimental-features",
+                "nix-command flakes",
+                "profile",
+                "remove",
+                name,
+            ])
+            .output();
+    }
 }
 
 /// Run `task bootstrap` if the task binary is available.

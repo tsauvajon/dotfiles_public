@@ -17,7 +17,19 @@ dotfiles/
 │   ├── generate.rs           # Template substitution (gitconfig, goto, task)
 │   └── external.rs           # Nix profile installs, task bootstrap
 ├── dotfiles.example.toml     # Template; real file lives at ~/.config/dotfiles/config.toml
-└── config/                   # All sources live here, grouped by tool
+├── home/                     # Home Manager flake — owns all package installs
+│   ├── default.nix           # Top-level module, imports per-domain modules
+│   ├── lib/                  # Reusable Nix helpers (e.g. wrap-with-nixgl)
+│   ├── hosts/                # Per-host identity (darwin.nix, linux.nix)
+│   ├── rust.nix              # Rust toolchain + cargo helpers
+│   ├── git.nix               # git, gh, glab, delta
+│   ├── fs.nix                # bat, eza, fd, fzf, ripgrep, yazi, zoxide, …
+│   ├── shell.nix             # alacritty, kitty, fish, tmux, zellij, direnv, …
+│   ├── editors.nix           # opencode, vim, vscodium, obsidian
+│   ├── desktop.nix           # Linux-only: waybar, mako, hyprpicker, fonts, …
+│   ├── helix-langs.nix       # Helix LSPs, formatters, debuggers
+│   └── helix-plugins.nix     # Steel-enabled Helix with pinned plugins
+└── config/                   # Dotfile sources, grouped by tool
     ├── opencode/
     │   ├── opencode.json     # OpenCode config (model, permissions, MCP)
     │   ├── AGENTS.md         # OpenCode system prompt (loaded in every session)
@@ -36,8 +48,7 @@ dotfiles/
     ├── kitty/                # Terminal emulator
     ├── mako/                 # Notification daemon
     ├── nix/
-    │   ├── nix-channels      # → ~/.nix-channels
-    │   └── flakes/           # Nix profile flakes: rust/git/fs/shell/editors/desktop, Helix tools
+    │   └── nix-channels      # → ~/.nix-channels
     ├── rofi/                 # App launcher
     ├── shell/                # bashrc, bash_profile, profile, fish_profile → $HOME
     ├── ssh/                  # ssh config (includes private overlay first)
@@ -57,7 +68,10 @@ verify that generated files match the current output without changing anything.
 1. **Records** the dotfiles path to `~/.config/dotfiles/path`.
 2. **Links** files from `config/` into the appropriate `$HOME` and `$HOME/.config/` paths.
 3. **Builds merged OpenCode AGENTS, commands, and skills** — see below.
-4. **Installs Nix profiles** from `config/nix/flakes/` for Rust, Git, filesystem, shell, editor, desktop, Helix language, and Helix plugin tooling.
+4. **Activates the Home Manager generation** defined in `home/` for the current host
+   (`thomas-darwin` on macOS, `thomas-linux` on Linux). HM owns the package set:
+   Rust, Git, filesystem, shell, editor, desktop, Helix language, and Helix plugin tooling.
+   `DOTFILES_HOST` overrides host detection.
 5. **Reads** `~/.config/dotfiles/config.toml` (if present) to inject private values
    (git identity, API URLs) into generated files under `~/.local/share/dotfiles/`,
    then symlinks those into `~/.config/`.
