@@ -1,4 +1,13 @@
 # Copy to ~/.config/dotfiles/config.toml and fill in real values.
+#
+# The private flake at ~/.config/dotfiles/flake.nix reads this file
+# (via `builtins.fromTOML`) and exposes the values to the dotfiles
+# Home Manager modules. Edit this file to change identity, then
+# refresh the lock and re-activate:
+#
+#   nix --extra-experimental-features 'nix-command flakes' \
+#     flake update private --flake /Users/<you>/dev/dotfiles
+#   bash setup.sh
 
 [git]
 name = "Your Full Name"
@@ -10,8 +19,8 @@ signing_key = "0000000000000000"  # 16-char hex key ID — run: gpg --list-secre
 api_url = "http://your-host:50002"
 
 # task config uses the overlay-append pattern — no task entries belong here.
-# Place private overlays at ~/.config/dotfiles/task.<name>.toml; they are
-# appended to config/task/config.toml in filename order. For example:
+# Place private overlays at ~/.config/dotfiles/task.<name>.toml; the dotfiles
+# Home Manager module reads them and merges with the base config. For example:
 #
 #   ~/.config/dotfiles/task.install.toml
 #     [[install]]
@@ -24,39 +33,20 @@ api_url = "http://your-host:50002"
 #         "/home/youruser/dev/repos/github.com/youruser",
 #     ]
 
-[dotfiles]
-# Destination paths to skip, matched as a suffix relative to $HOME.
-# Useful for omitting Linux-only or macOS-only outputs on the other platform.
-# Example: skip Wayland configs on macOS:
-# skip_destinations = [".config/hypr", ".config/rofi", ".config/mako", ".config/waybar", ".config/wayland-env.sh"]
-skip_destinations = []
-
-# Source paths to skip, matched as a suffix relative to the dotfiles repo root.
-# Prevents specific repo files from being linked or merged into config.
-# Useful for excluding platform-specific overlays (e.g. macOS cargo config on Linux).
-# Example: skip macOS-only Cargo overlay on Linux:
-# skip_sources = ["config/cargo/cargo.darwin.toml"]
-skip_sources = []
-
-# Controls how ~/.config/opencode/AGENTS.md is built:
-# - merged: public config/opencode/AGENTS.md + private rules overlays (default)
-# - private_only: only private rules overlays
-# - disabled: do not manage/link AGENTS.md
-rules_mode = "merged"
-
 # Private OpenCode skills live at ~/.config/dotfiles/opencode/skills/<skill-name>/SKILL.md
-# setup.sh merges them with the public skills from this repo at setup time.
 # Private OpenCode agents live at ~/.config/dotfiles/opencode/agents/<name>.md
-# setup.sh merges them with public agents from config/opencode/agents/ at setup time.
-# Private agents overwrite public ones on filename collision.
 # Private OpenCode rules overlays live at ~/.config/dotfiles/opencode/rules/
-# setup.sh appends each non-empty readable file in that directory to the generated AGENTS.md.
-# Files are appended in filename order (LC_ALL=C), so numeric prefixes work well.
-# Private OpenCode JSON overlay lives at ~/.config/dotfiles/opencode/opencode.json.
-# setup.sh deep-merges it over config/opencode/opencode.json (private values win).
-# Use this for private MCP server entries and other local-only OpenCode overrides.
-# Private SSH host config can live at ~/.config/dotfiles/ssh/config.
-# The repo-managed ~/.ssh/config includes it first, so keep host-specific entries,
-# IdentityFile paths, and machine-only SSH settings there.
-
-# Extra git config can be added to ~/.config/dotfiles/extra.gitconfig
+# Private OpenCode JSON overlays live at ~/.config/dotfiles/opencode/opencode.*.json
+# Private SSH host config lives at ~/.config/dotfiles/ssh/config (included from ~/.ssh/config).
+# Optional extra gitconfig can live at ~/.config/dotfiles/extra.gitconfig.
+#
+# After changing anything under ~/.config/dotfiles/, refresh the private
+# flake input so Home Manager picks up the change:
+#
+#   nix --extra-experimental-features 'nix-command flakes' flake update private \
+#     --flake /Users/<you>/dev/dotfiles
+#   bash setup.sh
+#
+# rules_mode (merged | private_only | disabled) is now a Home Manager
+# option — set `programs.opencode.rulesMode` in `home/hosts/<host>.nix`
+# rather than here.

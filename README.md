@@ -1,10 +1,10 @@
 # Dotfiles
 
-This repo manages shell, editor, terminal, window manager, SSH, task, and OpenCode config from one place.
+This repo manages shell, editor, terminal, window manager, SSH, task, and OpenCode config from one place via [Home Manager](https://nix-community.github.io/home-manager/).
 
 ## Quick start
 
-Prerequisite: install either `nix` or `cargo`.
+Prerequisite: install [Nix](https://nixos.org).
 
 ```bash
 mkdir -p ~/.config/dotfiles
@@ -21,71 +21,53 @@ After setup:
 - run `task doctor`
 - if you use OpenCode, run it once and connect any MCP servers you have configured
 
-To verify the generated output without changing anything:
+To preview the generated output without activating it:
 
 ```bash
-./setup.sh --check
+nix --extra-experimental-features 'nix-command flakes' \
+  build --impure --dry-run \
+  "path:.#homeConfigurations.thomas-darwin.activationPackage"
 ```
 
 ## What setup does
 
-`setup.sh` is a thin wrapper around the Rust setup tool in this repo. It uses `nix run` when `nix` is available, otherwise it falls back to `cargo run`.
+`setup.sh` is a 46-line shell shim that:
 
-On each run it:
+1. Resolves the host attribute — `thomas-darwin` on macOS, `thomas-linux` on Linux. `DOTFILES_HOST` overrides.
+2. Builds `homeConfigurations.<host>.activationPackage` from this flake.
+3. Runs the resulting `activate` script.
 
-- records the repo path at `~/.config/dotfiles/path`
-- symlinks files from `config/` into the matching `$HOME` and `~/.config/` paths
-- generates merged config under `~/.local/share/dotfiles/` and links that into place
-- creates workspace directories under `~/dev/{repos,wt,detached}` unless `DEV_ROOT` is set
-- installs Nix profiles for Rust, Git, filesystem, shell, editor, desktop, Helix language, and Steel-enabled Helix plugin tooling when `nix` is available
-- runs `task bootstrap` when the `task` binary is installed
+The activation flow is pure Home Manager. Activation blocks under `home/bootstrap.nix`:
 
-The setup is intended to be idempotent, so re-running `./setup.sh` is normal.
+- record the repo path at `~/.config/dotfiles/path`
+- clean up legacy Rust-managed symlinks (idempotent on a fresh machine)
+- run `task bootstrap` so workspace dirs and asdf node are ready
+
+Re-running `./setup.sh` is normal — it is idempotent. Home Manager keeps generations; roll back with `home-manager switch --rollback`.
 
 ## What to edit where
 
 - shared config: edit files in this repo
+- per-host wiring: edit `home/hosts/<host>.nix` (rules mode, identity overrides, etc.)
 - private machine-specific config: put it under `~/.config/dotfiles/`
-- generated output: do not edit `~/.local/share/dotfiles/` directly
+
+After changing anything under `~/.config/dotfiles/`, refresh the private flake input:
+
+```bash
+nix --extra-experimental-features 'nix-command flakes' \
+  flake update private --flake .
+./setup.sh
+```
 
 Common private files:
 
-- `~/.config/dotfiles/config.toml`: git identity, goto API URL, skip lists, rules mode
+- `~/.config/dotfiles/config.toml`: git identity, goto API URL
 - `~/.config/dotfiles/ssh/config`: private SSH hosts and `IdentityFile` paths
 - `~/.config/dotfiles/goto/database.yml`: private goto bookmarks
 - `~/.config/dotfiles/opencode/`: private OpenCode overlays
-
-## Generated and merged files
-
-Most entries are direct symlinks to files in this repo, so edits take effect immediately.
-
-Some outputs are generated or merged first, then linked into place:
-
-- `~/.gitconfig` from `config/git/gitconfig` plus private values from `config.toml`
-- `~/.config/goto/config.yml` from `config/goto/config.yml` plus private values from `config.toml`
-- `~/.config/task/config.toml` from `config/task/config.toml` plus repo and private overlays
-- `~/.config/opencode/*` from repo and private overlays
-- platform overlay configs such as Cargo, Alacritty, and AeroSpace
-
-Never edit the generated copies directly. Update the source file in this repo or the matching file under `~/.config/dotfiles/`, then re-run `./setup.sh`.
-
-## Private config
-
-Start with:
-
-```bash
-cp dotfiles.example.toml ~/.config/dotfiles/config.toml
-```
-
-Important fields in `config.toml`:
-
-- `[git]`: name, email, signing key
-- `[goto]`: `api_url`
-- `[dotfiles].skip_destinations`: skip specific outputs relative to `$HOME`
-- `[dotfiles].skip_sources`: skip specific repo sources before merge/link
-- `[dotfiles].rules_mode`: control whether `~/.config/opencode/AGENTS.md` is merged, private-only, or disabled
-
-Private SSH entries belong in `~/.config/dotfiles/ssh/config`. The repo-managed `~/.ssh/config` includes that file first.
+- `~/.config/dotfiles/task.<name>.toml`: private task overlays
+- `~/.config/dotfiles/cargo.<name>.toml`: private cargo overlays
+- `~/.config/dotfiles/aerospace.<name>.toml`: private AeroSpace rules
 
 ## Repo scope
 
@@ -96,6 +78,9 @@ This repo currently manages config for things like:
 - Linux desktop config: `hypr`, `mako`, `rofi`, `waybar`
 - developer tooling: `cargo`, `task`, `goto`, `ssh`, `yazi`
 - OpenCode config, commands, skills, agents, and plugins
+- macOS LaunchAgents
+
+Linux-only modules are gated with `lib.mkIf pkgs.stdenv.isLinux`, so importing this flake on macOS leaves them as no-ops without explicit skip lists.
 
 ## Optional OpenCode customization
 
@@ -114,7 +99,7 @@ Useful private paths:
 - `~/.config/dotfiles/opencode/plugins/`: private plugins
 - `~/.config/dotfiles/opencode/package.json`: private plugin dependency overlay
 
-`./setup.sh` deep-merges `opencode.json`, merges commands/skills/agents/plugins, and links the result into `~/.config/opencode/`.
+The HM module deep-merges `opencode.json`, merges commands/skills/agents/plugins, and links the result into `~/.config/opencode/`. Set `programs.opencode.rulesMode` in `home/hosts/<host>.nix` to choose how `AGENTS.md` is built (`merged`, `private_only`, or `disabled`).
 
 If you change plugins or plugin dependencies, install dependencies with:
 

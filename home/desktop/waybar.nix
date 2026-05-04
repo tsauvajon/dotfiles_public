@@ -1,10 +1,9 @@
 # waybar config + compiled style.css.
 #
-# The Rust tool's src/waybar.rs used `grass` to compile
-# config/waybar/styles/index.scss into ~/.local/share/dotfiles/waybar/style.css.
-# Phase 4 ports that to a `pkgs.runCommand` derivation that uses
-# dart-sass at evaluation time. The non-stylesheet entries (config.jsonc,
-# scripts, icons) are HM-managed symlinks straight from config/waybar/.
+# Compiles config/waybar/styles/index.scss to a CSS string at build
+# time via dart-sass. Other entries (config.jsonc, scripts, icons,
+# catppuccin theme) are HM-managed symlinks straight from
+# config/waybar/.
 {
   pkgs,
   lib,

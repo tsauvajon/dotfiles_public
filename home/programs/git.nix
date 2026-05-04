@@ -29,9 +29,6 @@ in
   programs.git = {
     enable = true;
 
-    userName = privateGit.name;
-    userEmail = privateGit.email;
-
     signing = {
       key = privateGit.signingKey;
       signByDefault = true;
@@ -42,7 +39,14 @@ in
       path = toString privateGit.extraConfigInclude;
     };
 
-    extraConfig = {
+    # Single `settings` attrset replaces the legacy `userName`,
+    # `userEmail`, and `extraConfig` options that home-manager renamed
+    # in mid-2026.
+    settings = {
+      user = {
+        name = privateGit.name;
+        email = privateGit.email;
+      };
       init.defaultBranch = "master";
       core = {
         editor = "hx";

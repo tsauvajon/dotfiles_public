@@ -1,10 +1,10 @@
 # Wire the upstream task Home Manager module into this flake.
 #
-# The base config (repos_dir, wt_dir, detached_dir, editor, [[install]]
-# entries shared across machines) is declared inline. Machine-local
-# extras live under ~/.config/dotfiles/task.*.toml. We hand-merge them
-# here because `lib.recursiveUpdate` would replace the `install` array
-# wholesale; we want the public + private installs concatenated.
+# The public base config (repos_dir, wt_dir, detached_dir, editor,
+# shared [[install]] entries) lives in ../../config/task/config.toml
+# so it stays editable as plain TOML. Machine-local extras live under
+# ~/.config/dotfiles/task.*.toml. We hand-merge the install arrays
+# here because `lib.recursiveUpdate` would replace them wholesale.
 {
   inputs,
   lib,
@@ -12,12 +12,7 @@
 }:
 
 let
-  publicInstalls = [
-    { repo = "github.com/tsauvajon/goto"; }
-    { repo = "github.com/tsauvajon/task"; }
-    { repo = "github.com/bahdotsh/mdterm"; }
-    { repo = "github.com/jrobhoward/dumap"; }
-  ];
+  publicConfig = builtins.fromTOML (builtins.readFile ../../config/task/config.toml);
 
   # Read all `~/.config/dotfiles/task.*.toml` overlays and deep-merge
   # them so the upstream HM module can take a single attrset.
@@ -41,16 +36,15 @@ let
   overlayContents = map (p: builtins.fromTOML (builtins.readFile p)) overlayFiles;
   mergedExtra = lib.foldl' lib.recursiveUpdate { } overlayContents;
 
-  # Pull out the `install` array (if any) from each overlay and
-  # concatenate, then strip it from `extraConfig` so it does not
-  # collide with `installs` in the upstream HM module.
+  publicInstalls = publicConfig.install or [ ];
   privateInstalls = lib.concatMap (c: c.install or [ ]) overlayContents;
 
   # Convert TOML's snake_case `extra_flags` to the camelCase `extraFlags`
   # the upstream HM module expects.
-  normalizeInstall = entry: {
-    inherit (entry) repo;
-  } // lib.optionalAttrs (entry ? path) { inherit (entry) path; }
+  normalizeInstall =
+    entry:
+    { inherit (entry) repo; }
+    // lib.optionalAttrs (entry ? path) { inherit (entry) path; }
     // lib.optionalAttrs (entry ? extra_flags) { extraFlags = entry.extra_flags; };
 
   extraConfigWithoutInstalls = builtins.removeAttrs mergedExtra [ "install" ];
@@ -60,11 +54,11 @@ in
 
   programs.task = {
     enable = true;
-    reposDir = "~/dev/repos";
-    wtDir = "~/dev/wt";
-    detachedDir = "~/dev/detached";
-    editor = "helix";
-    installs = publicInstalls ++ map normalizeInstall privateInstalls;
+    reposDir = publicConfig.repos_dir or "~/dev/repos";
+    wtDir = publicConfig.wt_dir or "~/dev/wt";
+    detachedDir = publicConfig.detached_dir or "~/dev/detached";
+    editor = publicConfig.editor or "helix";
+    installs = map normalizeInstall (publicInstalls ++ privateInstalls);
     extraConfig = extraConfigWithoutInstalls;
   };
 }

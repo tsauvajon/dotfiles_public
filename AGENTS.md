@@ -87,12 +87,21 @@ bash setup.sh
 
 ### Symlink strategy
 
-Most config is a direct symlink: `~/.config/fish -> dotfiles/config/fish`.
-Edit the source in `dotfiles/`; the symlink makes it live immediately.
+Most config is a symlink to a /nix/store path managed by Home Manager.
+Source content lives in `config/<tool>/...` and is wired in by the
+matching `home/files.nix` or `home/programs/<tool>.nix` module.
 
-**Exception — generated files:** `~/.gitconfig` and `~/.config/goto/config.yml` are
-*generated* from templates + private values. Never edit them directly; edit the
-template in `dotfiles/` and re-run `setup.sh`.
+The HM symlinks are read-only (they target /nix/store). To change a
+config, edit the source under `config/`, then run `bash setup.sh` so
+HM rebuilds the generation and updates the symlink.
+
+**Generated files** (built by HM rather than symlinked verbatim):
+
+- `~/.config/git/config` — built from typed options + identity from the private flake
+- `~/.config/goto/config.yml` — built from `programs.gotoLinks` options
+- `~/.config/task/config.toml` — built from `programs.task` options + private overlays
+- `~/.config/opencode/{AGENTS.md, opencode.json, package.json, commands, skills, agents, plugins}` — built from public + private overlays
+- `~/.cargo/config.toml`, `~/.aerospace.toml`, `~/.config/alacritty/alacritty.toml` — base + platform + private overlays concatenated
 
 ### OpenCode merges (HM-owned, since Phase 3)
 
@@ -214,8 +223,7 @@ Private commands also need no registration — drop a `<name>.md` file into
 
 The setup tool also supports an optional `~/.config/dotfiles/opencode/opencode.json` file.
 When present, it is deep-merged over `config/opencode/opencode.json` to generate
-`~/.local/share/dotfiles/opencode/opencode.json`, and `~/.config/opencode/opencode.json`
-points to that generated merged file.
+the merged `opencode.json` linked at `~/.config/opencode/opencode.json`.
 
 ## OpenCode config
 
@@ -237,8 +245,8 @@ To add a new slash command that does not need a skill file, add it directly to t
 
 ## Key invariants
 
-- **Never edit** files under `~/.local/share/dotfiles/` directly — they are generated.
-- **Never edit** `~/.gitconfig`, `~/.config/goto/config.yml`, or `~/.config/task/config.toml`
-  directly — edit the templates in `dotfiles/` instead.
+- **Never edit** the symlinks under `~/.config/`, `~/.cargo/`, etc. directly — they
+  point into `/nix/store/` and are read-only. Edit the source under `config/<tool>/`
+  or the matching `home/<module>.nix`, then run `bash setup.sh`.
 - Setup must stay idempotent and work without `config.toml` present.
 - New tools must not be introduced unless already present in the Nix flake or the project.
