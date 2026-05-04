@@ -10,15 +10,16 @@
 { pkgs, nixgl, nixgl-nixpkgs }:
 
 let
+  inherit (pkgs.stdenv.hostPlatform) system;
   nvidiaVersion = builtins.getEnv "NIXGL_NVIDIA_VERSION";
   nixglPkgs = import nixgl {
     pkgs = import nixgl-nixpkgs {
-      inherit (pkgs) system;
+      inherit system;
       config.allowUnfree = true;
     };
     nvidiaVersion = if nvidiaVersion == "" then null else nvidiaVersion;
-    enable32bits = pkgs.system == "x86_64-linux";
-    enableIntelX86Extensions = pkgs.system == "x86_64-linux";
+    enable32bits = system == "x86_64-linux";
+    enableIntelX86Extensions = system == "x86_64-linux";
   };
   nixglLauncher =
     if nvidiaVersion == "" then
