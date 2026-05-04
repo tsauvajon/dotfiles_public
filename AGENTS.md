@@ -13,13 +13,13 @@ dotfiles/
 │   ├── main.rs               # CLI (--check flag), orchestration
 │   ├── config.rs             # Private TOML config parsing, path resolution
 │   ├── link.rs               # Symlink operations (managed_link, skip-links, cleanup)
-│   ├── merge.rs              # AGENTS.md, opencode.json, skills, overlay-append merges
+│   ├── merge.rs              # Cargo, AeroSpace, Alacritty, task overlay-append merges
 │   ├── generate.rs           # Template substitution (gitconfig, goto, task)
-│   └── external.rs           # Nix profile installs, task bootstrap
+│   └── external.rs           # Home Manager activation, task bootstrap
 ├── dotfiles.example.toml     # Template; real file lives at ~/.config/dotfiles/config.toml
 ├── home/                     # Home Manager flake — owns all package installs
 │   ├── default.nix           # Top-level module, imports per-domain modules
-│   ├── lib/                  # Reusable Nix helpers (e.g. wrap-with-nixgl)
+│   ├── lib/                  # Reusable Nix helpers (merge-dirs, concat-files, …)
 │   ├── hosts/                # Per-host identity (darwin.nix, linux.nix)
 │   ├── rust.nix              # Rust toolchain + cargo helpers
 │   ├── git.nix               # git, gh, glab, delta
@@ -27,6 +27,7 @@ dotfiles/
 │   ├── shell.nix             # alacritty, kitty, fish, tmux, zellij, direnv, …
 │   ├── editors.nix           # opencode, vim, vscodium, obsidian
 │   ├── desktop.nix           # Linux-only: waybar, mako, hyprpicker, fonts, …
+│   ├── opencode.nix          # OpenCode merges (AGENTS.md, opencode.json, commands, …)
 │   ├── helix-langs.nix       # Helix LSPs, formatters, debuggers
 │   └── helix-plugins.nix     # Steel-enabled Helix with pinned plugins
 └── config/                   # Dotfile sources, grouped by tool
@@ -86,65 +87,72 @@ Edit the source in `dotfiles/`; the symlink makes it live immediately.
 *generated* from templates + private values. Never edit them directly; edit the
 template in `dotfiles/` and re-run `setup.sh`.
 
-### AGENTS merge
+### OpenCode merges (HM-owned, since Phase 3)
 
-Public AGENTS lives at `config/opencode/AGENTS.md`. Optional private rules overlays live at
-`~/.config/dotfiles/opencode/rules/`.
+The OpenCode merges live in `home/opencode.nix` and are built declaratively from
+two reusable Nix helpers:
 
-The setup tool builds a merged file at `~/.local/share/dotfiles/opencode/AGENTS.md` by
-copying the public AGENTS and appending each non-empty readable file from that directory,
-sorted by filename (byte order, equivalent to `LC_ALL=C`).
-`~/.config/opencode/AGENTS.md` then points at this generated file.
+- `home/lib/merge-dirs.nix` — merge a list of source directories into one. Later
+  sources override earlier ones on filename collision. Used for `commands`, `skills`,
+  `agents`, `plugins`.
+- `home/lib/concat-files.nix` — concatenate an optional base file plus overlay
+  fragments from a list of directories. Used for `AGENTS.md`. Substitutes
+  `__DOTFILES_PATH__` to the live repo path.
+- `home/lib/deep-merge-json.nix` — deep-merge JSON-like attrsets. Used for
+  `opencode.json` and `package.json`.
 
-### Commands merge
+#### AGENTS.md
 
-Public commands (`config/opencode/commands/<name>.md`) and private commands
-(`~/.config/dotfiles/opencode/commands/<name>.md`) are merged into a real directory at
-`~/.local/share/dotfiles/opencode/commands/`, with each command as a symlink inside it.
-`~/.config/opencode/commands` then points at this merge directory.
+Public AGENTS lives at `config/opencode/AGENTS.md`. Optional private rules overlays
+live at `~/.config/dotfiles/opencode/rules/<name>.md`. The HM module concatenates
+the public base (when `programs.opencode.rulesMode = "merged"`) plus each non-empty
+overlay file from that directory, sorted by filename in byte order (`LC_ALL=C`),
+each preceded by `# Rules overlay: <filename>`. The result is written as
+`~/.config/opencode/AGENTS.md`.
 
-Private commands overwrite public ones on filename collision. Adding a new public command only
-requires placing a `.md` file in `config/opencode/commands/` and re-running `setup.sh`.
+`programs.opencode.rulesMode` (set per host in `home/hosts/<host>.nix`) controls the
+behavior:
 
-### Skills merge
+- `merged` (default): public base + private overlays.
+- `private_only`: only private overlays.
+- `disabled`: do not manage AGENTS.md at all.
 
-Public skills (`config/opencode/skills/<name>/`) and private skills
-(`~/.config/dotfiles/opencode/skills/<name>/`) are merged into a real
-directory at `~/.local/share/dotfiles/opencode/skills/`, with each skill as a symlink
-inside it. `~/.config/opencode/skills` then points at this merge directory.
+#### Commands, skills, agents, plugins
 
-This means adding a new public skill only requires creating the subdirectory here and
-re-running `setup.sh` (or manually adding a symlink to the merge dir).
+Public sources live at `config/opencode/<name>/`. Private sources live at
+`~/.config/dotfiles/opencode/<name>/`. The HM module merges them via
+`mergeDirs` and exposes the result at `~/.config/opencode/<name>/`. On filename
+collision, the private entry wins.
 
-### Agents merge
+Adding a new public command/skill/agent/plugin: drop a file (or subdirectory for
+skills) into the appropriate `config/opencode/` subtree and re-run `setup.sh` so
+HM picks up the change.
 
-Public agents (`config/opencode/agents/<name>.md`) and private agents
-(`~/.config/dotfiles/opencode/agents/<name>.md`) are merged into a real directory at
-`~/.local/share/dotfiles/opencode/agents/`, with each agent as a symlink inside it.
-`~/.config/opencode/agents` then points at this merge directory.
+#### opencode.json (4-tier deep merge)
 
-Private agents overwrite public ones on filename collision. Adding a new public agent only
-requires placing a `.md` file in `config/opencode/agents/` and re-running `setup.sh`.
+Each tier wins over the previous on key collision:
 
-### Plugins merge
+1. Public base — `config/opencode/opencode.json`
+2. Repo fragments — `config/opencode/opencode.*.json` (sorted by filename)
+3. Private fragments — `~/.config/dotfiles/opencode/opencode.*.json` (sorted by filename)
+4. Private overlay — `~/.config/dotfiles/opencode/opencode.json`
 
-Public plugins (`config/opencode/plugins/<name>.ts`) and private plugins
-(`~/.config/dotfiles/opencode/plugins/<name>.ts`) are merged into a real directory at
-`~/.local/share/dotfiles/opencode/plugins/`, with each plugin as a symlink inside it.
-`~/.config/opencode/plugins` then points at this merge directory.
+#### package.json
 
-Private plugins overwrite public ones on filename collision. After changing plugins,
-run `bun install --cwd ~/.config/opencode` to install any new dependencies.
+Public base (`config/opencode/package.json`) is deep-merged with the optional
+private overlay (`~/.config/dotfiles/opencode/package.json`). After changes, run
+`bun install --cwd ~/.config/opencode` to install dependencies.
 
-### package.json merge
+#### Picking up private changes
 
-Public base (`config/opencode/package.json`) and optional private overlay
-(`~/.config/dotfiles/opencode/package.json`) are deep-merged into
-`~/.local/share/dotfiles/opencode/package.json`. `~/.config/opencode/package.json`
-then points at this generated file.
+The private overlay is consumed as a flake input pinned by `flake.lock`. When you
+add or modify files under `~/.config/dotfiles/opencode/`, refresh the lock so HM
+picks up the change:
 
-If neither source exists, no output is produced. After `setup.sh`, run
-`bun install --cwd ~/.config/opencode` to install plugin dependencies.
+```sh
+nix --extra-experimental-features 'nix-command flakes' flake update private --flake .
+bash setup.sh
+```
 
 ### Overlay-append merges (Cargo, AeroSpace, Alacritty, task)
 

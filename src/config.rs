@@ -12,7 +12,6 @@ pub struct Paths {
     pub config_toml: PathBuf,
     pub opencode_json: PathBuf,
     pub opencode_rules: PathBuf,
-    pub opencode_package_json: PathBuf,
     pub dist: PathBuf,
 }
 
@@ -49,7 +48,6 @@ impl Paths {
             config_toml: dotfiles_config.join("config.toml"),
             opencode_json: dotfiles_config.join("opencode/opencode.json"),
             opencode_rules: dotfiles_config.join("opencode/rules"),
-            opencode_package_json: dotfiles_config.join("opencode/package.json"),
             dist: home.join(".local/share/dotfiles"),
             dotfiles_config,
             dotfiles,
@@ -57,13 +55,6 @@ impl Paths {
             dev_root,
         })
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RulesMode {
-    Merged,
-    PrivateOnly,
-    Disabled,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -91,7 +82,10 @@ pub struct DotfilesConfig {
     pub skip_destinations: Option<Vec<String>>,
     /// Source paths (relative to dotfiles root) to skip before merge/link.
     pub skip_sources: Option<Vec<String>>,
-    /// Controls how AGENTS.md is built.
+    /// Read-only since Phase 3: AGENTS.md is owned by Home Manager.
+    /// The field is kept so the TOML still parses; the value is read
+    /// by `home/opencode.nix` via `programs.opencode.rulesMode`.
+    #[allow(dead_code)]
     pub rules_mode: Option<String>,
 }
 
@@ -106,26 +100,6 @@ impl PrivateConfig {
         let cfg: Self =
             toml::from_str(&content).with_context(|| format!("parsing {}", path.display()))?;
         Ok(cfg)
-    }
-
-    pub fn rules_mode(&self) -> RulesMode {
-        let raw = self
-            .dotfiles
-            .as_ref()
-            .and_then(|d| d.rules_mode.as_deref().filter(|s| !s.is_empty()));
-
-        match raw {
-            None | Some("merged") => RulesMode::Merged,
-            Some("private_only") => RulesMode::PrivateOnly,
-            Some("disabled") => RulesMode::Disabled,
-            Some(other) => {
-                crate::warn(&format!(
-                    "unknown .dotfiles.rules_mode value '{}', using 'merged'",
-                    other
-                ));
-                RulesMode::Merged
-            }
-        }
     }
 
     pub fn skip_norms(&self, home: &Path) -> Vec<String> {
@@ -505,19 +479,6 @@ mod tests {
     }
 
     #[test]
-    fn rules_mode_defaults() {
-        let cfg = PrivateConfig::default();
-        assert_eq!(cfg.rules_mode(), RulesMode::Merged);
-    }
-
-    #[test]
-    fn rules_mode_reads_rules_mode_key() {
-        let content = "[dotfiles]\nrules_mode = \"private_only\"\n";
-        let cfg: PrivateConfig = toml::from_str(content).unwrap();
-        assert_eq!(cfg.rules_mode(), RulesMode::PrivateOnly);
-    }
-
-    #[test]
     fn parse_example_toml() {
         let content = r#"
 [git]
@@ -534,7 +495,6 @@ rules_mode = "merged"
 "#;
         let cfg: PrivateConfig = toml::from_str(content).unwrap();
         assert_eq!(cfg.git.as_ref().unwrap().name.as_deref(), Some("Test User"));
-        assert_eq!(cfg.rules_mode(), RulesMode::Merged);
         assert!(cfg.missing_required_keys().is_empty());
     }
 

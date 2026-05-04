@@ -7,7 +7,7 @@ mod plists;
 mod waybar;
 
 use anyhow::Result;
-use config::{Paths, PrivateConfig, RulesMode};
+use config::{Paths, PrivateConfig};
 
 fn main() -> Result<()> {
     let check_mode = std::env::args().any(|a| a == "--check");
@@ -80,25 +80,12 @@ fn main() -> Result<()> {
 
     let skip_norms = private_cfg.skip_norms(&paths.home);
     let skip_source_norms = private_cfg.skip_source_norms();
-    let rules_mode = private_cfg.rules_mode();
 
     if check_mode {
-        return run_check(
-            &paths,
-            &private_cfg,
-            &skip_norms,
-            &skip_source_norms,
-            rules_mode,
-        );
+        return run_check(&paths, &private_cfg, &skip_norms, &skip_source_norms);
     }
 
-    run_setup(
-        &paths,
-        &private_cfg,
-        &skip_norms,
-        &skip_source_norms,
-        rules_mode,
-    )
+    run_setup(&paths, &private_cfg, &skip_norms, &skip_source_norms)
 }
 
 fn run_setup(
@@ -106,7 +93,6 @@ fn run_setup(
     private_cfg: &PrivateConfig,
     skip_norms: &[String],
     skip_source_norms: &[String],
-    rules_mode: RulesMode,
 ) -> Result<()> {
     log("Recording dotfiles path");
     std::fs::create_dir_all(&paths.dotfiles_config)?;
@@ -313,10 +299,23 @@ fn run_setup(
     log("Linking LaunchAgents plists");
     plists::link_all(paths, skip_norms, skip_source_norms)?;
 
-    merge::merge_opencode_json(paths, skip_norms, skip_source_norms)?;
-    merge::merge_rules(paths, skip_norms, rules_mode)?;
-    merge::merge_all_dirs(paths, skip_norms)?;
-    merge::merge_opencode_package_json(paths, skip_norms)?;
+    // OpenCode merges (AGENTS.md, opencode.json, package.json,
+    // commands/skills/agents/plugins) are owned by Home Manager
+    // since Phase 3. See home/opencode.nix. Clear the legacy symlinks
+    // the Rust tool used to create so HM activation does not trip
+    // over `checkLinkTargets`.
+    for relative in [
+        ".config/opencode/AGENTS.md",
+        ".config/opencode/opencode.json",
+        ".config/opencode/package.json",
+        ".config/opencode/commands",
+        ".config/opencode/skills",
+        ".config/opencode/agents",
+        ".config/opencode/plugins",
+    ] {
+        link::remove_managed_link_if_present(&paths.home.join(relative), paths)?;
+    }
+
     merge::merge_aerospace(paths, skip_norms, skip_source_norms)?;
     merge::merge_cargo(paths, skip_norms, skip_source_norms)?;
     merge::merge_alacritty(paths, skip_norms, skip_source_norms)?;
@@ -396,7 +395,6 @@ fn run_check(
     private_cfg: &PrivateConfig,
     _skip_norms: &[String],
     skip_source_norms: &[String],
-    rules_mode: RulesMode,
 ) -> Result<()> {
     use std::collections::BTreeMap;
 
@@ -414,11 +412,8 @@ fn run_check(
         ..paths.clone()
     };
 
-    // Generate all files into temp
-    merge::merge_opencode_json_to(&shadow_paths, skip_source_norms)?;
-    merge::merge_rules_to(&shadow_paths, rules_mode)?;
-    merge::merge_all_dirs_to(&shadow_paths)?;
-    merge::merge_opencode_package_json_to(&shadow_paths)?;
+    // Generate all files into temp. OpenCode merges are owned by HM
+    // since Phase 3 and are no longer compared here.
     merge::merge_aerospace_to(&shadow_paths, skip_source_norms)?;
     merge::merge_cargo_to(&shadow_paths, skip_source_norms)?;
     merge::merge_alacritty_to(&shadow_paths, skip_source_norms)?;
@@ -475,82 +470,11 @@ fn run_check(
         );
     }
 
-    // Compare a directory of symlinks between real and shadow build outputs.
-    let compare_symlink_dir = |real_dir: &std::path::Path,
-                               shadow_dir: &std::path::Path,
-                               prefix: &str,
-                               diffs: &mut BTreeMap<String, String>| {
-        if !real_dir.is_dir() && !shadow_dir.is_dir() {
-            return;
-        }
-        let collect_links = |dir: &std::path::Path| -> BTreeMap<String, String> {
-            let mut links = BTreeMap::new();
-            if let Ok(entries) = std::fs::read_dir(dir) {
-                for entry in entries.flatten() {
-                    let name = entry.file_name().to_string_lossy().to_string();
-                    let target = std::fs::read_link(entry.path())
-                        .map(|p| p.to_string_lossy().to_string())
-                        .unwrap_or_default();
-                    links.insert(name, target);
-                }
-            }
-            links
-        };
-        let real_links = collect_links(real_dir);
-        let shadow_links = collect_links(shadow_dir);
-        if real_links != shadow_links {
-            for (name, target) in &shadow_links {
-                match real_links.get(name) {
-                    Some(real_target) if real_target != target => {
-                        diffs.insert(
-                            format!("{prefix}/{name}"),
-                            format!("target differs: {real_target} vs {target}"),
-                        );
-                    }
-                    None => {
-                        diffs.insert(
-                            format!("{prefix}/{name}"),
-                            "missing in current output".to_string(),
-                        );
-                    }
-                    _ => {}
-                }
-            }
-            for name in real_links.keys() {
-                if !shadow_links.contains_key(name) {
-                    diffs.insert(
-                        format!("{prefix}/{name}"),
-                        "not generated by new code".to_string(),
-                    );
-                }
-            }
-        }
-    };
+    // (Phase 3 dropped the per-symlink comparator that compared
+    // opencode/commands, /skills, /agents, /plugins. HM owns those now.)
 
-    compare_symlink_dir(
-        &paths.dist.join("opencode/commands"),
-        &shadow_build.join("opencode/commands"),
-        "opencode/commands",
-        &mut diffs,
-    );
-    compare_symlink_dir(
-        &paths.dist.join("opencode/skills"),
-        &shadow_build.join("opencode/skills"),
-        "opencode/skills",
-        &mut diffs,
-    );
-    compare_symlink_dir(
-        &paths.dist.join("opencode/agents"),
-        &shadow_build.join("opencode/agents"),
-        "opencode/agents",
-        &mut diffs,
-    );
-    compare_symlink_dir(
-        &paths.dist.join("opencode/plugins"),
-        &shadow_build.join("opencode/plugins"),
-        "opencode/plugins",
-        &mut diffs,
-    );
+    // Note: opencode commands/skills/agents/plugins comparisons were
+    // dropped in Phase 3; HM owns those merges now.
 
     // Cleanup
     let _ = std::fs::remove_dir_all(&temp_dir);

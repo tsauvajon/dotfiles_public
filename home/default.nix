@@ -20,5 +20,6 @@
     ./desktop.nix
     ./helix-langs.nix
     ./helix-plugins.nix
+    ./opencode.nix
   ];
 }

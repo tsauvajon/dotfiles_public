@@ -79,6 +79,32 @@
           overlays = [ rust-overlay.overlays.default ];
         };
 
+      # Resolve the live dotfiles repo path for use inside HM modules.
+      # Tries `$DOTFILES` (set by setup.sh) first, then `~/.config/dotfiles/path`
+      # (recorded by the Rust setup tool on first run). Both are used by the
+      # Rust tool today; either is enough to cover typical cases.
+      dotfilesRoot =
+        let
+          fromEnv = builtins.getEnv "DOTFILES";
+          home = builtins.getEnv "HOME";
+          pathFile = "${home}/.config/dotfiles/path";
+          fromFile =
+            if home != "" && builtins.pathExists pathFile then
+              builtins.replaceStrings [ "\n" ] [ "" ] (builtins.readFile pathFile)
+            else
+              "";
+        in
+        if fromEnv != "" then
+          fromEnv
+        else if fromFile != "" then
+          fromFile
+        else
+          throw ''
+            Could not determine the dotfiles repo path.
+            Set $DOTFILES (e.g. by running setup.sh) or write the path to
+            ~/.config/dotfiles/path.
+          '';
+
       mkHome =
         {
           system,
@@ -86,7 +112,7 @@
         }:
         home-manager.lib.homeManagerConfiguration {
           pkgs = mkPkgs system;
-          extraSpecialArgs = { inherit inputs system; };
+          extraSpecialArgs = { inherit inputs system dotfilesRoot; };
           modules = [
             ./home
             hostModule

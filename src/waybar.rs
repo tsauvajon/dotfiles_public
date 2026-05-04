@@ -111,7 +111,6 @@ mod tests {
             config_toml: dir.join("config/config.toml"),
             opencode_json: dir.join("config/opencode/opencode.json"),
             opencode_rules: dir.join("config/opencode/rules"),
-            opencode_package_json: dir.join("config/opencode/package.json"),
             dist: dir.join("build"),
         }
     }
