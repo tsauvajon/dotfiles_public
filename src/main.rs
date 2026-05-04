@@ -4,7 +4,7 @@ mod generate;
 mod link;
 mod merge;
 mod plists;
-mod waybar;
+
 
 use anyhow::Result;
 use config::{Paths, PrivateConfig};
@@ -104,13 +104,7 @@ fn run_setup(
     log("Linking home files");
     let d = &paths.dotfiles;
     let h = &paths.home;
-    link::managed_link(
-        &d.join("config/tmux/tmux.conf"),
-        &h.join(".tmux.conf"),
-        skip_norms,
-        skip_source_norms,
-        paths,
-    )?;
+    // tmux is owned by Home Manager since Phase 4 (programs.tmux).
     link::managed_link(
         &d.join("config/shell/profile"),
         &h.join(".profile"),
@@ -153,19 +147,12 @@ fn run_setup(
         skip_source_norms,
         paths,
     )?;
-    // Phase 2 retired the ~/flakes convenience symlink along with the
-    // per-domain flakes; clean up any stale link from a previous setup.
+    // Clean up symlinks retired by earlier phases:
+    // - ~/flakes (Phase 2: per-domain flakes removed)
+    // - ~/.tmux.conf and ~/.tmux/plugins (Phase 4: programs.tmux)
     link::remove_managed_link_if_present(&h.join("flakes"), paths)?;
-    // ~/.tmux is a real directory; only ~/.tmux/plugins is a symlink so the
-    // tmux config source can live alongside its plugins under config/tmux/.
-    ensure_tmux_dir(paths)?;
-    link::managed_link_raw(
-        &format!("{}/config/tmux/plugins/", d.display()),
-        &h.join(".tmux/plugins"),
-        skip_norms,
-        skip_source_norms,
-        paths,
-    )?;
+    link::remove_managed_link_if_present(&h.join(".tmux.conf"), paths)?;
+    link::remove_managed_link_if_present(&h.join(".tmux/plugins"), paths)?;
 
     log("Linking config files");
     link::managed_link(
@@ -196,27 +183,9 @@ fn run_setup(
         skip_source_norms,
         paths,
     )?;
-    link::managed_link(
-        &d.join("config/hypr"),
-        &h.join(".config/hypr"),
-        skip_norms,
-        skip_source_norms,
-        paths,
-    )?;
-    link::managed_link(
-        &d.join("config/mako"),
-        &h.join(".config/mako"),
-        skip_norms,
-        skip_source_norms,
-        paths,
-    )?;
-    link::managed_link(
-        &d.join("config/rofi"),
-        &h.join(".config/rofi"),
-        skip_norms,
-        skip_source_norms,
-        paths,
-    )?;
+    // hypr, mako, rofi are owned by Home Manager since Phase 4
+    // (home/desktop/{hyprland,mako,rofi}.nix on Linux). On macOS the
+    // modules evaluate to no-ops.
     link::managed_link(
         &d.join("config/kitty"),
         &h.join(".config/kitty"),
@@ -245,7 +214,7 @@ fn run_setup(
         skip_source_norms,
         paths,
     )?;
-    waybar::generate_and_link(paths, skip_norms, skip_source_norms)?;
+    // waybar is owned by Home Manager since Phase 4 (home/desktop/waybar.nix).
     link::managed_link(
         &d.join("config/bat"),
         &h.join(".config/bat"),
@@ -299,11 +268,10 @@ fn run_setup(
     log("Linking LaunchAgents plists");
     plists::link_all(paths, skip_norms, skip_source_norms)?;
 
-    // OpenCode merges (AGENTS.md, opencode.json, package.json,
-    // commands/skills/agents/plugins) are owned by Home Manager
-    // since Phase 3. See home/opencode.nix. Clear the legacy symlinks
-    // the Rust tool used to create so HM activation does not trip
-    // over `checkLinkTargets`.
+    // OpenCode (Phase 3), tmux + git + desktop tools (Phase 4) are
+    // owned by Home Manager. Clear any legacy symlinks the Rust tool
+    // used to create so HM activation does not trip over
+    // `checkLinkTargets`.
     for relative in [
         ".config/opencode/AGENTS.md",
         ".config/opencode/opencode.json",
@@ -312,6 +280,10 @@ fn run_setup(
         ".config/opencode/skills",
         ".config/opencode/agents",
         ".config/opencode/plugins",
+        ".config/hypr",
+        ".config/mako",
+        ".config/rofi",
+        ".config/waybar",
     ] {
         link::remove_managed_link_if_present(&paths.home.join(relative), paths)?;
     }
@@ -383,13 +355,6 @@ fn run_setup(
     Ok(())
 }
 
-fn ensure_tmux_dir(paths: &Paths) -> Result<()> {
-    let tmux_dir = paths.home.join(".tmux");
-    link::remove_managed_link_if_present(&tmux_dir, paths)?;
-    std::fs::create_dir_all(tmux_dir)?;
-    Ok(())
-}
-
 fn run_check(
     paths: &Paths,
     private_cfg: &PrivateConfig,
@@ -418,7 +383,7 @@ fn run_check(
     merge::merge_cargo_to(&shadow_paths, skip_source_norms)?;
     merge::merge_alacritty_to(&shadow_paths, skip_source_norms)?;
     merge::merge_task_to(&shadow_paths, skip_source_norms)?;
-    waybar::generate_to(&shadow_paths, skip_source_norms)?;
+    // waybar generation moved to Home Manager in Phase 4.
     generate::generate_private_files_to(&shadow_paths, private_cfg)?;
 
     // Compare generated files
@@ -449,16 +414,11 @@ fn run_check(
     }
 
     let generated_files = [
-        "opencode/opencode.json",
-        "opencode/AGENTS.md",
-        "opencode/package.json",
-        "gitconfig",
         "goto/config.yml",
         "task/config.toml",
         "aerospace.toml",
         "cargo-config.toml",
         "alacritty.toml",
-        "waybar/style.css",
     ];
 
     for rel in &generated_files {

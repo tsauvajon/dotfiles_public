@@ -10,6 +10,7 @@ let
   };
 in
 {
+  # tmux is provided by programs.tmux in home/programs/tmux.nix.
   home.packages = [
     (wrapWithNixGL pkgs.alacritty "alacritty")
     pkgs.asdf-vm
@@ -19,7 +20,6 @@ in
     pkgs.just
     (wrapWithNixGL pkgs.kitty "kitty")
     pkgs.nix-direnv
-    pkgs.tmux
     pkgs.zellij
     pkgs.zsh
     pkgs.zsh-autosuggestions

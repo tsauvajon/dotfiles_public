@@ -237,8 +237,8 @@
         "nixpkgs": "nixpkgs_3"
       },
       "locked": {
-        "lastModified": 1777885931,
-        "narHash": "sha256-OnV8cU0+zdjGHTCtjExiSb1cX5yTkekQwcamudtK0fE=",
+        "lastModified": 1777889729,
+        "narHash": "sha256-j1ECRFa+IWe0hlXolZ3pGzqGqhIgwgS+IlFRvoKeYdg=",
         "path": "/Users/thomas/.config/dotfiles",
         "type": "path"
       },

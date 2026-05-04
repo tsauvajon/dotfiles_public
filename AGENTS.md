@@ -14,19 +14,19 @@ dotfiles/
 │   ├── config.rs             # Private TOML config parsing, path resolution
 │   ├── link.rs               # Symlink operations (managed_link, skip-links, cleanup)
 │   ├── merge.rs              # Cargo, AeroSpace, Alacritty, task overlay-append merges
-│   ├── generate.rs           # Template substitution (gitconfig, goto, task)
+│   ├── generate.rs           # Template substitution (goto)
 │   └── external.rs           # Home Manager activation, task bootstrap
 ├── dotfiles.example.toml     # Template; real file lives at ~/.config/dotfiles/config.toml
 ├── home/                     # Home Manager flake — owns all package installs
 │   ├── default.nix           # Top-level module, imports per-domain modules
 │   ├── lib/                  # Reusable Nix helpers (merge-dirs, concat-files, …)
 │   ├── hosts/                # Per-host identity (darwin.nix, linux.nix)
+│   ├── programs/             # First-class HM modules (programs.tmux, programs.git)
+│   ├── desktop/              # Linux desktop (hyprland, mako, waybar, rofi)
 │   ├── rust.nix              # Rust toolchain + cargo helpers
-│   ├── git.nix               # git, gh, glab, delta
 │   ├── fs.nix                # bat, eza, fd, fzf, ripgrep, yazi, zoxide, …
-│   ├── shell.nix             # alacritty, kitty, fish, tmux, zellij, direnv, …
+│   ├── shell.nix             # alacritty, kitty, fish, zellij, direnv, …
 │   ├── editors.nix           # opencode, vim, vscodium, obsidian
-│   ├── desktop.nix           # Linux-only: waybar, mako, hyprpicker, fonts, …
 │   ├── opencode.nix          # OpenCode merges (AGENTS.md, opencode.json, commands, …)
 │   ├── helix-langs.nix       # Helix LSPs, formatters, debuggers
 │   └── helix-plugins.nix     # Steel-enabled Helix with pinned plugins

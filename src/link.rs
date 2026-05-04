@@ -81,32 +81,6 @@ pub fn managed_link(
     force_symlink(src, dest)
 }
 
-/// Like `managed_link` but takes a raw string source to preserve trailing slashes.
-pub fn managed_link_raw(
-    src: &str,
-    dest: &Path,
-    skip_norms: &[String],
-    skip_source_norms: &[String],
-    paths: &Paths,
-) -> Result<()> {
-    if config::should_skip_dest(dest, &paths.home, skip_norms) {
-        crate::log(&format!("Skipping {}", dest.display()));
-        remove_managed_link_if_present(dest, paths)?;
-        return Ok(());
-    }
-    // Strip trailing slash for source-skip matching
-    if config::should_skip_source(
-        Path::new(src.trim_end_matches('/')),
-        &paths.dotfiles,
-        skip_source_norms,
-    ) {
-        crate::log(&format!("Skipping source {src}"));
-        remove_managed_link_if_present(dest, paths)?;
-        return Ok(());
-    }
-    force_symlink(Path::new(src), dest)
-}
-
 #[cfg(test)]
 mod tests {
     use std::os::unix::fs::symlink;

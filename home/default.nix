@@ -13,13 +13,14 @@
 {
   imports = [
     ./rust.nix
-    ./git.nix
     ./fs.nix
     ./shell.nix
     ./editors.nix
-    ./desktop.nix
+    ./desktop
     ./helix-langs.nix
     ./helix-plugins.nix
     ./opencode.nix
+    ./programs/git.nix
+    ./programs/tmux.nix
   ];
 }
