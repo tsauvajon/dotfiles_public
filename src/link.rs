@@ -27,8 +27,9 @@ pub fn force_symlink(src: &Path, dest: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Remove a managed symlink if it points into our dotfiles or dist directories.
-/// Also removes empty regular files (stale placeholders).
+/// Remove a managed symlink if it points into our dotfiles, dist, or
+/// private dotfiles config directories. Also removes empty regular files
+/// (stale placeholders).
 pub fn remove_managed_link_if_present(dest: &Path, paths: &Paths) -> Result<()> {
     let meta = match dest.symlink_metadata() {
         Ok(m) => m,
@@ -41,9 +42,11 @@ pub fn remove_managed_link_if_present(dest: &Path, paths: &Paths) -> Result<()> 
         let target_str = target.to_string_lossy();
         let dotfiles_str = paths.dotfiles.to_string_lossy();
         let build_str = paths.dist.to_string_lossy();
+        let private_str = paths.dotfiles_config.to_string_lossy();
 
         if target_str.starts_with(dotfiles_str.as_ref())
             || target_str.starts_with(build_str.as_ref())
+            || target_str.starts_with(private_str.as_ref())
         {
             std::fs::remove_file(dest)
                 .with_context(|| format!("removing managed symlink {}", dest.display()))?;

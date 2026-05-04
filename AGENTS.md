@@ -13,8 +13,7 @@ dotfiles/
 │   ├── main.rs               # CLI (--check flag), orchestration
 │   ├── config.rs             # Private TOML config parsing, path resolution
 │   ├── link.rs               # Symlink operations (managed_link, skip-links, cleanup)
-│   ├── merge.rs              # Cargo, AeroSpace, Alacritty, task overlay-append merges
-│   ├── generate.rs           # Template substitution (goto)
+│   ├── merge.rs              # Cargo, AeroSpace, Alacritty overlay-append merges
 │   └── external.rs           # Home Manager activation, task bootstrap
 ├── dotfiles.example.toml     # Template; real file lives at ~/.config/dotfiles/config.toml
 ├── home/                     # Home Manager flake — owns all package installs

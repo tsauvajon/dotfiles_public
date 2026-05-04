@@ -59,6 +59,22 @@
       url = "path:/Users/thomas/.config/dotfiles";
       flake = true;
     };
+
+    # Phase 5: consume goto and task as upstream flakes that expose
+    # their own homeManagerModules. Pinned to local worktrees during
+    # development; switch to `github:tsauvajon/<name>` once the feat/hm-module
+    # branches have been merged and pushed.
+    goto = {
+      url = "path:/Users/thomas/dev/wt/github.com/tsauvajon/goto/feat/hm-module";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-utils.follows = "flake-utils";
+    };
+    task = {
+      url = "path:/Users/thomas/dev/wt/github.com/tsauvajon/task/feat/hm-module";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-utils.follows = "flake-utils";
+      inputs.rust-overlay.follows = "rust-overlay";
+    };
   };
 
   outputs =

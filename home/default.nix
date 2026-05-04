@@ -21,6 +21,8 @@
     ./helix-plugins.nix
     ./opencode.nix
     ./programs/git.nix
+    ./programs/goto.nix
+    ./programs/task.nix
     ./programs/tmux.nix
   ];
 }

@@ -1,6 +1,6 @@
 mod config;
 mod external;
-mod generate;
+
 mod link;
 mod merge;
 mod plists;
@@ -82,15 +82,14 @@ fn main() -> Result<()> {
     let skip_source_norms = private_cfg.skip_source_norms();
 
     if check_mode {
-        return run_check(&paths, &private_cfg, &skip_norms, &skip_source_norms);
+        return run_check(&paths, &skip_norms, &skip_source_norms);
     }
 
-    run_setup(&paths, &private_cfg, &skip_norms, &skip_source_norms)
+    run_setup(&paths, &skip_norms, &skip_source_norms)
 }
 
 fn run_setup(
     paths: &Paths,
-    private_cfg: &PrivateConfig,
     skip_norms: &[String],
     skip_source_norms: &[String],
 ) -> Result<()> {
@@ -257,21 +256,16 @@ fn run_setup(
         skip_source_norms,
         paths,
     )?;
-    link::managed_link(
-        &paths.dotfiles_config.join("goto/database.yml"),
-        &h.join(".config/goto/database.yml"),
-        skip_norms,
-        skip_source_norms,
-        paths,
-    )?;
+    // goto config is owned by Home Manager since Phase 5 (programs.goto
+    // in home/programs/goto.nix).
 
     log("Linking LaunchAgents plists");
     plists::link_all(paths, skip_norms, skip_source_norms)?;
 
-    // OpenCode (Phase 3), tmux + git + desktop tools (Phase 4) are
-    // owned by Home Manager. Clear any legacy symlinks the Rust tool
-    // used to create so HM activation does not trip over
-    // `checkLinkTargets`.
+    // OpenCode (Phase 3), tmux + git + desktop tools (Phase 4),
+    // goto + task (Phase 5) are owned by Home Manager. Clear any
+    // legacy symlinks the Rust tool used to create so HM activation
+    // does not trip over `checkLinkTargets`.
     for relative in [
         ".config/opencode/AGENTS.md",
         ".config/opencode/opencode.json",
@@ -284,6 +278,9 @@ fn run_setup(
         ".config/mako",
         ".config/rofi",
         ".config/waybar",
+        ".config/goto/config.yml",
+        ".config/goto/database.yml",
+        ".config/task/config.toml",
     ] {
         link::remove_managed_link_if_present(&paths.home.join(relative), paths)?;
     }
@@ -291,7 +288,8 @@ fn run_setup(
     merge::merge_aerospace(paths, skip_norms, skip_source_norms)?;
     merge::merge_cargo(paths, skip_norms, skip_source_norms)?;
     merge::merge_alacritty(paths, skip_norms, skip_source_norms)?;
-    merge::merge_task(paths, skip_norms, skip_source_norms)?;
+    // task config is owned by Home Manager since Phase 5 (programs.task
+    // in home/programs/task.nix).
 
     log("Ensuring workspace directories");
     let dev = &paths.dev_root;
@@ -302,14 +300,14 @@ fn run_setup(
     external::install_home_manager(paths)?;
     external::run_task_bootstrap(&paths.home)?;
 
-    if paths.config_toml.exists() {
-        generate::generate_private_files(paths, private_cfg, skip_norms, skip_source_norms)?;
-    } else {
+    if !paths.config_toml.exists() {
         println!(
             "tip: place config.toml at {} to configure git identity and network URLs",
             paths.config_toml.display()
         );
     }
+    // generate.rs was retired in Phase 5 — goto and task templates are
+    // owned by their upstream Home Manager modules now.
 
     let opencode_private = &paths.dotfiles_config.join("opencode");
     for name in &["commands", "skills", "agents", "plugins"] {
@@ -334,10 +332,6 @@ fn run_setup(
             paths.opencode_json.display()
         );
     }
-    let private_goto_db = paths.dotfiles_config.join("goto/database.yml");
-    if !private_goto_db.exists() {
-        println!("tip: place goto bookmarks at {}", private_goto_db.display());
-    }
     let private_ssh_config = paths.dotfiles_config.join("ssh/config");
     if !private_ssh_config.exists() {
         println!(
@@ -357,7 +351,6 @@ fn run_setup(
 
 fn run_check(
     paths: &Paths,
-    private_cfg: &PrivateConfig,
     _skip_norms: &[String],
     skip_source_norms: &[String],
 ) -> Result<()> {
@@ -382,9 +375,9 @@ fn run_check(
     merge::merge_aerospace_to(&shadow_paths, skip_source_norms)?;
     merge::merge_cargo_to(&shadow_paths, skip_source_norms)?;
     merge::merge_alacritty_to(&shadow_paths, skip_source_norms)?;
-    merge::merge_task_to(&shadow_paths, skip_source_norms)?;
+    // task config moved to Home Manager in Phase 5.
     // waybar generation moved to Home Manager in Phase 4.
-    generate::generate_private_files_to(&shadow_paths, private_cfg)?;
+    // generate::generate_private_files_to retired in Phase 5.
 
     // Compare generated files
     let mut diffs: BTreeMap<String, String> = BTreeMap::new();
@@ -414,8 +407,6 @@ fn run_check(
     }
 
     let generated_files = [
-        "goto/config.yml",
-        "task/config.toml",
         "aerospace.toml",
         "cargo-config.toml",
         "alacritty.toml",

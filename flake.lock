@@ -89,6 +89,26 @@
         "type": "github"
       }
     },
+    "goto": {
+      "inputs": {
+        "flake-utils": [
+          "flake-utils"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1777893746,
+        "narHash": "sha256-q8aPxL33+jhyAdLVfMtNwFkC7yJhANf6XMvHb+hzBa8=",
+        "path": "/Users/thomas/dev/wt/github.com/tsauvajon/goto/feat/hm-module",
+        "type": "path"
+      },
+      "original": {
+        "path": "/Users/thomas/dev/wt/github.com/tsauvajon/goto/feat/hm-module",
+        "type": "path"
+      }
+    },
     "helix-file-watcher": {
       "flake": false,
       "locked": {
@@ -237,8 +257,8 @@
         "nixpkgs": "nixpkgs_3"
       },
       "locked": {
-        "lastModified": 1777889729,
-        "narHash": "sha256-j1ECRFa+IWe0hlXolZ3pGzqGqhIgwgS+IlFRvoKeYdg=",
+        "lastModified": 1777893412,
+        "narHash": "sha256-e7wfrfNFyj5a18DHXgroX1Tu3Ejjj6xHxbPdV5I+VTY=",
         "path": "/Users/thomas/.config/dotfiles",
         "type": "path"
       },
@@ -251,6 +271,7 @@
       "inputs": {
         "fake-warp-hx": "fake-warp-hx",
         "flake-utils": "flake-utils",
+        "goto": "goto",
         "helix-file-watcher": "helix-file-watcher",
         "helix-steel": "helix-steel",
         "home-manager": "home-manager",
@@ -261,7 +282,8 @@
         "rust-overlay": "rust-overlay",
         "scooter-hx": "scooter-hx",
         "smooth-scroll-hx": "smooth-scroll-hx",
-        "steel": "steel"
+        "steel": "steel",
+        "task": "task"
       }
     },
     "rust-overlay": {
@@ -386,6 +408,29 @@
         "owner": "nix-systems",
         "repo": "default",
         "type": "github"
+      }
+    },
+    "task": {
+      "inputs": {
+        "flake-utils": [
+          "flake-utils"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "rust-overlay": [
+          "rust-overlay"
+        ]
+      },
+      "locked": {
+        "lastModified": 1777893363,
+        "narHash": "sha256-JgyD1HJKNc5QETjH4ViYP7IgSg6pi3CgHIe7W1MU0zI=",
+        "path": "/Users/thomas/dev/wt/github.com/tsauvajon/task/feat/hm-module",
+        "type": "path"
+      },
+      "original": {
+        "path": "/Users/thomas/dev/wt/github.com/tsauvajon/task/feat/hm-module",
+        "type": "path"
       }
     },
     "treefmt-nix": {

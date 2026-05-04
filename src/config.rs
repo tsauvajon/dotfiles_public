@@ -57,13 +57,20 @@ impl Paths {
     }
 }
 
+// PrivateConfig is parsed so we keep round-trippable migration logic
+// that rewrites legacy keys, but the Rust tool itself no longer
+// consumes the values. Identity (`git`) and goto/api flow into
+// programs.git / programs.goto via the private flake.
 #[derive(Debug, Default, Deserialize)]
 pub struct PrivateConfig {
+    #[allow(dead_code)]
     pub git: Option<GitConfig>,
+    #[allow(dead_code)]
     pub goto: Option<GotoConfig>,
     pub dotfiles: Option<DotfilesConfig>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct GitConfig {
     pub name: Option<String>,
@@ -71,6 +78,7 @@ pub struct GitConfig {
     pub signing_key: Option<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct GotoConfig {
     pub api_url: Option<String>,
@@ -134,33 +142,6 @@ impl PrivateConfig {
             .collect()
     }
 
-    /// Get a private value by dot-path, returning None if empty or missing.
-    fn get_str(&self, key: &str) -> Option<&str> {
-        let val = match key {
-            ".git.name" => self.git.as_ref()?.name.as_deref(),
-            ".git.email" => self.git.as_ref()?.email.as_deref(),
-            ".git.signing_key" => self.git.as_ref()?.signing_key.as_deref(),
-            ".goto.api_url" => self.goto.as_ref()?.api_url.as_deref(),
-            _ => None,
-        };
-        val.filter(|s| !s.is_empty())
-    }
-
-    /// Check that all required private keys are present.
-    /// Returns the list of missing keys.
-    pub fn missing_required_keys(&self) -> Vec<&'static str> {
-        let required = [
-            ".git.name",
-            ".git.email",
-            ".git.signing_key",
-            ".goto.api_url",
-        ];
-        required
-            .iter()
-            .filter(|k| self.get_str(k).is_none())
-            .copied()
-            .collect()
-    }
 }
 
 /// Check if a source path should be skipped.
@@ -495,7 +476,6 @@ rules_mode = "merged"
 "#;
         let cfg: PrivateConfig = toml::from_str(content).unwrap();
         assert_eq!(cfg.git.as_ref().unwrap().name.as_deref(), Some("Test User"));
-        assert!(cfg.missing_required_keys().is_empty());
     }
 
     #[test]
