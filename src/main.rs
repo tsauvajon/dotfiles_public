@@ -2,7 +2,7 @@ mod config;
 mod external;
 
 mod link;
-mod merge;
+
 mod plists;
 
 
@@ -10,7 +10,13 @@ use anyhow::Result;
 use config::{Paths, PrivateConfig};
 
 fn main() -> Result<()> {
-    let check_mode = std::env::args().any(|a| a == "--check");
+    if std::env::args().any(|a| a == "--check") {
+        eprintln!("--check is deprecated. Use:");
+        eprintln!(
+            "  nix build --impure --dry-run path:.#homeConfigurations.<host>.activationPackage"
+        );
+        std::process::exit(1);
+    }
 
     let paths = Paths::resolve()?;
 
@@ -77,13 +83,8 @@ fn main() -> Result<()> {
     }
 
     let private_cfg = PrivateConfig::load(&paths.config_toml)?;
-
     let skip_norms = private_cfg.skip_norms(&paths.home);
     let skip_source_norms = private_cfg.skip_source_norms();
-
-    if check_mode {
-        return run_check(&paths, &skip_norms, &skip_source_norms);
-    }
 
     run_setup(&paths, &skip_norms, &skip_source_norms)
 }
@@ -100,173 +101,14 @@ fn run_setup(
         format!("{}\n", paths.dotfiles.display()),
     )?;
 
-    log("Linking home files");
-    let d = &paths.dotfiles;
-    let h = &paths.home;
-    // tmux is owned by Home Manager since Phase 4 (programs.tmux).
-    link::managed_link(
-        &d.join("config/shell/profile"),
-        &h.join(".profile"),
-        skip_norms,
-        skip_source_norms,
-        paths,
-    )?;
-    link::managed_link(
-        &d.join("config/shell/fish_profile"),
-        &h.join(".fish_profile"),
-        skip_norms,
-        skip_source_norms,
-        paths,
-    )?;
-    link::managed_link(
-        &d.join("config/shell/bashrc"),
-        &h.join(".bashrc"),
-        skip_norms,
-        skip_source_norms,
-        paths,
-    )?;
-    link::managed_link(
-        &d.join("config/shell/bash_profile"),
-        &h.join(".bash_profile"),
-        skip_norms,
-        skip_source_norms,
-        paths,
-    )?;
-    link::managed_link(
-        &d.join("config/nix/nix-channels"),
-        &h.join(".nix-channels"),
-        skip_norms,
-        skip_source_norms,
-        paths,
-    )?;
-    link::managed_link(
-        &d.join("config/asdf/tool-versions"),
-        &h.join(".tool-versions"),
-        skip_norms,
-        skip_source_norms,
-        paths,
-    )?;
-    // Clean up symlinks retired by earlier phases:
-    // - ~/flakes (Phase 2: per-domain flakes removed)
-    // - ~/.tmux.conf and ~/.tmux/plugins (Phase 4: programs.tmux)
-    link::remove_managed_link_if_present(&h.join("flakes"), paths)?;
-    link::remove_managed_link_if_present(&h.join(".tmux.conf"), paths)?;
-    link::remove_managed_link_if_present(&h.join(".tmux/plugins"), paths)?;
-
-    log("Linking config files");
-    link::managed_link(
-        &d.join("config/wayland-env.sh"),
-        &h.join(".config/wayland-env.sh"),
-        skip_norms,
-        skip_source_norms,
-        paths,
-    )?;
-    link::managed_link(
-        &d.join("config/espflash"),
-        &h.join(".config/espflash"),
-        skip_norms,
-        skip_source_norms,
-        paths,
-    )?;
-    link::managed_link(
-        &d.join("config/fish"),
-        &h.join(".config/fish"),
-        skip_norms,
-        skip_source_norms,
-        paths,
-    )?;
-    link::managed_link(
-        &d.join("config/helix"),
-        &h.join(".config/helix"),
-        skip_norms,
-        skip_source_norms,
-        paths,
-    )?;
-    // hypr, mako, rofi are owned by Home Manager since Phase 4
-    // (home/desktop/{hyprland,mako,rofi}.nix on Linux). On macOS the
-    // modules evaluate to no-ops.
-    link::managed_link(
-        &d.join("config/kitty"),
-        &h.join(".config/kitty"),
-        skip_norms,
-        skip_source_norms,
-        paths,
-    )?;
-    link::managed_link(
-        &d.join("config/obsidian/Preferences"),
-        &h.join(".config/obsidian/Preferences"),
-        skip_norms,
-        skip_source_norms,
-        paths,
-    )?;
-    link::managed_link(
-        &d.join("config/keepassxc/keepassxc.ini"),
-        &h.join(".config/keepassxc/keepassxc.ini"),
-        skip_norms,
-        skip_source_norms,
-        paths,
-    )?;
-    link::managed_link(
-        &d.join("config/ssh/config"),
-        &h.join(".ssh/config"),
-        skip_norms,
-        skip_source_norms,
-        paths,
-    )?;
-    // waybar is owned by Home Manager since Phase 4 (home/desktop/waybar.nix).
-    link::managed_link(
-        &d.join("config/bat"),
-        &h.join(".config/bat"),
-        skip_norms,
-        skip_source_norms,
-        paths,
-    )?;
-    link::managed_link(
-        &d.join("config/fzf"),
-        &h.join(".config/fzf"),
-        skip_norms,
-        skip_source_norms,
-        paths,
-    )?;
-    link::managed_link(
-        &d.join("config/eza"),
-        &h.join(".config/eza"),
-        skip_norms,
-        skip_source_norms,
-        paths,
-    )?;
-    link::managed_link(
-        &d.join("config/yazi"),
-        &h.join(".config/yazi"),
-        skip_norms,
-        skip_source_norms,
-        paths,
-    )?;
-    link::managed_link(
-        &d.join("config/zellij/config.kdl"),
-        &h.join(".config/zellij/config.kdl"),
-        skip_norms,
-        skip_source_norms,
-        paths,
-    )?;
-    link::managed_link(
-        &d.join("config/zellij/catppuccin/catppuccin.kdl"),
-        &h.join(".config/zellij/themes/catppuccin.kdl"),
-        skip_norms,
-        skip_source_norms,
-        paths,
-    )?;
-    // goto config is owned by Home Manager since Phase 5 (programs.goto
-    // in home/programs/goto.nix).
-
     log("Linking LaunchAgents plists");
     plists::link_all(paths, skip_norms, skip_source_norms)?;
 
-    // OpenCode (Phase 3), tmux + git + desktop tools (Phase 4),
-    // goto + task (Phase 5) are owned by Home Manager. Clear any
-    // legacy symlinks the Rust tool used to create so HM activation
-    // does not trip over `checkLinkTargets`.
+    // After Phase 6, all dotfiles symlinks live in home/files.nix and
+    // home/programs/*.nix. Clear any legacy Rust-managed symlinks so
+    // HM activation does not trip over `checkLinkTargets`.
     for relative in [
+        // Phase 3 (opencode merges)
         ".config/opencode/AGENTS.md",
         ".config/opencode/opencode.json",
         ".config/opencode/package.json",
@@ -274,22 +116,48 @@ fn run_setup(
         ".config/opencode/skills",
         ".config/opencode/agents",
         ".config/opencode/plugins",
+        // Phase 4 (programs.tmux, programs.git, desktop modules)
+        ".tmux.conf",
+        ".tmux/plugins",
+        ".gitconfig",
         ".config/hypr",
         ".config/mako",
         ".config/rofi",
         ".config/waybar",
+        // Phase 5 (programs.gotoLinks, programs.task)
         ".config/goto/config.yml",
         ".config/goto/database.yml",
         ".config/task/config.toml",
+        // Phase 6 (files.nix + programs/{aerospace,alacritty,cargo}.nix)
+        ".profile",
+        ".bashrc",
+        ".bash_profile",
+        ".fish_profile",
+        ".tool-versions",
+        ".nix-channels",
+        ".aerospace.toml",
+        ".cargo/config.toml",
+        ".config/wayland-env.sh",
+        ".config/espflash",
+        ".config/fish",
+        ".config/helix",
+        ".config/kitty",
+        ".config/bat",
+        ".config/fzf",
+        ".config/eza",
+        ".config/yazi",
+        ".config/zellij/config.kdl",
+        ".config/zellij/themes/catppuccin.kdl",
+        ".config/obsidian/Preferences",
+        ".config/keepassxc/keepassxc.ini",
+        ".config/alacritty/alacritty.toml",
+        ".config/alacritty/themes",
+        ".ssh/config",
+        // Retired earlier
+        "flakes",
     ] {
         link::remove_managed_link_if_present(&paths.home.join(relative), paths)?;
     }
-
-    merge::merge_aerospace(paths, skip_norms, skip_source_norms)?;
-    merge::merge_cargo(paths, skip_norms, skip_source_norms)?;
-    merge::merge_alacritty(paths, skip_norms, skip_source_norms)?;
-    // task config is owned by Home Manager since Phase 5 (programs.task
-    // in home/programs/task.nix).
 
     log("Ensuring workspace directories");
     let dev = &paths.dev_root;
@@ -347,99 +215,6 @@ fn run_setup(
     println!("  3) Run task doctor");
 
     Ok(())
-}
-
-fn run_check(
-    paths: &Paths,
-    _skip_norms: &[String],
-    skip_source_norms: &[String],
-) -> Result<()> {
-    use std::collections::BTreeMap;
-
-    let temp_dir = std::env::temp_dir().join("dotfiles-setup-check");
-    if temp_dir.exists() {
-        std::fs::remove_dir_all(&temp_dir)?;
-    }
-
-    // Create a shadow Paths that writes generated files to temp
-    let shadow_build = temp_dir.join("build");
-    std::fs::create_dir_all(&shadow_build)?;
-
-    let shadow_paths = Paths {
-        dist: shadow_build.clone(),
-        ..paths.clone()
-    };
-
-    // Generate all files into temp. OpenCode merges are owned by HM
-    // since Phase 3 and are no longer compared here.
-    merge::merge_aerospace_to(&shadow_paths, skip_source_norms)?;
-    merge::merge_cargo_to(&shadow_paths, skip_source_norms)?;
-    merge::merge_alacritty_to(&shadow_paths, skip_source_norms)?;
-    // task config moved to Home Manager in Phase 5.
-    // waybar generation moved to Home Manager in Phase 4.
-    // generate::generate_private_files_to retired in Phase 5.
-
-    // Compare generated files
-    let mut diffs: BTreeMap<String, String> = BTreeMap::new();
-
-    fn compare_files(
-        real: &std::path::Path,
-        shadow: &std::path::Path,
-        rel: &str,
-        diffs: &mut BTreeMap<String, String>,
-    ) {
-        match (std::fs::read(real), std::fs::read(shadow)) {
-            (Ok(a), Ok(b)) if a == b => {}
-            (Ok(a), Ok(b)) => {
-                diffs.insert(
-                    rel.to_string(),
-                    format!("content differs ({} bytes vs {} bytes)", a.len(), b.len()),
-                );
-            }
-            (Err(_), Ok(_)) => {
-                diffs.insert(rel.to_string(), "missing in current output".to_string());
-            }
-            (Ok(_), Err(_)) => {
-                diffs.insert(rel.to_string(), "not generated by new code".to_string());
-            }
-            (Err(_), Err(_)) => {}
-        }
-    }
-
-    let generated_files = [
-        "aerospace.toml",
-        "cargo-config.toml",
-        "alacritty.toml",
-    ];
-
-    for rel in &generated_files {
-        compare_files(
-            &paths.dist.join(rel),
-            &shadow_build.join(rel),
-            rel,
-            &mut diffs,
-        );
-    }
-
-    // (Phase 3 dropped the per-symlink comparator that compared
-    // opencode/commands, /skills, /agents, /plugins. HM owns those now.)
-
-    // Note: opencode commands/skills/agents/plugins comparisons were
-    // dropped in Phase 3; HM owns those merges now.
-
-    // Cleanup
-    let _ = std::fs::remove_dir_all(&temp_dir);
-
-    if diffs.is_empty() {
-        println!("check: all generated files match");
-        Ok(())
-    } else {
-        println!("check: {} file(s) differ:", diffs.len());
-        for (file, reason) in &diffs {
-            println!("  {file}: {reason}");
-        }
-        std::process::exit(1);
-    }
 }
 
 fn log(msg: &str) {

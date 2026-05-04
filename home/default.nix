@@ -20,6 +20,10 @@
     ./helix-langs.nix
     ./helix-plugins.nix
     ./opencode.nix
+    ./files.nix
+    ./programs/aerospace.nix
+    ./programs/alacritty.nix
+    ./programs/cargo.nix
     ./programs/git.nix
     ./programs/goto.nix
     ./programs/task.nix

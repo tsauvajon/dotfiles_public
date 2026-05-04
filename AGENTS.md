@@ -10,10 +10,10 @@ dotfiles/
 ├── Cargo.toml                # Rust setup tool (dotfiles-setup)
 ├── flake.nix                 # nix run entry point
 ├── src/
-│   ├── main.rs               # CLI (--check flag), orchestration
-│   ├── config.rs             # Private TOML config parsing, path resolution
-│   ├── link.rs               # Symlink operations (managed_link, skip-links, cleanup)
-│   ├── merge.rs              # Cargo, AeroSpace, Alacritty overlay-append merges
+│   ├── main.rs               # CLI orchestration, legacy-symlink cleanup
+│   ├── config.rs             # Private TOML config parsing + migrations
+│   ├── link.rs               # remove_managed_link_if_present (cleanup helper)
+│   ├── plists.rs             # macOS LaunchAgents linking
 │   └── external.rs           # Home Manager activation, task bootstrap
 ├── dotfiles.example.toml     # Template; real file lives at ~/.config/dotfiles/config.toml
 ├── home/                     # Home Manager flake — owns all package installs
@@ -163,6 +163,10 @@ These configs are built by appending overlays onto a base file:
 
 Overlays are sorted by filename (byte order) within each group. Repo overlays are appended
 first, then private overlays (private wins on conflict).
+
+Source filtering happens before merge; destination filtering happens at link time.
+
+> `skip_links` is a deprecated alias for `skip_destinations`.
 
 ### Skip lists
 
