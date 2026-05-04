@@ -6,7 +6,7 @@
 # refresh the lock and re-activate:
 #
 #   nix --extra-experimental-features 'nix-command flakes' \
-#     flake update private --flake /Users/<you>/dev/dotfiles
+#     flake update private --flake /path/to/dotfiles
 #   bash setup.sh
 
 [git]
@@ -18,9 +18,10 @@ signing_key = "0000000000000000"  # 16-char hex key ID — run: gpg --list-secre
 # See: https://github.com/tsauvajon/goto
 api_url = "http://your-host:50002"
 
-# task config uses the overlay-append pattern — no task entries belong here.
-# Place private overlays at ~/.config/dotfiles/task.<name>.toml; the dotfiles
-# Home Manager module reads them and merges with the base config. For example:
+# task config uses the overlay-append pattern. No task entries belong here;
+# place private overlays at ~/.config/dotfiles/task.<name>.toml. The
+# home/programs/task.nix module reads them and merges with the base config
+# from config/task/config.toml. Examples:
 #
 #   ~/.config/dotfiles/task.install.toml
 #     [[install]]
@@ -33,20 +34,53 @@ api_url = "http://your-host:50002"
 #         "/home/youruser/dev/repos/github.com/youruser",
 #     ]
 
-# Private OpenCode skills live at ~/.config/dotfiles/opencode/skills/<skill-name>/SKILL.md
-# Private OpenCode agents live at ~/.config/dotfiles/opencode/agents/<name>.md
-# Private OpenCode rules overlays live at ~/.config/dotfiles/opencode/rules/
-# Private OpenCode JSON overlays live at ~/.config/dotfiles/opencode/opencode.*.json
-# Private SSH host config lives at ~/.config/dotfiles/ssh/config (included from ~/.ssh/config).
-# Optional extra gitconfig can live at ~/.config/dotfiles/extra.gitconfig.
+# Other private files this dotfiles tree understands:
 #
-# After changing anything under ~/.config/dotfiles/, refresh the private
-# flake input so Home Manager picks up the change:
+#   ~/.config/dotfiles/extra.gitconfig
+#     Included from ~/.config/git/config; useful for per-machine git tweaks.
 #
-#   nix --extra-experimental-features 'nix-command flakes' flake update private \
-#     --flake /Users/<you>/dev/dotfiles
+#   ~/.config/dotfiles/ssh/config
+#     Private SSH hosts; included from ~/.ssh/config.
+#
+#   ~/.config/dotfiles/goto/database.yml
+#     Private goto bookmarks; symlinked into ~/.config/goto/database.yml.
+#
+#   ~/.config/dotfiles/cargo.<name>.toml
+#     Cargo overlays, appended onto config/cargo/cargo-config.toml.
+#
+#   ~/.config/dotfiles/aerospace.<name>.toml
+#     AeroSpace rules, appended onto config/aerospace/aerospace.toml.
+#
+#   ~/.config/dotfiles/alacritty.<name>.toml
+#     Alacritty overlays, appended onto config/alacritty/alacritty.toml.
+#
+#   ~/.config/dotfiles/plist/<name>.plist
+#     Extra macOS LaunchAgents; symlinked into ~/Library/LaunchAgents/.
+#
+#   ~/.config/dotfiles/opencode/opencode.json
+#     Main private OpenCode override (deep-merged over the public base).
+#
+#   ~/.config/dotfiles/opencode/opencode.*.json
+#     Additional JSON fragments (deep-merged in filename order).
+#
+#   ~/.config/dotfiles/opencode/{commands,skills,agents,plugins}/
+#     Private OpenCode commands / skills / agents / plugins. Filename
+#     collisions with the public set: private wins.
+#
+#   ~/.config/dotfiles/opencode/rules/
+#     AGENTS.md overlays, appended in filename order (LC_ALL=C). Numeric
+#     prefixes (10-, 20-, ...) work well for ordering.
+#
+#   ~/.config/dotfiles/opencode/package.json
+#     Private plugin dependency overlay (deep-merged with the public one).
+#
+# After editing anything under ~/.config/dotfiles/, refresh the private flake
+# input so Home Manager picks up the change:
+#
+#   nix --extra-experimental-features 'nix-command flakes' \
+#     flake update private --flake /path/to/dotfiles
 #   bash setup.sh
 #
-# rules_mode (merged | private_only | disabled) is now a Home Manager
+# Note: rules_mode (merged | private_only | disabled) is now a Home Manager
 # option — set `programs.opencode.rulesMode` in `home/hosts/<host>.nix`
 # rather than here.

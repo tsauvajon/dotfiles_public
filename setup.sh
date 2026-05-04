@@ -1,17 +1,20 @@
 #!/usr/bin/env bash
-# Bootstrap the dotfiles by running Home Manager.
+# Bootstrap the dotfiles via Home Manager.
 #
-# Phase 7 retired the Rust setup tool. This shim:
-#   1. Verifies Nix is installed.
-#   2. Resolves the host attribute (defaults: macOS -> thomas-darwin,
-#      Linux -> thomas-linux; override with $DOTFILES_HOST).
-#   3. Activates the HM generation defined in home/. The HM
-#      activation block in home/bootstrap.nix records the dotfiles
-#      path, cleans up legacy Rust-managed symlinks, and runs
-#      `task bootstrap`.
+# 1. Verifies Nix is installed.
+# 2. Resolves the host attribute. Defaults: macOS -> thomas-darwin,
+#    Linux -> thomas-linux. Override with $DOTFILES_HOST.
+# 3. Builds homeConfigurations.<host>.activationPackage from this flake
+#    and runs the resulting `activate` script.
 #
-# The legacy `--check` flag has been retired. Use:
-#   nix build --impure --dry-run \
+# The activation block in home/bootstrap.nix takes care of:
+#   - recording this repo's path at ~/.config/dotfiles/path
+#   - cleaning up legacy symlinks the previous Rust setup tool created
+#   - running `task bootstrap` so workspace dirs and asdf are ready
+#
+# To preview without activating, use:
+#   nix --extra-experimental-features 'nix-command flakes' \
+#     build --impure --dry-run \
 #     "path:.#homeConfigurations.<host>.activationPackage"
 set -euo pipefail
 
