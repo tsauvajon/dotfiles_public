@@ -1,5 +1,23 @@
 # Dotfiles Repo — Agent Guide
 
+<!--toc:start-->
+- [Dotfiles Repo — Agent Guide](#dotfiles-repo-agent-guide)
+  - [Layout](#layout)
+  - [How Setup Works](#how-setup-works)
+    - [Symlink strategy](#symlink-strategy)
+    - [OpenCode merges (HM-owned, since Phase 3)](#opencode-merges-hm-owned-since-phase-3)
+      - [AGENTS.md](#agentsmd)
+      - [Commands, Skills, Agents, Plugins](#commands-skills-agents-plugins)
+      - [opencode.json (4-tier deep merge)](#opencodejson-4-tier-deep-merge)
+      - [package.json](#packagejson)
+      - [Picking up private changes](#picking-up-private-changes)
+    - [Overlay-append merges (Cargo, AeroSpace, Alacritty, task)](#overlay-append-merges-cargo-aerospace-alacritty-task)
+    - [Skip lists](#skip-lists)
+  - [Private config](#private-config)
+  - [OpenCode config](#opencode-config)
+  - [Key invariants](#key-invariants)
+<!--toc:end-->
+
 Quick orientation for an AI agent working in this repository.
 
 ## Layout
@@ -31,7 +49,7 @@ dotfiles/
     │   ├── commands/         # OpenCode slash commands as markdown files
     │   └── skills/           # OpenCode skills, one subdirectory per skill
     ├── aerospace/            # AeroSpace base config (overlay-append into ~/.aerospace.toml)
-    ├── alacritty/            # Alacritty + themes submodule
+    ├── alacritty/            # Alacritty (themes ship via pkgs.alacritty-theme)
     ├── asdf/                 # tool-versions → ~/.tool-versions
     ├── cargo/                # cargo-config.toml + platform overlays → ~/.cargo/config.toml
     ├── espflash/             # ESP flashing tool
@@ -52,7 +70,7 @@ dotfiles/
     └── waybar/               # Status bar
 ```
 
-## How setup works
+## How Setup Works
 
 `setup.sh` is a ~30-line shell shim that:
 
@@ -121,7 +139,7 @@ two reusable Nix helpers:
 
 Public AGENTS lives at `config/opencode/AGENTS.md`. Optional private rules overlays
 live at `~/.config/dotfiles/opencode/rules/<name>.md`. The HM module concatenates
-the public base (when `programs.opencode.rulesMode = "merged"`) plus each non-empty
+the public base (when `programs.opencode.rulesMode = "merged"`) plus each nonempty
 overlay file from that directory, sorted by filename in byte order (`LC_ALL=C`),
 each preceded by `# Rules overlay: <filename>`. The result is written as
 `~/.config/opencode/AGENTS.md`.
@@ -133,7 +151,7 @@ behavior:
 - `private_only`: only private overlays.
 - `disabled`: do not manage AGENTS.md at all.
 
-#### Commands, skills, agents, plugins
+#### Commands, Skills, Agents, Plugins
 
 Public sources live at `config/opencode/<name>/`. Private sources live at
 `~/.config/dotfiles/opencode/<name>/`. The HM module merges them via
@@ -141,7 +159,7 @@ Public sources live at `config/opencode/<name>/`. Private sources live at
 collision, the private entry wins.
 
 Adding a new public command/skill/agent/plugin: drop a file (or subdirectory for
-skills) into the appropriate `config/opencode/` subtree and re-run `setup.sh` so
+skills) into the appropriate `config/opencode/` subtree and rerun `setup.sh` so
 HM picks up the change.
 
 #### opencode.json (4-tier deep merge)
@@ -216,10 +234,10 @@ Everything private lives **outside the repo** at `~/.config/dotfiles/`:
 | `~/.config/dotfiles/opencode/opencode.json` | Private OpenCode config overlay (for MCP servers and local-only overrides) |
 
 Copy `dotfiles.example.toml` to get started. Private skills need no registration — drop a
-`<skill-name>/SKILL.md` directory into `opencode/skills/` and re-run `setup.sh`.
+`<skill-name>/SKILL.md` directory into `opencode/skills/` and rerun `setup.sh`.
 
 Private commands also need no registration — drop a `<name>.md` file into
-`opencode/commands/` and re-run `setup.sh`.
+`opencode/commands/` and rerun `setup.sh`.
 
 The setup tool also supports an optional `~/.config/dotfiles/opencode/opencode.json` file.
 When present, it is deep-merged over `config/opencode/opencode.json` to generate
@@ -233,15 +251,15 @@ the merged `opencode.json` linked at `~/.config/opencode/opencode.json`.
 | `config/opencode/AGENTS.md` | System prompt injected into every OpenCode session |
 | `config/opencode/commands/<name>.md` | Custom slash commands |
 | `config/opencode/skills/<name>/SKILL.md` | Loadable skill workflows |
-| `config/opencode/plugins/<name>.ts` | Global OpenCode plugins (auto-loaded at startup) |
+| `config/opencode/plugins/<name>.ts` | Global OpenCode plugins (autoloaded at startup) |
 | `config/opencode/package.json` | Plugin dependency manifest |
 
 To add a new skill: create `config/opencode/skills/<name>/SKILL.md` and register a
-matching command in `config/opencode/commands/<name>.md`. Re-run `setup.sh` to add both
+matching command in `config/opencode/commands/<name>.md`. Rerun `setup.sh` to add both
 to the merged OpenCode config.
 
 To add a new slash command that does not need a skill file, add it directly to the
-`config/opencode/commands/` directory as a markdown file.
+`config/opencode/commands/` directory as a Markdown file.
 
 ## Key invariants
 

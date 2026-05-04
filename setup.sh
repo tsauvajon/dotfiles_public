@@ -34,13 +34,7 @@ case "${DOTFILES_HOST:-}" in
   *) host="$DOTFILES_HOST" ;;
 esac
 
-# Several config/<tool>/ directories use git submodules for catppuccin
-# themes (alacritty, bat, eza, fzf, mako, rofi, waybar, yazi, zellij).
-# `git+file://?submodules=1` runs `git ls-files --recurse-submodules`
-# so submodule contents make it into the Nix store; plain `path:` does
-# not support that flag and would leave e.g. ~/.config/fzf/catppuccin
-# missing.
-flake_ref="git+file://$DOTFILES?submodules=1#homeConfigurations.$host.activationPackage"
+flake_ref="path:$DOTFILES#homeConfigurations.$host.activationPackage"
 
 printf '==> Building home-manager generation for %s\n' "$host"
 out=$(nix \

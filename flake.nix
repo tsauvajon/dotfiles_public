@@ -73,6 +73,23 @@
       inputs.flake-utils.follows = "flake-utils";
       inputs.rust-overlay.follows = "rust-overlay";
     };
+
+    # Phase 8: catppuccin theme content sourced from upstream flakes
+    # so the ./config/<tool>/catppuccin/ submodules can be retired.
+    # The catppuccin/nix metaflake covers most tools; fzf and zellij
+    # are not in the metaflake, so we pin their source repos directly.
+    catppuccin = {
+      url = "github:catppuccin/nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    catppuccin-fzf = {
+      url = "github:catppuccin/fzf";
+      flake = false;
+    };
+    catppuccin-zellij = {
+      url = "github:catppuccin/zellij";
+      flake = false;
+    };
   };
 
   outputs =

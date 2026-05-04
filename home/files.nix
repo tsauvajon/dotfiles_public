@@ -5,7 +5,12 @@
 # all of them in one place so the Rust setup tool no longer has to.
 # Tools that benefit from a richer HM integration (programs.tmux,
 # programs.git, programs.opencode etc.) live in their own modules.
-{ pkgs, lib, ... }:
+{
+  pkgs,
+  lib,
+  inputs,
+  ...
+}:
 
 {
   # Files at $HOME (not under .config).
@@ -29,15 +34,22 @@
       "fish".source = ../config/fish;
       "helix".source = ../config/helix;
       "bat".source = ../config/bat;
-      "fzf".source = ../config/fzf;
-      "eza".source = ../config/eza;
       "yazi".source = ../config/yazi;
       "zellij/config.kdl".source = ../config/zellij/config.kdl;
-      "zellij/themes/catppuccin.kdl".source = ../config/zellij/catppuccin/catppuccin.kdl;
       "kitty".source = ../config/kitty;
       "espflash".source = ../config/espflash;
       "obsidian/Preferences".source = ../config/obsidian/Preferences;
       "keepassxc/keepassxc.ini".source = ../config/keepassxc/keepassxc.ini;
+
+      # Catppuccin themes pulled from upstream flake inputs (Phase 8)
+      # rather than git submodules. Paths preserve the layout the
+      # consumers expect:
+      #   ~/.config/fzf/catppuccin/themes/catppuccin-fzf-mocha.fish
+      #     — sourced by config/fish/config.fish
+      #   ~/.config/zellij/themes/catppuccin.kdl
+      #     — picked up by zellij's themes auto-discovery
+      "fzf/catppuccin".source = inputs.catppuccin-fzf;
+      "zellij/themes/catppuccin.kdl".source = "${inputs.catppuccin-zellij}/catppuccin.kdl";
     }
 
     # Linux-only: the wayland session env script, sourced by the

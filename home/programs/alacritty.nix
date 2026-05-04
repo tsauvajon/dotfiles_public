@@ -1,7 +1,9 @@
 # Alacritty config: base + private overlays
-# (~/.config/dotfiles/alacritty.*.toml), plus the themes submodule
-# symlinked alongside so the `import = [ "themes/themes/omni.toml" ]`
-# directive resolves.
+# (~/.config/dotfiles/alacritty.*.toml), plus alacritty-theme from
+# nixpkgs symlinked so `import = [ "~/.config/alacritty/themes/<name>.toml" ]`
+# directives in the user's config resolve. Phase 8 retired the
+# alacritty-theme git submodule that used to live at
+# `config/alacritty/themes/`.
 {
   pkgs,
   lib,
@@ -25,6 +27,9 @@ in
 {
   xdg.configFile = {
     "alacritty/alacritty.toml".source = alacrittyConfig;
-    "alacritty/themes".source = ../../config/alacritty/themes;
+    # pkgs.alacritty-theme has the full theme set under share/alacritty-theme/.
+    # We mount that subdirectory directly so `~/.config/alacritty/themes/<name>.toml`
+    # resolves the way the existing import paths expect.
+    "alacritty/themes".source = "${pkgs.alacritty-theme}/share/alacritty-theme";
   };
 }

@@ -1,6 +1,6 @@
 [general]
 import = [
-    "~/.config/alacritty/themes/themes/omni.toml"
+    "~/.config/alacritty/themes/omni.toml"
 ]
 
 [env]

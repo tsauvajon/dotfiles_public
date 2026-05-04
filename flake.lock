@@ -1,5 +1,57 @@
 {
   "nodes": {
+    "catppuccin": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1777734189,
+        "narHash": "sha256-kbIhdhDPaTP6gxAPkcRYeB+cqPFDpTM/bnw+m+26vkI=",
+        "owner": "catppuccin",
+        "repo": "nix",
+        "rev": "e68cf5deaf1a7afed2e548835dba2ae99f5a3ccb",
+        "type": "github"
+      },
+      "original": {
+        "owner": "catppuccin",
+        "repo": "nix",
+        "type": "github"
+      }
+    },
+    "catppuccin-fzf": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1756594633,
+        "narHash": "sha256-fs3bOs1vfrtuono0yg1xjTSpzoS5m8ZRMD+CjAp+sDU=",
+        "owner": "catppuccin",
+        "repo": "fzf",
+        "rev": "7c2e05606f2e75840b1ba367b1f997cd919809b3",
+        "type": "github"
+      },
+      "original": {
+        "owner": "catppuccin",
+        "repo": "fzf",
+        "type": "github"
+      }
+    },
+    "catppuccin-zellij": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1775401951,
+        "narHash": "sha256-w5vU7Ecx01pXcrzqhHx48wrT+j6glxVAZqsddT/QAGM=",
+        "owner": "catppuccin",
+        "repo": "zellij",
+        "rev": "be841efbfb0b914daecdc4d1cde242fee53781b2",
+        "type": "github"
+      },
+      "original": {
+        "owner": "catppuccin",
+        "repo": "zellij",
+        "type": "github"
+      }
+    },
     "fake-warp-hx": {
       "flake": false,
       "locked": {
@@ -160,11 +212,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1777852249,
-        "narHash": "sha256-XdbGWnFlX4McOEG5NioVsp35Ic6XL/rXnp8as71cu6o=",
+        "lastModified": 1777894865,
+        "narHash": "sha256-agINDb/tr4v2uaVmgE/i0dY1M2JJdzUI/Caup/MWEGU=",
         "owner": "nix-community",
         "repo": "home-manager",
-        "rev": "c909892de502b4de9e92838a503c09a9c8ebe4aa",
+        "rev": "9c6f1307e1d76a2285d8001e1b8bc281bfe15dac",
         "type": "github"
       },
       "original": {
@@ -260,8 +312,8 @@
         "nixpkgs": "nixpkgs_3"
       },
       "locked": {
-        "lastModified": 1777893412,
-        "narHash": "sha256-e7wfrfNFyj5a18DHXgroX1Tu3Ejjj6xHxbPdV5I+VTY=",
+        "lastModified": 1777906423,
+        "narHash": "sha256-Mxfokv8MTWOXDO5CBQAKkDlKXpEwV/J5ReDxroANpiY=",
         "path": "/Users/thomas/.config/dotfiles",
         "type": "path"
       },
@@ -272,6 +324,9 @@
     },
     "root": {
       "inputs": {
+        "catppuccin": "catppuccin",
+        "catppuccin-fzf": "catppuccin-fzf",
+        "catppuccin-zellij": "catppuccin-zellij",
         "fake-warp-hx": "fake-warp-hx",
         "flake-utils": "flake-utils",
         "goto": "goto",
