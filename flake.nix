@@ -1,22 +1,98 @@
 {
-  description = "Dotfiles setup tool";
+  description = "Thomas's dotfiles";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    # nixGL pinned alongside a known-good nixpkgs commit. The pin matches
+    # the existing config/nix/flakes/shell setup; touching it will likely
+    # break OpenGL on Linux.
+    nixgl.url = "github:nix-community/nixGL";
+    nixgl-nixpkgs.url = "github:nixos/nixpkgs/93e8cdce7afc64297cfec447c311470788131cd9";
+
+    # Helix Steel and pinned plugin sources, mirroring
+    # config/nix/flakes/helix-plugins/flake.nix.
+    helix-steel = {
+      url = "github:mattwparas/helix/steel-event-system";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.rust-overlay.follows = "rust-overlay";
+    };
+    steel = {
+      url = "github:mattwparas/steel/605d490c07ae6937d532d5a994920b4dab3016ad";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    scooter-hx = {
+      url = "github:thomasschafer/scooter.hx/v0.1.4";
+      flake = false;
+    };
+    fake-warp-hx = {
+      url = "github:Xerxes-2/fake-warp.hx/542214f6359880c70663e3e58e0d1c5fda10d328";
+      flake = false;
+    };
+    smooth-scroll-hx = {
+      url = "github:thomasschafer/smooth-scroll.hx/1ed8b088e465fb139389c36ad158ba4a2d9e1bbc";
+      flake = false;
+    };
+    helix-file-watcher = {
+      url = "github:mattwparas/helix-file-watcher/e36434634b0a862280dc832921c9aa0d62198964";
+      flake = false;
+    };
+
+    # Private overlay flake: machine-local secrets, identity, and private
+    # OpenCode commands/skills/agents/plugins/rules.
+    #
+    # The path resolves at flake-eval time via `--impure` because it lives
+    # outside the repo. Phase 1 declares the input but no module consumes
+    # it yet; Phase 3 will start using it for the OpenCode merges.
+    private = {
+      url = "path:/Users/thomas/.config/dotfiles";
+      flake = true;
+    };
   };
 
   outputs =
-    {
+    inputs@{
       self,
       nixpkgs,
       flake-utils,
       home-manager,
+      rust-overlay,
+      ...
     }:
+    let
+      mkPkgs =
+        system:
+        import nixpkgs {
+          inherit system;
+          config.allowUnfree = true;
+          overlays = [ rust-overlay.overlays.default ];
+        };
+
+      mkHome =
+        {
+          system,
+          hostModule,
+        }:
+        home-manager.lib.homeManagerConfiguration {
+          pkgs = mkPkgs system;
+          extraSpecialArgs = { inherit inputs system; };
+          modules = [
+            ./home
+            hostModule
+          ];
+        };
+    in
     flake-utils.lib.eachSystem
       [
         "x86_64-linux"
@@ -28,6 +104,8 @@
           pkgs = import nixpkgs { inherit system; };
         in
         {
+          # Existing Rust setup tool. Retired in Phase 7; kept here so
+          # `setup.sh` continues to bootstrap as before.
           packages.default = pkgs.rustPlatform.buildRustPackage {
             pname = "dotfiles-setup";
             version = "0.1.0";
@@ -39,9 +117,15 @@
         }
       )
     // {
-      homeConfigurations.thomas = home-manager.lib.homeManagerConfiguration {
-        pkgs = import nixpkgs { system = "x86_64-linux"; };
-        modules = [ ./home ];
+      homeConfigurations = {
+        thomas-darwin = mkHome {
+          system = "aarch64-darwin";
+          hostModule = ./home/hosts/darwin.nix;
+        };
+        thomas-linux = mkHome {
+          system = "x86_64-linux";
+          hostModule = ./home/hosts/linux.nix;
+        };
       };
     };
 }
