@@ -146,15 +146,6 @@
           pkgs = import nixpkgs { inherit system; };
         in
         {
-          # Existing Rust setup tool. Retired in Phase 7; kept here so
-          # `setup.sh` continues to bootstrap as before.
-          packages.default = pkgs.rustPlatform.buildRustPackage {
-            pname = "dotfiles-setup";
-            version = "0.1.0";
-            src = ./.;
-            cargoLock.lockFile = ./Cargo.lock;
-          };
-
           formatter = pkgs.nixfmt-rfc-style;
         }
       )

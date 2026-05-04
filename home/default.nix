@@ -12,15 +12,15 @@
 
 {
   imports = [
-    ./rust.nix
-    ./fs.nix
-    ./shell.nix
-    ./editors.nix
+    ./bootstrap.nix
     ./desktop
+    ./editors.nix
+    ./files.nix
+    ./fs.nix
     ./helix-langs.nix
     ./helix-plugins.nix
+    ./launchd.nix
     ./opencode.nix
-    ./files.nix
     ./programs/aerospace.nix
     ./programs/alacritty.nix
     ./programs/cargo.nix
@@ -28,5 +28,7 @@
     ./programs/goto.nix
     ./programs/task.nix
     ./programs/tmux.nix
+    ./rust.nix
+    ./shell.nix
   ];
 }

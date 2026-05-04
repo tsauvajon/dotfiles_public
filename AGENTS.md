@@ -6,21 +6,16 @@ Quick orientation for an AI agent working in this repository.
 
 ```
 dotfiles/
-├── setup.sh                  # Thin shim — runs the Rust setup tool via nix or cargo
-├── Cargo.toml                # Rust setup tool (dotfiles-setup)
-├── flake.nix                 # nix run entry point
-├── src/
-│   ├── main.rs               # CLI orchestration, legacy-symlink cleanup
-│   ├── config.rs             # Private TOML config parsing + migrations
-│   ├── link.rs               # remove_managed_link_if_present (cleanup helper)
-│   ├── plists.rs             # macOS LaunchAgents linking
-│   └── external.rs           # Home Manager activation, task bootstrap
-├── dotfiles.example.toml     # Template; real file lives at ~/.config/dotfiles/config.toml
-├── home/                     # Home Manager flake — owns all package installs
+├── setup.sh                  # ~30-line shim that calls home-manager activation
+├── flake.nix                 # Pure Home Manager flake
+├── home/                     # All managed config lives here
 │   ├── default.nix           # Top-level module, imports per-domain modules
-│   ├── lib/                  # Reusable Nix helpers (merge-dirs, concat-files, …)
+│   ├── bootstrap.nix         # HM activation scripts (cleanup, path record, task bootstrap)
+│   ├── launchd.nix           # macOS LaunchAgents (Library/LaunchAgents/*.plist)
+│   ├── files.nix             # Plain-symlink dotfiles (bat, fzf, fish, helix, kitty, ssh, …)
+│   ├── lib/                  # Reusable Nix helpers (merge-dirs, concat-files, concat-toml-files, …)
 │   ├── hosts/                # Per-host identity (darwin.nix, linux.nix)
-│   ├── programs/             # First-class HM modules (programs.tmux, programs.git)
+│   ├── programs/             # First-class HM modules (programs.tmux, programs.git, programs.gotoLinks, …)
 │   ├── desktop/              # Linux desktop (hyprland, mako, waybar, rofi)
 │   ├── rust.nix              # Rust toolchain + cargo helpers
 │   ├── fs.nix                # bat, eza, fd, fzf, ripgrep, yazi, zoxide, …
@@ -59,23 +54,36 @@ dotfiles/
 
 ## How setup works
 
-`setup.sh` is a thin shell shim that builds and runs the Rust setup tool
-(`setup/`). It tries `cargo run` first, falls back to `nix run path:./setup`.
+`setup.sh` is a ~30-line shell shim that:
 
-The setup tool is idempotent — run it any time to re-apply. Use `--check` to
-verify that generated files match the current output without changing anything.
+1. Resolves the host attribute — `thomas-darwin` on macOS, `thomas-linux` on
+   Linux. `DOTFILES_HOST` overrides.
+2. Runs `nix build path:.#homeConfigurations.<host>.activationPackage`.
+3. Executes the resulting `activate` script.
 
-1. **Records** the dotfiles path to `~/.config/dotfiles/path`.
-2. **Links** files from `config/` into the appropriate `$HOME` and `$HOME/.config/` paths.
-3. **Builds merged OpenCode AGENTS, commands, and skills** — see below.
-4. **Activates the Home Manager generation** defined in `home/` for the current host
-   (`thomas-darwin` on macOS, `thomas-linux` on Linux). HM owns the package set:
-   Rust, Git, filesystem, shell, editor, desktop, Helix language, and Helix plugin tooling.
-   `DOTFILES_HOST` overrides host detection.
-5. **Reads** `~/.config/dotfiles/config.toml` (if present) to inject private values
-   (git identity, API URLs) into generated files under `~/.local/share/dotfiles/`,
-   then symlinks those into `~/.config/`.
-6. Runs `task bootstrap`.
+The activation flow itself is pure HM, defined under `home/`:
+
+1. **`home/bootstrap.nix`** runs three activation blocks:
+   - `cleanupLegacyDotfiles` — removes Rust-managed symlinks from earlier
+     phases (idempotent; safe on a fresh machine).
+   - `recordDotfilesPath` — writes the live repo path to
+     `~/.config/dotfiles/path` so private flake imports can resolve it.
+   - `taskBootstrap` — runs `task bootstrap --yes` after HM linking.
+2. **All other modules** under `home/` declare packages, configs, and
+   symlinks. HM atomically swaps the home generation.
+
+Identity, API URLs, and other private values are read from
+`~/.config/dotfiles/config.toml` by the **private flake** at
+`~/.config/dotfiles/flake.nix`, which the dotfiles flake imports as
+`inputs.private`. The HM module `home/programs/git.nix` (and others)
+consume those values via `inputs.private.git.{name,email,signingKey}` etc.
+
+When you change anything under `~/.config/dotfiles/`, refresh the flake input:
+
+```sh
+nix --extra-experimental-features 'nix-command flakes' flake update private --flake .
+bash setup.sh
+```
 
 ### Symlink strategy
 

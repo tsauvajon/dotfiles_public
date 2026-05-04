@@ -1,21 +1,46 @@
 #!/usr/bin/env bash
-# To enable private setup (git identity, network config):
+# Bootstrap the dotfiles by running Home Manager.
 #
-#   cp dotfiles.example.toml ~/.config/dotfiles/config.toml
-#   $EDITOR ~/.config/dotfiles/config.toml
-#   bash setup.sh
+# Phase 7 retired the Rust setup tool. This shim:
+#   1. Verifies Nix is installed.
+#   2. Resolves the host attribute (defaults: macOS -> thomas-darwin,
+#      Linux -> thomas-linux; override with $DOTFILES_HOST).
+#   3. Activates the HM generation defined in home/. The HM
+#      activation block in home/bootstrap.nix records the dotfiles
+#      path, cleans up legacy Rust-managed symlinks, and runs
+#      `task bootstrap`.
 #
+# The legacy `--check` flag has been retired. Use:
+#   nix build --impure --dry-run \
+#     "path:.#homeConfigurations.<host>.activationPackage"
 set -euo pipefail
 
 DOTFILES="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 export DOTFILES
 
-if command -v nix >/dev/null 2>&1; then
-  exec nix run "path:$DOTFILES" -- "$@"
-elif command -v cargo >/dev/null 2>&1; then
-  exec cargo run --quiet --manifest-path "$DOTFILES/Cargo.toml" -- "$@"
-else
-  printf 'error: neither nix nor cargo found on PATH.\n' >&2
-  printf 'Install Nix (https://nixos.org) or Rust (https://rustup.rs) first.\n' >&2
+if ! command -v nix >/dev/null 2>&1; then
+  printf 'error: nix not found on PATH. Install Nix from https://nixos.org first.\n' >&2
   exit 1
 fi
+
+case "${DOTFILES_HOST:-}" in
+  "")
+    case "$(uname -s)" in
+      Darwin) host="thomas-darwin" ;;
+      Linux)  host="thomas-linux"  ;;
+      *)      printf 'error: unsupported OS %s. Set DOTFILES_HOST.\n' "$(uname -s)" >&2; exit 1 ;;
+    esac
+    ;;
+  *) host="$DOTFILES_HOST" ;;
+esac
+
+flake_ref="path:$DOTFILES#homeConfigurations.$host.activationPackage"
+
+printf '==> Building home-manager generation for %s\n' "$host"
+out=$(nix \
+  --extra-experimental-features 'nix-command flakes' \
+  build --impure --no-link --print-out-paths \
+  "$flake_ref")
+
+printf '==> Activating %s\n' "$out/activate"
+"$out/activate"
