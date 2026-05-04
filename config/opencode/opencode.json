@@ -181,6 +181,7 @@
       "xargs *": "allow",
       "xxd *": "allow",
       "xz *": "allow",
+      "/nix/store/*/*": "allow",
       "~/dev/dotfiles/setup.sh": "allow",
       "~/dev/dotfiles/setup.sh *": "allow",
       "API_KEY=*": "allow",
