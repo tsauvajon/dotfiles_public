@@ -20,6 +20,22 @@
         "type": "github"
       }
     },
+    "catppuccin-bat": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1751237777,
+        "narHash": "sha256-lJapSgRVENTrbmpVyn+UQabC9fpV1G1e+CdlJ090uvg=",
+        "owner": "catppuccin",
+        "repo": "bat",
+        "rev": "6810349b28055dce54076712fc05fc68da4b8ec0",
+        "type": "github"
+      },
+      "original": {
+        "owner": "catppuccin",
+        "repo": "bat",
+        "type": "github"
+      }
+    },
     "catppuccin-fzf": {
       "flake": false,
       "locked": {
@@ -33,6 +49,22 @@
       "original": {
         "owner": "catppuccin",
         "repo": "fzf",
+        "type": "github"
+      }
+    },
+    "catppuccin-yazi": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1767046972,
+        "narHash": "sha256-Og33IGS9pTim6LEH33CO102wpGnPomiperFbqfgrJjw=",
+        "owner": "catppuccin",
+        "repo": "yazi",
+        "rev": "fc69d6472d29b823c4980d23186c9c120a0ad32c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "catppuccin",
+        "repo": "yazi",
         "type": "github"
       }
     },
@@ -325,7 +357,9 @@
     "root": {
       "inputs": {
         "catppuccin": "catppuccin",
+        "catppuccin-bat": "catppuccin-bat",
         "catppuccin-fzf": "catppuccin-fzf",
+        "catppuccin-yazi": "catppuccin-yazi",
         "catppuccin-zellij": "catppuccin-zellij",
         "fake-warp-hx": "fake-warp-hx",
         "flake-utils": "flake-utils",

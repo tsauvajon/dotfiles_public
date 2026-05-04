@@ -34,7 +34,16 @@
       "fish".source = ../config/fish;
       "helix".source = ../config/helix;
       "bat".source = ../config/bat;
-      "yazi".source = ../config/yazi;
+      # yazi: wire each config file individually so theme.toml and the
+      # syntect tmTheme can come from upstream catppuccin flakes rather
+      # than the broken in-tree symlinks left behind by phase 8.
+      "yazi/yazi.toml".source = ../config/yazi/yazi.toml;
+      "yazi/keymap.toml".source = ../config/yazi/keymap.toml;
+      "yazi/init.lua".source = ../config/yazi/init.lua;
+      "yazi/theme.toml".source =
+        "${inputs.catppuccin-yazi}/themes/mocha/catppuccin-mocha-mauve.toml";
+      "yazi/Catppuccin-mocha.tmTheme".source =
+        "${inputs.catppuccin-bat}/themes/Catppuccin Mocha.tmTheme";
       "zellij/config.kdl".source = ../config/zellij/config.kdl;
       "kitty".source = ../config/kitty;
       "espflash".source = ../config/espflash;

@@ -90,6 +90,14 @@
       url = "github:catppuccin/zellij";
       flake = false;
     };
+    catppuccin-yazi = {
+      url = "github:catppuccin/yazi";
+      flake = false;
+    };
+    catppuccin-bat = {
+      url = "github:catppuccin/bat";
+      flake = false;
+    };
   };
 
   outputs =
