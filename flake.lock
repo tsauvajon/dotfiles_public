@@ -99,14 +99,17 @@
         ]
       },
       "locked": {
-        "lastModified": 1777893746,
-        "narHash": "sha256-q8aPxL33+jhyAdLVfMtNwFkC7yJhANf6XMvHb+hzBa8=",
-        "path": "/Users/thomas/dev/wt/github.com/tsauvajon/goto/feat/hm-module",
-        "type": "path"
+        "lastModified": 1777897853,
+        "narHash": "sha256-VNcHIGlk09ePvvOGlh+shOWxGpTqcdGfgTG66HWv8VE=",
+        "owner": "tsauvajon",
+        "repo": "goto",
+        "rev": "4e9f91ee8f1573763107f70254b6aec5c21e3db7",
+        "type": "github"
       },
       "original": {
-        "path": "/Users/thomas/dev/wt/github.com/tsauvajon/goto/feat/hm-module",
-        "type": "path"
+        "owner": "tsauvajon",
+        "repo": "goto",
+        "type": "github"
       }
     },
     "helix-file-watcher": {
@@ -423,14 +426,17 @@
         ]
       },
       "locked": {
-        "lastModified": 1777893363,
-        "narHash": "sha256-JgyD1HJKNc5QETjH4ViYP7IgSg6pi3CgHIe7W1MU0zI=",
-        "path": "/Users/thomas/dev/wt/github.com/tsauvajon/task/feat/hm-module",
-        "type": "path"
+        "lastModified": 1777899142,
+        "narHash": "sha256-9bcnueysl6fV3bNGgrzaTuzNcBcOEoZ5uBNBJDB1ihw=",
+        "owner": "tsauvajon",
+        "repo": "task",
+        "rev": "41ec6e3dc17ac11569d801f9887aa7ded5b6081f",
+        "type": "github"
       },
       "original": {
-        "path": "/Users/thomas/dev/wt/github.com/tsauvajon/task/feat/hm-module",
-        "type": "path"
+        "owner": "tsauvajon",
+        "repo": "task",
+        "type": "github"
       }
     },
     "treefmt-nix": {
