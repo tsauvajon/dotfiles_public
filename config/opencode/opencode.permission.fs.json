@@ -1,0 +1,22 @@
+{
+  "permission": {
+    "edit": {
+      ".env*": "deny",
+      "*": "allow"
+    },
+    "read": {
+      ".env*": "deny",
+      "*": "allow",
+      "/nix/store/**": "allow"
+    },
+    "external_directory": {
+      "~/.cargo/**": "allow",
+      "~/.config/**": "allow",
+      "~/.local/share/**": "allow",
+      "~/dev/**": "allow",
+      "/mnt/linux/dotfiles/**": "allow",
+      "/mnt/linux/dev/**": "allow",
+      "/tmp/**": "allow"
+    }
+  }
+}

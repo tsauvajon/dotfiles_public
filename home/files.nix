@@ -130,7 +130,15 @@ in
   # Per-tool $XDG_CONFIG_HOME entries. Cross-platform unless gated.
   xdg.configFile = lib.mkMerge [
     {
-      "fish".source = ../config/fish;
+      # `recursive = true` lets other modules add per-file entries
+      # under fish/ (e.g. xdg.configFile."fish/conf.d/common-aliases.fish"
+      # from cross-shell-aliases.nix, or "fish/completions/task.fish"
+      # from task.nix). Without it, HM tries to symlink the whole dir
+      # at once and conflicts with later per-file entries.
+      "fish" = {
+        source = ../config/fish;
+        recursive = true;
+      };
       "helix".source = ../config/helix;
       "bat".source = ../config/bat;
       "tabiew/config.toml".source = ../config/tabiew/config.toml;

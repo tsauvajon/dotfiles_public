@@ -153,7 +153,7 @@ live in `~/.config/dotfiles/opencode/`.
 | `~/.config/dotfiles/opencode/plugins/` | private plugins |
 | `~/.config/dotfiles/opencode/package.json` | private plugin dependency overlay |
 
-The `home/opencode.nix` module deep-merges `opencode.json`, merges
+The `home/opencode.nix` module deep-merges `opencode.*.json` partials, merges
 `commands/`, `skills/`, `agents/`, and `plugins/` from public + private trees,
 and links the result into `~/.config/opencode/`. Set
 `programs.opencode.rulesMode` in `home/hosts/<host>.nix` to choose how

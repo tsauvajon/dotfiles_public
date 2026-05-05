@@ -47,7 +47,7 @@ dotfiles/
 │   └── nodejs.md             # Bun-first JavaScript setup notes
 └── config/                   # Dotfile sources, grouped by tool
     ├── opencode/
-    │   ├── opencode.json     # OpenCode config (model, permissions, MCP)
+    │   ├── opencode.*.json   # Per-section partials (meta, watcher, permission.{bash,fs,web}, experimental.quotaToast); deep-merged at build time
     │   ├── rules/            # Public AGENTS.md fragments (sorted with private rules)
     │   ├── commands/         # OpenCode slash commands as markdown files
     │   └── skills/           # OpenCode skills, one subdirectory per skill
@@ -174,16 +174,23 @@ Adding a new public command/skill/agent/plugin: drop a file (or subdirectory for
 skills) into the appropriate `config/opencode/` subtree and rerun `setup.sh` so
 HM picks up the change.
 
-#### opencode.json (5-tier deep merge)
+#### opencode.json (4-tier deep merge)
+
+The public side is fragment-only — every section lives in its own
+`opencode.<scope>.json` file (`opencode.meta.json`,
+`opencode.watcher.json`, `opencode.permission.bash.json`,
+`opencode.permission.fs.json`, `opencode.permission.web.json`,
+`opencode.experimental.quotaToast.json`). There is intentionally no
+public `opencode.json` base; the merged result is written to
+`~/.config/opencode/opencode.json`.
 
 Each tier wins over the previous on key collision:
 
-1. Public base — `config/opencode/opencode.json`
-2. Repo fragments — `config/opencode/opencode.*.json` (sorted by filename)
-3. Import fragments — `~/.config/dotfiles/opencode-imports/<name>/opencode.*.json`
+1. Repo fragments — `config/opencode/opencode.*.json` (sorted by filename)
+2. Import fragments — `~/.config/dotfiles/opencode-imports/<name>/opencode.*.json`
    (sorted within each import; imports applied in flake-declared order)
-4. Private fragments — `~/.config/dotfiles/opencode/opencode.*.json` (sorted by filename)
-5. Private overlay — `~/.config/dotfiles/opencode/opencode.json`
+3. Private fragments — `~/.config/dotfiles/opencode/opencode.*.json` (sorted by filename)
+4. Private overlay — `~/.config/dotfiles/opencode/opencode.json`
 
 #### package.json
 
@@ -299,14 +306,15 @@ Private commands also need no registration — drop a `<name>.md` file into
 `opencode/commands/` and rerun `setup.sh`.
 
 The setup tool also supports an optional `~/.config/dotfiles/opencode/opencode.json` file.
-When present, it is deep-merged over `config/opencode/opencode.json` to generate
-the merged `opencode.json` linked at `~/.config/opencode/opencode.json`.
+When present, it is deep-merged on top of the public partials under `config/opencode/`
+(plus any `opencode.*.json` fragments in the same private directory) to generate the
+merged `opencode.json` linked at `~/.config/opencode/opencode.json`.
 
 ## OpenCode config
 
 | File | Purpose |
 |---|---|
-| `config/opencode/opencode.json` | Model selection, bash permissions, MCP config |
+| `config/opencode/opencode.*.json` | Per-section partials (meta, watcher, permission.{bash,fs,web}, experimental.quotaToast); deep-merged at build time |
 | `config/opencode/rules/<name>.md` | Public AGENTS.md fragments (merged with private rules sorted by filename) |
 | `config/opencode/commands/<name>.md` | Custom slash commands |
 | `config/opencode/skills/<name>/SKILL.md` | Loadable skill workflows |

@@ -1,0 +1,11 @@
+{
+  "experimental": {
+    "quotaToast": {
+      "enableToast": true,
+      "showSessionTokens": true,
+      "enabledProviders": "auto",
+      "formatStyle": "allWindows",
+      "percentDisplayMode": "used"
+    }
+  }
+}

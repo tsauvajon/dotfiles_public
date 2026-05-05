@@ -1,0 +1,12 @@
+{
+  "watcher": {
+    "ignore": [
+      ".git/**",
+      ".direnv/**",
+      "node_modules/**",
+      "target/**",
+      "dist/**",
+      "build/**"
+    ]
+  }
+}

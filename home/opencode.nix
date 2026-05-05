@@ -63,7 +63,8 @@ let
 
   # Collect `opencode.*.json` JSON fragments in `dir`, sorted by
   # filename bytes (LC_ALL=C). Excludes the bare `opencode.json` so
-  # the base/overlay are handled separately.
+  # the private overlay file (tier 4) is handled separately; the public
+  # side has no `opencode.json` so this filter is a no-op there.
   jsonFragmentsIn =
     dir:
     if !builtins.pathExists dir then
@@ -153,17 +154,19 @@ let
     fragmentDirs = agentsFragmentDirs;
   };
 
-  # opencode.json: 5-tier deep merge. Each tier wins over the previous
+  # opencode.json: 4-tier deep merge. Each tier wins over the previous
   # on key collision (private always last so it overrides everything).
+  # The merged result is written to ~/.config/opencode/opencode.json;
+  # there is intentionally no public base file — the public side is
+  # fragment-only so every section has a self-documenting filename
+  # (opencode.meta.json, opencode.permission.bash.json, etc.).
   #
-  #   1. public base       config/opencode/opencode.json
-  #   2. repo fragments    config/opencode/opencode.*.json     (sorted)
-  #   3. import fragments  opencode-imports/<name>/opencode.*.json
+  #   1. repo fragments    config/opencode/opencode.*.json     (sorted)
+  #   2. import fragments  opencode-imports/<name>/opencode.*.json
   #                        (sorted within each import; imports applied
   #                        in flake-declared order)
-  #   4. private fragments ~/.config/dotfiles/opencode/opencode.*.json
-  #   5. private overlay   ~/.config/dotfiles/opencode/opencode.json
-  publicJson = readJsonOr (publicRoot + "/opencode.json") { };
+  #   3. private fragments ~/.config/dotfiles/opencode/opencode.*.json
+  #   4. private overlay   ~/.config/dotfiles/opencode/opencode.json
   repoJsonFragments = map (p: builtins.fromJSON (builtins.readFile p)) (
     jsonFragmentsIn publicRoot
   );
@@ -179,8 +182,7 @@ let
   );
   privateJson = readJsonOr privatePaths.configFile { };
   mergedJson = deepMergeAll (
-    [ publicJson ]
-    ++ repoJsonFragments
+    repoJsonFragments
     ++ importJsonFragments
     ++ privateJsonFragments
     ++ [ privateJson ]

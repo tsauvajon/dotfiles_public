@@ -24,7 +24,9 @@
     ./opencode.nix
     ./programs/aerospace.nix
     ./programs/alacritty.nix
+    ./programs/aliases.nix
     ./programs/cargo.nix
+    ./programs/cross-shell-aliases.nix
     ./programs/git.nix
     ./programs/goto.nix
     ./programs/task.nix
