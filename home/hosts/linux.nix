@@ -2,6 +2,8 @@
 { ... }:
 
 {
+  _module.args.nixglNvidiaVersion = "595.71.05";
+
   home.username = "thomas";
   home.homeDirectory = "/home/thomas";
 

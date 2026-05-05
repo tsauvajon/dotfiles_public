@@ -11,17 +11,19 @@
   pkgs,
   nixgl,
   nixgl-nixpkgs,
+  nvidiaVersion ? null,
 }:
 
 let
   inherit (pkgs.stdenv.hostPlatform) system;
-  nvidiaVersion = builtins.getEnv "NIXGL_NVIDIA_VERSION";
+  nvidiaVersionFromEnv = builtins.getEnv "NIXGL_NVIDIA_VERSION";
+  resolvedNvidiaVersion = if nvidiaVersion == null then nvidiaVersionFromEnv else nvidiaVersion;
   nixglPkgs = import nixgl {
     pkgs = import nixgl-nixpkgs {
       inherit system;
       config.allowUnfree = true;
     };
-    nvidiaVersion = if nvidiaVersion == "" then null else nvidiaVersion;
+    nvidiaVersion = if resolvedNvidiaVersion == "" then null else resolvedNvidiaVersion;
     enable32bits = system == "x86_64-linux";
     enableIntelX86Extensions = system == "x86_64-linux";
   };
