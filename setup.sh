@@ -171,6 +171,16 @@ sync_opencode_imports() {
 
 sync_opencode_imports
 
+# Optional pre-build hook from the private overlay. Sourced (not
+# executed) so it can mutate this script's environment — typical use
+# is to extend NIX_CONFIG with extra substituters or impure-env vars
+# that must not live in the public repo. Absent on hosts that don't
+# need it.
+if [ -f "$private_ref/pre-build.sh" ]; then
+  # shellcheck disable=SC1091
+  . "$private_ref/pre-build.sh"
+fi
+
 printf '==> Building home-manager generation for %s\n' "$host"
 out=$(nix \
   --extra-experimental-features 'nix-command flakes' \

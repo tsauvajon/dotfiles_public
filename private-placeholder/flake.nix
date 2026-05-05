@@ -26,5 +26,11 @@
       packageFile = self + "/opencode/package.json";
       rulesDir = self + "/opencode/rules";
     };
+
+    # Extra Home Manager modules contributed by the private overlay.
+    # Empty in the placeholder; a real private flake can return a list
+    # of paths or functions and they will be appended to the public
+    # flake's `modules = [ ./home hostModule ]` list.
+    homeModules = [ ];
   };
 }

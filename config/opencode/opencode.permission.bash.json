@@ -187,7 +187,6 @@
       "GIT_EDITOR=true git rebase --continue": "allow",
       "GITLAB_HOST=*": "allow",
       "GITLAB_TOKEN=*": "allow",
-      "NOMAD_ADDR=*": "allow",
       "NEW_TOKEN=*": "allow",
       "OWNER=*": "allow",
       "RUST_BACKTRACE=*": "allow",

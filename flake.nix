@@ -129,10 +129,13 @@
         home-manager.lib.homeManagerConfiguration {
           pkgs = mkPkgs system;
           extraSpecialArgs = { inherit inputs system dotfilesRoot; };
+          # The trailing list lets the private overlay contribute
+          # extra HM modules without committing their content here.
+          # Defaults to [] when the overlay is the placeholder.
           modules = [
             ./home
             hostModule
-          ];
+          ] ++ (inputs.private.homeModules or [ ]);
         };
     in
     flake-utils.lib.eachSystem
