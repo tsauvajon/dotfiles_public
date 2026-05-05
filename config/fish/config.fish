@@ -47,10 +47,6 @@ if test "$TERM" = xterm-kitty
     end
 end
 
-if type -q direnv
-    direnv hook fish | source
-end
-
 if test -d ~/.cargo/bin
     if not contains -- ~/.cargo/bin $PATH
         set -p PATH ~/.cargo/bin

@@ -20,11 +20,9 @@ in
   # tmux is provided by programs.tmux in home/programs/tmux.nix.
   home.packages = [
     (wrapWithNixGL pkgs.alacritty "alacritty")
-    (pkgs.direnv.overrideAttrs { doCheck = false; })
     pkgs.fish
     pkgs.just
     (wrapWithNixGL pkgs.kitty "kitty")
-    pkgs.nix-direnv
     pkgs.zellij
     pkgs.zsh
     pkgs.zsh-autosuggestions
