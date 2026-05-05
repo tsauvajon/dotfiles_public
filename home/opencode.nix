@@ -10,8 +10,11 @@
 #   filename collisions resolve in favor of the private overlay, and
 #   the surviving fragments are sorted by filename in byte order
 #   (LC_ALL=C). Built by `lib/concat-files.nix`.
-# - `opencode.json` and `package.json`: deep JSON merge, private wins.
-#   Built by `lib/deep-merge-json.nix`.
+# - `opencode.*.json` partials and `package.json`: deep JSON merge,
+#   private wins. The public side is fragment-only — there is no
+#   `config/opencode/opencode.json`; every section lives in its own
+#   `opencode.<scope>.json` file (meta, watcher, permission.{bash,fs,web},
+#   experimental.quotaToast). Built by `lib/deep-merge-json.nix`.
 #
 # Rules mode (`merged` / `private_only` / `disabled`) is exposed as a
 # module option so the user's host config can override the default.
@@ -32,6 +35,13 @@ let
 
   publicRoot = ../config/opencode;
   privatePaths = inputs.private.opencode;
+
+  # Guardrail: the public side is fragment-only (`opencode.<scope>.json`).
+  # A bare `config/opencode/opencode.json` would be silently ignored by
+  # the fragment filter (`name != "opencode.json"`), which is a real
+  # footgun if someone restores it from a backup or copies it back by
+  # mistake. Force the build to fail early with a clear message instead.
+  publicBaseExists = builtins.pathExists (publicRoot + "/opencode.json");
 
   # External imports staged by setup.sh into
   # ~/.config/dotfiles/opencode-imports/<name>/. Each entry is a Nix
@@ -181,12 +191,20 @@ let
     jsonFragmentsIn privateOpencodeDir
   );
   privateJson = readJsonOr privatePaths.configFile { };
-  mergedJson = deepMergeAll (
-    repoJsonFragments
-    ++ importJsonFragments
-    ++ privateJsonFragments
-    ++ [ privateJson ]
-  );
+  mergedJson =
+    assert lib.assertMsg (!publicBaseExists) ''
+      config/opencode/opencode.json must not exist.
+      The public side is fragment-only — split content into one of the
+      `opencode.<scope>.json` partials (meta, watcher, permission.bash,
+      permission.fs, permission.web, experimental.quotaToast).
+      See AGENTS.md > "opencode.json (4-tier deep merge)" for details.
+    '';
+    deepMergeAll (
+      repoJsonFragments
+      ++ importJsonFragments
+      ++ privateJsonFragments
+      ++ [ privateJson ]
+    );
 
   publicPackage = readJsonOr (publicRoot + "/package.json") { };
   privatePackage = readJsonOr privatePaths.packageFile { };
@@ -222,6 +240,10 @@ in
         "opencode/agents".source = mergedAgents;
         "opencode/plugins".source = mergedPlugins;
         "opencode/opencode.json".source = prettyJson "opencode.json" mergedJson;
+        # tui.json is a separate OpenCode file (different $schema) — not
+        # part of the opencode.json deep-merge. Symlinked verbatim from
+        # the public source.
+        "opencode/tui.json".source = publicRoot + "/tui.json";
       }
       (lib.mkIf (cfg.rulesMode != "disabled") {
         "opencode/AGENTS.md".text = agentsContent;

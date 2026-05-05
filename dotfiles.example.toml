@@ -57,7 +57,9 @@ api_url = "http://your-host:50002"
 #     Extra macOS LaunchAgents; symlinked into ~/Library/LaunchAgents/.
 #
 #   ~/.config/dotfiles/opencode/opencode.json
-#     Main private OpenCode override (deep-merged over the public base).
+#     Main private OpenCode override (deep-merged on top of the public
+#     partials and any private opencode.*.json fragments — wins on key
+#     collision; the public side is fragment-only with no bare base).
 #
 #   ~/.config/dotfiles/opencode/opencode.*.json
 #     Additional JSON fragments (deep-merged in filename order).
