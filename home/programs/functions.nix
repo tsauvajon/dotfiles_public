@@ -19,7 +19,9 @@
         cd "$dir"
       '';
       fishBody = ''
-        cd (task path $argv)
+        set -l dir (task path $argv); or return $status
+        test -n "$dir"; or return 1
+        builtin cd -- "$dir"
       '';
     };
 
