@@ -56,12 +56,11 @@ back with `home-manager switch --rollback`.
   overrides, etc.)
 - private machine-specific config: put it under `~/.config/dotfiles/`
 
-After changing anything under `~/.config/dotfiles/`, refresh the private flake
-input so Home Manager picks up the change:
+After changing anything under `~/.config/dotfiles/`, just rerun `./setup.sh`.
+The build uses `--override-input private "path:$HOME/.config/dotfiles"` so
+Home Manager reads the working tree directly with no flake.lock update needed:
 
 ```bash
-nix --extra-experimental-features 'nix-command flakes' \
-  flake update private --flake .
 ./setup.sh
 ```
 
@@ -94,6 +93,26 @@ Node.js fallback options.
 
 Linux-only modules are gated with `lib.mkIf pkgs.stdenv.isLinux`, so importing
 this flake on macOS leaves them as no-ops without explicit skip lists.
+
+## Bumping dependencies
+
+Inputs are pinned in `flake.lock`. To bump them:
+
+```bash
+# Bump everything
+nix --extra-experimental-features 'nix-command flakes' flake update
+
+# Bump specific inputs (e.g. nixpkgs and home-manager)
+nix --extra-experimental-features 'nix-command flakes' \
+  flake update nixpkgs home-manager
+
+# Apply the new versions
+./setup.sh
+```
+
+If something breaks after a bump, roll back with `home-manager switch
+--rollback`, or revert `flake.lock` (`git checkout flake.lock`) and rerun
+`./setup.sh`.
 
 ## Theme sources
 
@@ -156,7 +175,7 @@ For tools that need merging public + private content, reuse the helpers in
 `home/lib/`:
 
 - `merge-dirs.nix` — sort-merge a list of source directories, later wins
-- `concat-files.nix` — concat a base file plus overlays sorted by filename
+- `concat-files.nix` — concat fragments from multiple dirs, sorted together by filename
 - `concat-toml-files.nix` — same but tailored to the cargo / aerospace /
   alacritty overlay-append pattern
 - `deep-merge-json.nix` — recursive attrset merge for JSON-shaped configs

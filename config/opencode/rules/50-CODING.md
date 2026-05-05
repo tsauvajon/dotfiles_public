@@ -132,7 +132,7 @@ When multiple valid approaches exist, choose based on:
 - Dotfiles are managed from `__DOTFILES_PATH__` and symlinked into expected locations under `$HOME`.
 - Prefer canonical files under `__DOTFILES_PATH__` over their `$HOME` symlink mirrors unless a task explicitly requires checking the mirror path.
 - Always check `__DOTFILES_PATH__` for canonical OpenCode configuration.
-- Treat `__DOTFILES_PATH__/config/opencode` as the source of truth for `opencode.json`, `AGENTS.md`, commands, and skills.
+- Treat `__DOTFILES_PATH__/config/opencode` as the source of truth for `opencode.json`, AGENTS rules (under `rules/`), commands, and skills. The merged AGENTS.md at `~/.config/opencode/AGENTS.md` is built from `config/opencode/rules/` plus private overlays — there is no `config/opencode/AGENTS.md` file to edit directly.
 - Assume `~/.config/opencode` is only a symlinked mirror to the canonical files in `__DOTFILES_PATH__/config/opencode`.
 - Do not spend time rediscovering config locations; use `__DOTFILES_PATH__` directly.
 

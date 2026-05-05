@@ -10,8 +10,9 @@
   # version's migration steps.
   home.stateVersion = "25.05";
 
-  # Mirrors the existing `rules_mode = "private_only"` in
-  # ~/.config/dotfiles/config.toml — only the private rules overlays
-  # in ~/.config/dotfiles/opencode/rules/ feed into AGENTS.md.
-  programs.opencode.rulesMode = "private_only";
+  # Use the cross-source merge: public rules in
+  # config/opencode/rules/ and private rules in
+  # ~/.config/dotfiles/opencode/rules/ are sorted together by
+  # filename to build AGENTS.md (private wins on collision).
+  programs.opencode.rulesMode = "merged";
 }

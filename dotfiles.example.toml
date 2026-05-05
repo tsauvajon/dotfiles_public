@@ -3,10 +3,9 @@
 # The private flake at ~/.config/dotfiles/flake.nix reads this file
 # (via `builtins.fromTOML`) and exposes the values to the dotfiles
 # Home Manager modules. Edit this file to change identity, then
-# refresh the lock and re-activate:
+# re-activate (no lock update needed — setup.sh uses `path:` to
+# read the private overlay's working tree directly):
 #
-#   nix --extra-experimental-features 'nix-command flakes' \
-#     flake update private --flake /path/to/dotfiles
 #   bash setup.sh
 
 [git]
@@ -74,13 +73,18 @@ api_url = "http://your-host:50002"
 #   ~/.config/dotfiles/opencode/package.json
 #     Private plugin dependency overlay (deep-merged with the public one).
 #
-# After editing anything under ~/.config/dotfiles/, refresh the private flake
-# input so Home Manager picks up the change:
+# After editing anything under ~/.config/dotfiles/, just rerun setup.sh.
+# The build uses `--override-input private "path:$HOME/.config/dotfiles"`
+# so Home Manager reads the working tree directly with no flake.lock churn:
 #
-#   nix --extra-experimental-features 'nix-command flakes' \
-#     flake update private --flake /path/to/dotfiles
 #   bash setup.sh
 #
 # Note: rules_mode (merged | private_only | disabled) is now a Home Manager
 # option — set `programs.opencode.rulesMode` in `home/hosts/<host>.nix`
 # rather than here.
+#
+# External OpenCode imports — see the dotfiles AGENTS.md "External imports"
+# section. Declare entries in `~/.config/dotfiles/flake.nix` under
+# `opencode.imports` to pull skills/commands/plugins/JSON fragments from
+# repos that don't expose Nix flakes. setup.sh syncs them into
+# `~/.config/dotfiles/opencode-imports/<name>/` (gitignored) before build.

@@ -4,9 +4,13 @@
 #
 # - `commands`, `skills`, `agents`, `plugins`: per-tree directory merge,
 #   private wins on collision. Built by `lib/merge-dirs.nix`.
-# - `AGENTS.md`: concatenation of an optional public base plus private
-#   rules overlays, sorted by filename. Built by `lib/concat-files.nix`.
-#   `__DOTFILES_PATH__` is substituted to the actual repo path.
+# - `AGENTS.md`: cross-source fragment merge. Public rules in
+#   `config/opencode/rules/` and private rules in
+#   `~/.config/dotfiles/opencode/rules/` are collected together,
+#   filename collisions resolve in favor of the private overlay, and
+#   the surviving fragments are sorted by filename in byte order
+#   (LC_ALL=C). Built by `lib/concat-files.nix`. `__DOTFILES_PATH__`
+#   is substituted to the actual repo path.
 # - `opencode.json` and `package.json`: deep JSON merge, private wins.
 #   Built by `lib/deep-merge-json.nix`.
 #
@@ -30,6 +34,34 @@ let
 
   publicRoot = ../config/opencode;
   privatePaths = inputs.private.opencode;
+
+  # External imports staged by setup.sh into
+  # ~/.config/dotfiles/opencode-imports/<name>/. Each entry is a Nix
+  # path with the standard opencode/ layout (commands/, skills/,
+  # agents/, plugins/, rules/, opencode.*.json). Treated as additional
+  # sources sandwiched between public and private so private always
+  # wins.
+  importsDirs = privatePaths.importsDirs or [ ];
+
+  # Helper: subdir of an import dir if it exists, else null.
+  importSubdir =
+    sub: dir:
+    let
+      p = dir + "/${sub}";
+    in
+    if builtins.pathExists p then p else null;
+
+  importDirsFor =
+    sub:
+    lib.filter (x: x != null) (
+      map (importSubdir sub) importsDirs
+    );
+
+  importCommandsDirs = importDirsFor "commands";
+  importSkillsDirs = importDirsFor "skills";
+  importAgentsDirs = importDirsFor "agents";
+  importPluginsDirs = importDirsFor "plugins";
+  importRulesDirs = importDirsFor "rules";
 
   # Collect `opencode.*.json` JSON fragments in `dir`, sorted by
   # filename bytes (LC_ALL=C). Excludes the bare `opencode.json` so
@@ -70,60 +102,81 @@ let
 
   # Build commands / skills / agents / plugins merged dirs. The private
   # flake exposes paths by name; the public root mirrors the same
-  # subdirectory layout under config/opencode/.
+  # subdirectory layout under config/opencode/. Imports are sandwiched
+  # between public and private so private always wins on collision.
   mkMergedDir =
     {
       name,
       privatePath,
+      importDirs ? [ ],
     }:
     mergeDirs {
       name = "opencode-${name}";
-      sources = [
-        (publicRoot + "/${name}")
-        privatePath
-      ];
+      sources =
+        [ (publicRoot + "/${name}") ]
+        ++ importDirs
+        ++ [ privatePath ];
     };
 
   mergedCommands = mkMergedDir {
     name = "commands";
     privatePath = privatePaths.commandsDir;
+    importDirs = importCommandsDirs;
   };
   mergedSkills = mkMergedDir {
     name = "skills";
     privatePath = privatePaths.skillsDir;
+    importDirs = importSkillsDirs;
   };
   mergedAgents = mkMergedDir {
     name = "agents";
     privatePath = privatePaths.agentsDir;
+    importDirs = importAgentsDirs;
   };
   mergedPlugins = mkMergedDir {
     name = "plugins";
     privatePath = privatePaths.pluginsDir;
+    importDirs = importPluginsDirs;
   };
 
-  # AGENTS.md: depending on rulesMode, optionally include the public
-  # base, then append private rules overlays. `__DOTFILES_PATH__` gets
-  # substituted with the live dotfiles repo path.
-  agentsBase = if cfg.rulesMode == "merged" then publicRoot + "/AGENTS.md" else null;
-   agentsContent = concatFiles {
-    base = agentsBase;
-    fragmentDirs = [ privatePaths.rulesDir ];
+  # AGENTS.md: collect rule fragments from public, imports, and/or
+  # private directories depending on rulesMode, then concat-sort by
+  # filename across all sources. Private last so it wins on collision;
+  # imports sit between public and private with the same precedence
+  # ordering used for commands/skills/agents/plugins.
+  # `__DOTFILES_PATH__` gets substituted with the live dotfiles repo
+  # path.
+  agentsFragmentDirs =
+    if cfg.rulesMode == "merged" then
+      [ (publicRoot + "/rules") ] ++ importRulesDirs ++ [ privatePaths.rulesDir ]
+    else if cfg.rulesMode == "private_only" then
+      importRulesDirs ++ [ privatePaths.rulesDir ]
+    else
+      [ ];
+  agentsContent = concatFiles {
+    fragmentDirs = agentsFragmentDirs;
     substitutions = {
       "__DOTFILES_PATH__" = toString dotfilesRoot;
     };
   };
 
-  # opencode.json: 4-tier deep merge matching merge_opencode_json_to in
-  # the Rust tool. Each tier wins over the previous on key collision.
+  # opencode.json: 5-tier deep merge. Each tier wins over the previous
+  # on key collision (private always last so it overrides everything).
   #
   #   1. public base       config/opencode/opencode.json
-  #   2. repo fragments    config/opencode/opencode.*.json    (sorted)
-  #   3. private fragments ~/.config/dotfiles/opencode/opencode.*.json
-  #   4. private overlay   ~/.config/dotfiles/opencode/opencode.json
+  #   2. repo fragments    config/opencode/opencode.*.json     (sorted)
+  #   3. import fragments  opencode-imports/<name>/opencode.*.json
+  #                        (sorted within each import; imports applied
+  #                        in flake-declared order)
+  #   4. private fragments ~/.config/dotfiles/opencode/opencode.*.json
+  #   5. private overlay   ~/.config/dotfiles/opencode/opencode.json
   publicJson = readJsonOr (publicRoot + "/opencode.json") { };
   repoJsonFragments = map (p: builtins.fromJSON (builtins.readFile p)) (
     jsonFragmentsIn publicRoot
   );
+  importJsonFragments = lib.concatMap (
+    d: map (p: builtins.fromJSON (builtins.readFile p)) (jsonFragmentsIn d)
+  ) importsDirs;
   # The private flake exposes the directory containing the JSON
   # fragments. `dirOf privatePaths.configFile` gives us that dir
   # without us having to expose another path.
@@ -133,7 +186,11 @@ let
   );
   privateJson = readJsonOr privatePaths.configFile { };
   mergedJson = deepMergeAll (
-    [ publicJson ] ++ repoJsonFragments ++ privateJsonFragments ++ [ privateJson ]
+    [ publicJson ]
+    ++ repoJsonFragments
+    ++ importJsonFragments
+    ++ privateJsonFragments
+    ++ [ privateJson ]
   );
 
   publicPackage = readJsonOr (publicRoot + "/package.json") { };
@@ -155,8 +212,8 @@ in
       default = "merged";
       description = ''
         How to build ~/.config/opencode/AGENTS.md.
-        - merged: public AGENTS + private rules overlays.
-        - private_only: only private rules overlays.
+        - merged: public + private rule fragments sorted together.
+        - private_only: only private rule fragments.
         - disabled: do not manage AGENTS.md.
       '';
     };

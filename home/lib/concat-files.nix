@@ -1,36 +1,33 @@
-# Concatenate a base file (optional) with overlay fragments from one
-# or more directories. Used to build OpenCode's AGENTS.md from a public
-# base + private rules overlays.
+# Concatenate fragment files from one or more directories, sorted by
+# filename across all sources. Used to build OpenCode's AGENTS.md from
+# public + private rules dirs.
 #
-# - `base`: optional path to a base file, prepended verbatim.
-# - `fragmentDirs`: list of directories to scan for fragments. Within
-#   each directory, regular files are sorted by filename (byte order,
-#   matching `LC_ALL=C` sort) and concatenated. Directories are processed
-#   in the order given, so a single overlay dir is the typical case.
-# - `headerTemplate`: prepended before each fragment. The literal string
-#   `%FILENAME%` is replaced with the fragment's filename.
-# - `substitutions`: attrset of {placeholder = value;} applied to the
+# - `fragmentDirs`: list of directories to scan. Regular files (and
+#   symlinks to files) are collected from every directory and merged
+#   into a single set keyed by filename. On filename collision, later
+#   directories in the list win — pass `[ public private ]` so that
+#   the private overlay overrides the public source. The combined set
+#   is then sorted by filename in byte order (LC_ALL=C).
+# - `headerTemplate`: prepended before each fragment. The literal
+#   string `%FILENAME%` is replaced with the fragment's filename.
+# - `substitutions`: attrset of `{placeholder = value;}` applied to the
 #   final concatenated string. Used for `__DOTFILES_PATH__`-style
-#   placeholders the Rust tool used to substitute.
+#   placeholders.
 #
 # Empty files are skipped. Fragments are separated by `\n\n`.
 { lib }:
 
 {
-  base ? null,
   fragmentDirs ? [ ],
   headerTemplate ? "# Rules overlay: %FILENAME%\n\n",
   substitutions ? { },
 }:
 
 let
-  baseContent = if base != null then builtins.readFile base else "";
-
   # Sort regular files (including symlinks to files) in `dir` by
   # filename bytes — LC_ALL=C order. Returns `[ { name; path; } ]` or
   # `[]` if `dir` does not exist. Symlinks are accepted so private
-  # rules overlays can chain (e.g. an overlay that symlinks to the
-  # public AGENTS.md).
+  # overlays may chain (e.g. an overlay that symlinks to a sibling).
   regularFilesIn =
     dir:
     if !builtins.pathExists dir then
@@ -46,10 +43,24 @@ let
         path = dir + "/${name}";
       }) names;
 
-  fragments = lib.concatLists (map regularFilesIn fragmentDirs);
+  # Collect entries from every dir, then collapse to a name-keyed
+  # attrset where later dirs override earlier ones on filename
+  # collision (private wins when passed last).
+  collected = lib.foldl' (
+    acc: dir:
+    let
+      entries = regularFilesIn dir;
+      asAttrs = lib.listToAttrs (map (e: lib.nameValuePair e.name e) entries);
+    in
+    acc // asAttrs
+  ) { } fragmentDirs;
 
-  # Read each file and drop empties — matching the Rust check on
-  # `metadata.len() == 0`.
+  # Sort the merged set by filename in byte order so public and
+  # private fragments interleave naturally.
+  sortedNames = lib.sort (a: b: a < b) (builtins.attrNames collected);
+  fragments = map (name: collected.${name}) sortedNames;
+
+  # Read each file and drop empties.
   fragmentsWithContent = lib.filter (f: f.content != "") (
     map (f: {
       inherit (f) name;
@@ -64,7 +75,7 @@ let
       separator = if acc == "" then "" else "\n\n";
     in
     acc + separator + header + f.content
-  ) baseContent fragmentsWithContent;
+  ) "" fragmentsWithContent;
 
   substituted = lib.replaceStrings (builtins.attrNames substitutions) (
     builtins.attrValues substitutions

@@ -48,7 +48,7 @@ dotfiles/
 └── config/                   # Dotfile sources, grouped by tool
     ├── opencode/
     │   ├── opencode.json     # OpenCode config (model, permissions, MCP)
-    │   ├── AGENTS.md         # OpenCode system prompt (loaded in every session)
+    │   ├── rules/            # Public AGENTS.md fragments (sorted with private rules)
     │   ├── commands/         # OpenCode slash commands as markdown files
     │   └── skills/           # OpenCode skills, one subdirectory per skill
     ├── aerospace/            # AeroSpace base config (overlay-append into ~/.aerospace.toml)
@@ -98,10 +98,11 @@ Identity, API URLs, and other private values are read from
 `inputs.private`. The HM module `home/programs/git.nix` (and others)
 consume those values via `inputs.private.git.{name,email,signingKey}` etc.
 
-When you change anything under `~/.config/dotfiles/`, refresh the flake input:
+When you change anything under `~/.config/dotfiles/`, just rerun `setup.sh`.
+The build uses `--override-input private "path:$HOME/.config/dotfiles"`, so the
+working tree is read directly with no flake.lock churn:
 
 ```sh
-nix --extra-experimental-features 'nix-command flakes' flake update private --flake .
 bash setup.sh
 ```
 
@@ -131,47 +132,59 @@ two reusable Nix helpers:
 - `home/lib/merge-dirs.nix` — merge a list of source directories into one. Later
   sources override earlier ones on filename collision. Used for `commands`, `skills`,
   `agents`, `plugins`.
-- `home/lib/concat-files.nix` — concatenate an optional base file plus overlay
-  fragments from a list of directories. Used for `AGENTS.md`. Substitutes
-  `__DOTFILES_PATH__` to the live repo path.
+- `home/lib/concat-files.nix` — concatenate fragment files collected from a
+  list of directories, sorted by filename across all sources (LC_ALL=C).
+  Later directories win on filename collision. Used for `AGENTS.md`.
+  Substitutes `__DOTFILES_PATH__` to the live repo path.
 - `home/lib/deep-merge-json.nix` — deep-merge JSON-like attrsets. Used for
   `opencode.json` and `package.json`.
 
 #### AGENTS.md
 
-Public AGENTS lives at `config/opencode/AGENTS.md`. Optional private rules overlays
-live at `~/.config/dotfiles/opencode/rules/<name>.md`. The HM module concatenates
-the public base (when `programs.opencode.rulesMode = "merged"`) plus each nonempty
-overlay file from that directory, sorted by filename in byte order (`LC_ALL=C`),
-each preceded by `# Rules overlay: <filename>`. The result is written as
-`~/.config/opencode/AGENTS.md`.
+Public rule fragments live at `config/opencode/rules/<name>.md`. Optional private
+rule fragments live at `~/.config/dotfiles/opencode/rules/<name>.md`. The HM module
+collects nonempty files from both directories, sorts them together by filename in
+byte order (`LC_ALL=C`), and concatenates them with `# Rules overlay: <filename>`
+headers separated by blank lines. The result is written as
+`~/.config/opencode/AGENTS.md`. On filename collision, the private fragment wins
+(matching the convention used for commands/skills/agents/plugins).
 
 `programs.opencode.rulesMode` (set per host in `home/hosts/<host>.nix`) controls the
 behavior:
 
-- `merged` (default): public base + private overlays.
-- `private_only`: only private overlays.
+- `merged` (default): public + private fragments sorted together.
+- `private_only`: only private fragments.
 - `disabled`: do not manage AGENTS.md at all.
 
 #### Commands, Skills, Agents, Plugins
 
-Public sources live at `config/opencode/<name>/`. Private sources live at
-`~/.config/dotfiles/opencode/<name>/`. The HM module merges them via
-`mergeDirs` and exposes the result at `~/.config/opencode/<name>/`. On filename
-collision, the private entry wins.
+Three sources contribute to each merged directory, in this order (later wins on
+filename collision):
+
+1. Public — `config/opencode/<name>/`
+2. External imports — `~/.config/dotfiles/opencode-imports/<import-name>/<name>/`
+   (one per entry in the imports manifest, see [External imports](#external-imports))
+3. Private — `~/.config/dotfiles/opencode/<name>/`
+
+The HM module merges all three via `mergeDirs` and exposes the result at
+`~/.config/opencode/<name>/`. Private always wins; imports sit in the middle so
+you can pull skills/commands/plugins from non-Nix repos without losing the
+ability to override them locally.
 
 Adding a new public command/skill/agent/plugin: drop a file (or subdirectory for
 skills) into the appropriate `config/opencode/` subtree and rerun `setup.sh` so
 HM picks up the change.
 
-#### opencode.json (4-tier deep merge)
+#### opencode.json (5-tier deep merge)
 
 Each tier wins over the previous on key collision:
 
 1. Public base — `config/opencode/opencode.json`
 2. Repo fragments — `config/opencode/opencode.*.json` (sorted by filename)
-3. Private fragments — `~/.config/dotfiles/opencode/opencode.*.json` (sorted by filename)
-4. Private overlay — `~/.config/dotfiles/opencode/opencode.json`
+3. Import fragments — `~/.config/dotfiles/opencode-imports/<name>/opencode.*.json`
+   (sorted within each import; imports applied in flake-declared order)
+4. Private fragments — `~/.config/dotfiles/opencode/opencode.*.json` (sorted by filename)
+5. Private overlay — `~/.config/dotfiles/opencode/opencode.json`
 
 #### package.json
 
@@ -179,14 +192,59 @@ Public base (`config/opencode/package.json`) is deep-merged with the optional
 private overlay (`~/.config/dotfiles/opencode/package.json`). After changes, run
 `bun install --cwd ~/.config/opencode` to install dependencies.
 
+#### External imports
+
+The imports mechanism lets you pull partial OpenCode config (skills, commands,
+plugins, opencode.*.json fragments, AGENTS rules) from other repos that do not
+expose Nix flakes. Declare them in `~/.config/dotfiles/flake.nix` under
+`opencode.imports`:
+
+```nix
+opencode = {
+  # ... existing fields
+  imports = [
+    {
+      name = "second-brain";
+      source = "~/dev/repo/second-brain/opencode";
+      files = [
+        # `dest` defaults to `src` when omitted.
+        { src = "mcp.fragment.json"; dest = "opencode.sbs.mcp.json"; }
+        { src = "commands/sbs-save.md"; }
+        { src = "plugins/sbs-plugin.ts"; }
+      ];
+      dirs = [
+        { src = "skills/second-brain"; }
+      ];
+    }
+    {
+      name = "philip-claude";
+      source = "~/dev/repo/philip-claude";
+      dirs = [
+        # Rename a skill at copy time.
+        { src = "skills/logs"; dest = "skills/splunk-logs"; }
+      ];
+    }
+  ];
+};
+```
+
+`setup.sh` reads the manifest, resolves each `source` (including `~`), and
+copies the requested files/directories into
+`~/.config/dotfiles/opencode-imports/<name>/`. The staging tree mirrors the
+standard opencode/ layout: subpaths starting with `commands/`, `skills/`,
+`agents/`, `plugins/`, or `rules/` feed into the corresponding merge; top-level
+`opencode.*.json` files feed into the JSON merge. The staging tree is gitignored
+in the private repo and rewritten from scratch on every `setup.sh` run, so
+removed manifest entries do not linger.
+
 #### Picking up private changes
 
-The private overlay is consumed as a flake input pinned by `flake.lock`. When you
-add or modify files under `~/.config/dotfiles/opencode/`, refresh the lock so HM
-picks up the change:
+`setup.sh` builds with `--override-input private "path:$HOME/.config/dotfiles"`,
+which reads the private overlay's working tree directly (no commit required, no
+flake.lock update needed). Edit anything under `~/.config/dotfiles/opencode/` or
+the imports source repos, then rerun:
 
 ```sh
-nix --extra-experimental-features 'nix-command flakes' flake update private --flake .
 bash setup.sh
 ```
 
@@ -250,7 +308,7 @@ the merged `opencode.json` linked at `~/.config/opencode/opencode.json`.
 | File | Purpose |
 |---|---|
 | `config/opencode/opencode.json` | Model selection, bash permissions, MCP config |
-| `config/opencode/AGENTS.md` | System prompt injected into every OpenCode session |
+| `config/opencode/rules/<name>.md` | Public AGENTS.md fragments (merged with private rules sorted by filename) |
 | `config/opencode/commands/<name>.md` | Custom slash commands |
 | `config/opencode/skills/<name>/SKILL.md` | Loadable skill workflows |
 | `config/opencode/plugins/<name>.ts` | Global OpenCode plugins (autoloaded at startup) |
