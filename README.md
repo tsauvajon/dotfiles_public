@@ -123,6 +123,8 @@ git submodules:
   metaflake; supplies waybar (and could supply more on demand)
 - `inputs.catppuccin-fzf` — [catppuccin/fzf](https://github.com/catppuccin/fzf)
 - `inputs.catppuccin-zellij` — [catppuccin/zellij](https://github.com/catppuccin/zellij)
+- `inputs.catppuccin-yazi` — [catppuccin/yazi](https://github.com/catppuccin/yazi)
+- `inputs.catppuccin-bat` — [catppuccin/bat](https://github.com/catppuccin/bat)
 - `pkgs.alacritty-theme` (nixpkgs) — full alacritty-theme set, including the
   `omni` theme this repo imports
 
@@ -130,7 +132,9 @@ To bump theme versions:
 
 ```bash
 nix --extra-experimental-features 'nix-command flakes' \
-  flake update catppuccin catppuccin-fzf catppuccin-zellij --flake .
+  flake update \
+    catppuccin catppuccin-fzf catppuccin-zellij \
+    catppuccin-yazi catppuccin-bat
 ./setup.sh
 ```
 
