@@ -5,6 +5,29 @@
 # If not running interactively, don't do anything
 [[ $- != *i* ]] && return
 
+if [[ -e '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' ]]; then
+  . '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
+fi
+
+__dotfiles_prepend_path_once() {
+  local dir
+  for dir in "$@"; do
+    [[ -d "$dir" ]] || continue
+    PATH=":$PATH:"
+    PATH=${PATH//:"$dir":/:}
+    PATH=${PATH#:}
+    PATH=${PATH%:}
+    PATH="$dir:$PATH"
+  done
+  export PATH
+}
+
+__dotfiles_prefer_nix_bins() {
+  __dotfiles_prepend_path_once \
+    /nix/var/nix/profiles/default/bin \
+    "$HOME/.nix-profile/bin"
+}
+
 export DEV_ROOT="${DEV_ROOT:-$HOME/dev}"
 
 if [[ "${TERM:-}" == "xterm-kitty" ]] && [[ -d "/usr/lib/kitty/terminfo" ]]; then
@@ -14,6 +37,8 @@ fi
 if [[ -d "$HOME/.local/bin" ]] && [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
   export PATH="$HOME/.local/bin:$PATH"
 fi
+
+__dotfiles_prefer_nix_bins
 
 if command -v direnv >/dev/null 2>&1; then
   eval "$(direnv hook bash)"

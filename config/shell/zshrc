@@ -14,6 +14,22 @@ if [ -e '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' ]; then
   . '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
 fi
 
+__dotfiles_prepend_path_once() {
+  local dir
+  for dir in "$@"; do
+    [[ -d "$dir" ]] || continue
+    path=("${(@)path:#$dir}")
+    path=("$dir" $path)
+  done
+  export PATH
+}
+
+__dotfiles_prefer_nix_bins() {
+  __dotfiles_prepend_path_once \
+    /nix/var/nix/profiles/default/bin \
+    "$HOME/.nix-profile/bin"
+}
+
 export LANG=en_US.UTF-8
 export LC_ALL=$LANG
 export DRACULA_ARROW_ICON='%{%G🦀%}'
@@ -44,6 +60,7 @@ fi
 if [[ -d "${GOPATH:-$HOME/go}/bin" ]]; then
   export PATH="${GOPATH:-$HOME/go}/bin:$PATH"
 fi
+__dotfiles_prefer_nix_bins
 
 export EDITOR=hx
 export VISUAL="$EDITOR"
@@ -87,16 +104,9 @@ setopt hist_expire_dups_first
 unsetopt no_share_history
 unsetopt hist_ignore_dups
 
-# Add asdf completions
-fpath=(${ASDF_DATA_DIR:-$HOME/.asdf}/completions $fpath)
-
 # Auto-complete
 autoload -Uz bashcompinit
 bashcompinit
-
-# ASDF / Corepack
-export PATH="${ASDF_DATA_DIR:-$HOME/.asdf}/shims:$PATH"
-export ASDF_NODEJS_AUTO_ENABLE_COREPACK=yes
 
 # Kafka / SSL / mcrypt
 export LIBRARY_PATH=/opt/homebrew/lib
@@ -140,6 +150,8 @@ case ":$PATH:" in
   *) export PATH="$PNPM_HOME:$PATH" ;;
 esac
 # pnpm end
+
+__dotfiles_prefer_nix_bins
 
 # Completions: include HM-managed dir first so generated functions
 # (e.g. `_task`) load via autoload before compinit runs.

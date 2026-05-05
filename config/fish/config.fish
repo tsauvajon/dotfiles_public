@@ -30,6 +30,23 @@ if test -f ~/.fish_profile
     source ~/.fish_profile
 end
 
+function __dotfiles_prepend_path_once --argument-names dir
+    if test -d "$dir"
+        set -l entries
+        for entry in $PATH
+            if test "$entry" != "$dir"
+                set -a entries "$entry"
+            end
+        end
+        set -gx PATH "$dir" $entries
+    end
+end
+
+function __dotfiles_prefer_nix_bins
+    __dotfiles_prepend_path_once /nix/var/nix/profiles/default/bin
+    __dotfiles_prepend_path_once "$HOME/.nix-profile/bin"
+end
+
 # Add ~/.local/bin to PATH
 if test -d ~/.local/bin
     if not contains -- ~/.local/bin $PATH
@@ -53,6 +70,12 @@ if test -d ~/.cargo/bin
     end
 end
 
+# Go
+set --export GOPATH "$HOME/go"
+set --export PATH $GOPATH/bin $PATH
+
+__dotfiles_prefer_nix_bins
+
 ## Run fastfetch at start
 function fish_greeting
     fastfetch
@@ -66,10 +89,7 @@ zoxide init fish | source
 
 # Spicetify
 fish_add_path ~/.spicetify
-
-# Go
-set --export GOPATH "$HOME/go"
-set --export PATH $GOPATH/bin $PATH
+__dotfiles_prefer_nix_bins
 
 # the zsh sibling at ~/.config/dotfiles/extras.zsh sourced near the
 # bottom of config/shell/zshrc.

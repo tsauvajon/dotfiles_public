@@ -5,7 +5,6 @@
       "rm -rf *": "deny",
       "./pleasew *": "allow",
       "./scripts/*.sh *": "allow",
-      "asdf *": "allow",
       "awk *": "allow",
       "bash *": "allow",
       "basename *": "allow",

@@ -2,4 +2,4 @@ if status --is-login; and test -z "$DISPLAY"; and test -z "$WAYLAND_DISPLAY"; an
     exec start-hyprland
 end
 
-. ~/export-esp.sh
+test -f ~/export-esp.sh; and source ~/export-esp.sh
