@@ -3,7 +3,7 @@ set -gx EDITOR hx
 set -gx VISUAL hx
 set -x MANROFFOPT -c
 set -x MANPAGER "sh -c 'col -bx | bat -l man -p'"
-set -x BAT_THEME "Catppuccin Mocha"
+# BAT_THEME is set cross-shell via home/sessionEnv.nix.
 # Source fzf catppuccin mocha theme from submodule
 test -f ~/.config/fzf/catppuccin/themes/catppuccin-fzf-mocha.fish && source ~/.config/fzf/catppuccin/themes/catppuccin-fzf-mocha.fish
 

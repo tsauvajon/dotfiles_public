@@ -146,6 +146,9 @@ fi
 # These errors can appear while running: cargo test --workspace
 ulimit -S -n 8192
 
+# Cross-shell common env vars (generated from home/sessionEnv.nix).
+[[ -f ~/.config/zsh/common-env.zsh ]] && source ~/.config/zsh/common-env.zsh
+
 # Cross-shell common aliases (generated from home/programs/aliases.nix).
 [[ -f ~/.config/zsh/common-aliases.zsh ]] && source ~/.config/zsh/common-aliases.zsh
 # Zsh-only aliases live inline below, but the public set is empty.
