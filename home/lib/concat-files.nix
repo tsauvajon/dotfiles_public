@@ -32,7 +32,8 @@ let
       let
         entries = builtins.readDir dir;
         accepted = lib.filterAttrs (_: type: type == "regular" || type == "symlink") entries;
-        names = lib.sort (a: b: a < b) (builtins.attrNames accepted);
+        # `builtins.attrNames` already returns names in byte-sorted order.
+        names = builtins.attrNames accepted;
       in
       map (name: {
         inherit name;
@@ -51,9 +52,9 @@ let
     acc // asAttrs
   ) { } fragmentDirs;
 
-  # Sort the merged set by filename in byte order so public and
-  # private fragments interleave naturally.
-  sortedNames = lib.sort (a: b: a < b) (builtins.attrNames collected);
+  # `builtins.attrNames` returns names in byte-sorted order, which is
+  # the interleave we want across public and private fragments.
+  sortedNames = builtins.attrNames collected;
   fragments = map (name: collected.${name}) sortedNames;
 
   # Read each file and drop empties.

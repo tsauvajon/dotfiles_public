@@ -35,7 +35,8 @@ let
           && lib.hasSuffix extension name
           && name != baseName
         ) entries;
-        names = lib.sort (a: b: a < b) (builtins.attrNames accepted);
+        # `builtins.attrNames` already returns names in byte-sorted order.
+        names = builtins.attrNames accepted;
       in
       map (n: dir + "/${n}") names;
 

@@ -38,8 +38,11 @@ fi
 # Homebrew (macOS) on PATH if present.
 [[ -d /opt/homebrew/bin ]] && export PATH=/opt/homebrew/bin:$PATH
 [[ -d /usr/local/bin ]] && export PATH=/usr/local/bin:$PATH
-if command -v go >/dev/null 2>&1; then
-  export PATH=$(go env GOPATH)/bin:$PATH
+# GOPATH defaults to $HOME/go; hardcoding avoids forking `go env GOPATH`
+# on every shell start (~10–50 ms). Fish does the same in
+# config/fish/config.fish.
+if [[ -d "${GOPATH:-$HOME/go}/bin" ]]; then
+  export PATH="${GOPATH:-$HOME/go}/bin:$PATH"
 fi
 
 export EDITOR=hx

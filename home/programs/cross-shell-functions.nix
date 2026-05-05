@@ -29,10 +29,17 @@ let
   '';
 
   # Indent every body line by 2 spaces for readability inside the
-  # generated function block.
+  # generated function block. Strip a single trailing newline before
+  # splitting so we don't emit a final whitespace-only line ("  ")
+  # right before the closing brace/`end`. Empty lines in the body stay
+  # empty (rather than becoming "  ") to avoid trailing whitespace.
   indent =
     body:
-    lib.concatMapStringsSep "\n" (line: "  ${line}") (lib.splitString "\n" body);
+    let
+      trimmed = lib.removeSuffix "\n" body;
+      lines = lib.splitString "\n" trimmed;
+    in
+    lib.concatMapStringsSep "\n" (line: if line == "" then "" else "  ${line}") lines;
 
   zshFile = name: spec: {
     name = "zsh/functions/${name}.zsh";

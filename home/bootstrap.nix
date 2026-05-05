@@ -100,10 +100,13 @@ let
               ;;
           esac
         done
-      elif [ -f "$dest" ] && [ ! -s "$dest" ]; then
-        # empty regular file (stale placeholder)
-        rm -f "$dest"
       fi
+      # NOTE: an earlier version also unlinked empty regular files at
+      # these paths to clean up stale placeholders left by the Rust
+      # setup tool. That branch was overly aggressive — it would
+      # delete any empty file the user happened to put at one of the
+      # legacy paths. HM `checkLinkTargets` will surface real
+      # conflicts loudly on its own, so we let it.
     done
   '';
 in

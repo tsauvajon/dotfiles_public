@@ -19,6 +19,20 @@
 let
   publicConfig = builtins.fromTOML (builtins.readFile ../../config/task/config.toml);
 
+  # The public `config.toml` is restricted to the keys consumed below;
+  # arbitrary extras (e.g. a `[vscodium]` section) are silently dropped
+  # by `extraConfig`, which only includes private overlay content. Fail
+  # the build early instead, so the contributor moves the section into
+  # a private overlay (`~/.config/dotfiles/task.*.toml`).
+  recognizedPublicKeys = [
+    "repos_dir"
+    "wt_dir"
+    "detached_dir"
+    "editor"
+    "install"
+  ];
+  unknownPublicKeys = lib.subtractLists recognizedPublicKeys (builtins.attrNames publicConfig);
+
   # Read all `task.*.toml` overlays from the private flake's working tree.
   # Using `inputs.private.outPath` keeps the build pure: every flake input
   # exposes its source as a store path automatically, so we do not need
@@ -70,6 +84,12 @@ let
       ${taskPkg}/bin/task completions ${shell} > $out
     '';
 in
+assert lib.assertMsg (unknownPublicKeys == [ ]) ''
+  config/task/config.toml contains keys not propagated by home/programs/task.nix:
+    ${lib.concatStringsSep ", " unknownPublicKeys}
+  Move them to a private overlay (~/.config/dotfiles/task.*.toml) instead,
+  or extend `recognizedPublicKeys` and the consumer below to handle them.
+'';
 {
   imports = [ inputs.task.homeManagerModules.default ];
 

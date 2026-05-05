@@ -89,7 +89,8 @@ let
           && lib.hasSuffix ".json" name
           && name != "opencode.json"
         ) entries;
-        names = lib.sort (a: b: a < b) (builtins.attrNames accepted);
+        # `builtins.attrNames` already returns names in byte-sorted order.
+        names = builtins.attrNames accepted;
       in
       map (name: dir + "/${name}") names;
 
@@ -253,5 +254,32 @@ in
         "opencode/package.json".source = prettyJson "opencode-package.json" mergedPackage;
       })
     ];
+
+    # Auto-install plugin dependencies when the merged package.json
+    # content changes. The merged file is a /nix/store symlink so we
+    # hash it (not the symlink) and stash the hash under XDG_CACHE_HOME
+    # to detect drift across HM generations.
+    #
+    # `bun install` writes node_modules/ and bun.lock into the symlink's
+    # parent dir (~/.config/opencode/), which is HM-managed but not the
+    # symlink target — that works fine. We invoke bun via its store path
+    # because HM activation runs with a minimal PATH that does not yet
+    # include the user profile's bin dir.
+    home.activation = lib.mkIf hasAnyPackage {
+      opencodeBunInstall = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+        pkg="${config.xdg.configHome}/opencode/package.json"
+        marker="${config.xdg.cacheHome}/dotfiles/opencode-package.sha256"
+        ${pkgs.coreutils}/bin/mkdir -p "$(dirname "$marker")"
+        if [ -f "$pkg" ]; then
+          new_hash=$(${pkgs.coreutils}/bin/sha256sum "$pkg" | ${pkgs.coreutils}/bin/cut -d' ' -f1)
+          old_hash=$(${pkgs.coreutils}/bin/cat "$marker" 2>/dev/null || true)
+          if [ "$new_hash" != "$old_hash" ]; then
+            echo "==> opencode/package.json changed; running bun install"
+            ( cd "$(dirname "$pkg")" && ${pkgs.bun}/bin/bun install ) || true
+            printf '%s\n' "$new_hash" > "$marker"
+          fi
+        fi
+      '';
+    };
   };
 }
