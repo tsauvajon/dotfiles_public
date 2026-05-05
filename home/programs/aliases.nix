@@ -96,6 +96,7 @@
     du = "dust";         # rust replacement, prettier output
     find = "fd";         # rust replacement, friendlier syntax
     lf = "y";            # delegate to the yazi `y` wrapper (cd-on-exit)
+    nano = "hx";         # editor reflex hijack
     ranger = "y";        # same — old-habits redirect to yazi
     top = "htop";        # standard quality-of-life override
     vi = "nvim";         # bring vi habits to nvim
