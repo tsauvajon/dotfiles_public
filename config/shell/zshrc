@@ -56,21 +56,8 @@ if command -v zoxide >/dev/null 2>&1; then
   eval "$(zoxide init --hook pwd zsh)"
 fi
 
-# A ripgrep with a default context length of 2.
-# Feeds into the delta viewer
-rd() {
-  local context="-C2"
-
-  for arg in "$@"; do
-    [[ "$arg" == -C* ]] && context=""
-  done
-
-  if [[ -n "$context" ]]; then
-    rg --json "$context" "$@" | delta
-  else
-    rg --json "$@" | delta
-  fi
-}
+# `rd` (ripgrep + delta) is a PATH script provided by
+# home/programs/scripts.nix.
 
 # Yazi: open and cd into the last yazi cwd on exit.
 # https://yazi-rs.github.io/docs/quick-start
@@ -97,11 +84,7 @@ history() {
   builtin fc -li "$@"
 }
 
-# Copy <file> to <file>.bak. fish has the equivalent in
-# config/fish/aliases.fish.
-backup() {
-  cp "$1" "$1.bak"
-}
+# `backup` is a PATH script provided by home/programs/scripts.nix.
 
 # Powerlevel10k = Alacritty theme (homebrew-installed)
 [[ -f /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme ]] && \

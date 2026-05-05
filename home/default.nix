@@ -30,6 +30,7 @@
     ./programs/cross-shell-aliases.nix
     ./programs/git.nix
     ./programs/goto.nix
+    ./programs/scripts.nix
     ./programs/task.nix
     ./programs/tmux.nix
     ./rust.nix

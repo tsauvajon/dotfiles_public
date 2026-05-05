@@ -14,7 +14,4 @@ function history
     builtin history --show-time='%F %T '
 end
 
-# Copy a file to <file>.bak. zsh has its own one-liner equivalent.
-function backup --argument filename
-    cp $filename $filename.bak
-end
+# `backup` is a PATH script provided by home/programs/scripts.nix.
