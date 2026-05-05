@@ -37,12 +37,6 @@ if test -d ~/.local/bin
     end
 end
 
-if test -d ~/.asdf/shims
-    if not contains -- ~/.asdf/shims $PATH
-        set -p PATH ~/.asdf/shims
-    end
-end
-
 if not set -q DEV_ROOT
     set -gx DEV_ROOT "$HOME/dev"
 end

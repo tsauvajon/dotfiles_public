@@ -168,7 +168,7 @@ task repo prune                    # prune stale worktree metadata
 ## Bootstrap & health
 
 ```bash
-task bootstrap   # prepare workspace + asdf node plugin (run once; setup.sh calls it)
+task bootstrap   # prepare workspace directories (run once; setup.sh calls it)
 task doctor      # check toolchain/workspace health; can apply fixes
 ```
 

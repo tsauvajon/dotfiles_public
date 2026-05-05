@@ -38,10 +38,13 @@ dotfiles/
 │   ├── rust.nix              # Rust toolchain + cargo helpers
 │   ├── fs.nix                # bat, eza, fd, fzf, ripgrep, yazi, zoxide, …
 │   ├── shell.nix             # alacritty, kitty, fish, zellij, direnv, …
+│   ├── nodejs.nix            # Bun-first JavaScript tooling
 │   ├── editors.nix           # opencode, vim, vscodium, obsidian
 │   ├── opencode.nix          # OpenCode merges (AGENTS.md, opencode.json, commands, …)
 │   ├── helix-langs.nix       # Helix LSPs, formatters, debuggers
 │   └── helix-plugins.nix     # Steel-enabled Helix with pinned plugins
+├── docs/                     # Project documentation
+│   └── nodejs.md             # Bun-first JavaScript setup notes
 └── config/                   # Dotfile sources, grouped by tool
     ├── opencode/
     │   ├── opencode.json     # OpenCode config (model, permissions, MCP)
@@ -50,7 +53,6 @@ dotfiles/
     │   └── skills/           # OpenCode skills, one subdirectory per skill
     ├── aerospace/            # AeroSpace base config (overlay-append into ~/.aerospace.toml)
     ├── alacritty/            # Alacritty (themes ship via pkgs.alacritty-theme)
-    ├── asdf/                 # tool-versions → ~/.tool-versions
     ├── cargo/                # cargo-config.toml + platform overlays → ~/.cargo/config.toml
     ├── espflash/             # ESP flashing tool
     ├── fish/                 # Fish shell XDG config (full-dir symlink to ~/.config/fish/)

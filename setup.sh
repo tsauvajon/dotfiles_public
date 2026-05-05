@@ -10,7 +10,7 @@
 # The activation block in home/bootstrap.nix takes care of:
 #   - recording this repo's path at ~/.config/dotfiles/path
 #   - cleaning up legacy symlinks the previous Rust setup tool created
-#   - running `task bootstrap` so workspace dirs and asdf are ready
+#   - running `task bootstrap` so workspace dirs are ready
 #
 # To preview without activating, use:
 #   nix --extra-experimental-features 'nix-command flakes' \

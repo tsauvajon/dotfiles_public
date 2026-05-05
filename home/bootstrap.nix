@@ -122,9 +122,8 @@ in
       ${cleanupScript}
     '';
 
-    # `task bootstrap` ensures the asdf node plugin and workspace
-    # directories are present. Run after HM linking completes so
-    # task/asdf can find their configs.
+    # `task bootstrap` ensures workspace directories are present. Run after
+    # HM linking completes so task can find its config.
     taskBootstrap = entryAfter [ "linkGeneration" ] ''
       task_bin="${homeDir}/.cargo/bin/task"
       if [ -x "$task_bin" ]; then

@@ -20,6 +20,7 @@
     ./helix-langs.nix
     ./helix-plugins.nix
     ./launchd.nix
+    ./nodejs.nix
     ./opencode.nix
     ./programs/aerospace.nix
     ./programs/alacritty.nix

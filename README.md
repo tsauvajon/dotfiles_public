@@ -44,7 +44,7 @@ nix --extra-experimental-features 'nix-command flakes' \
 The activation flow is pure Home Manager. Activation blocks under
 `home/bootstrap.nix` record the repo path at `~/.config/dotfiles/path`, clean
 up any legacy symlinks left over from the old Rust-based setup tool, and run
-`task bootstrap` so workspace dirs and asdf are ready.
+`task bootstrap` so workspace dirs are ready.
 
 Re-running `./setup.sh` is idempotent. Home Manager keeps generations; roll
 back with `home-manager switch --rollback`.
@@ -85,8 +85,12 @@ Currently managed:
 - editors and terminals: `helix`, `kitty`, `alacritty`
 - Linux desktop session: `hypr`, `mako`, `rofi`, `waybar`
 - developer tooling: `cargo`, `task`, `goto`, `ssh`, `yazi`
+- JavaScript tooling: `bun` globally; use project-local Nix for Node.js when needed
 - OpenCode config, commands, skills, agents, and plugins
 - macOS LaunchAgents (`Library/LaunchAgents/*.plist`)
+
+See [`docs/nodejs.md`](docs/nodejs.md) for the Bun-first JavaScript workflow and project-local
+Node.js fallback options.
 
 Linux-only modules are gated with `lib.mkIf pkgs.stdenv.isLinux`, so importing
 this flake on macOS leaves them as no-ops without explicit skip lists.

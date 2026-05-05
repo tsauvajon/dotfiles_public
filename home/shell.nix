@@ -13,7 +13,6 @@ in
   # tmux is provided by programs.tmux in home/programs/tmux.nix.
   home.packages = [
     (wrapWithNixGL pkgs.alacritty "alacritty")
-    pkgs.asdf-vm
     (pkgs.direnv.overrideAttrs { doCheck = false; })
     pkgs.fish
     pkgs.jq
