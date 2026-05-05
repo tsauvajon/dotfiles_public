@@ -118,6 +118,7 @@ in
     ".bashrc".source = ../config/shell/bashrc;
     ".bash_profile".source = ../config/shell/bash_profile;
     ".fish_profile".source = ../config/shell/fish_profile;
+    ".zshrc".source = ../config/shell/zshrc;
     ".nix-channels".source = ../config/nix/nix-channels;
     # SSH config — public file lives in repo and pulls in the optional
     # private overlay at ~/.config/dotfiles/ssh/config via its top-line
