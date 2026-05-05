@@ -69,11 +69,15 @@ fi
 #   <name>\t<source>\t<kind>\t<src-rel>\t<dest-rel>
 # where <kind> is "file" or "dir".
 sync_opencode_imports() {
-  local manifest stage source name kind src dest abs_src abs_dest
+  local manifest stage source name kind src dest abs_src abs_dest stderr_file
   local sync_root="$private_ref/opencode-imports"
 
-  # Render the manifest. If the private flake has no imports (or fails
-  # to evaluate), proceed silently with no sync.
+  stderr_file=$(mktemp -t dotfiles-imports-stderr.XXXXXX)
+
+  # Render the manifest. If the private flake has no `opencode.imports`
+  # attribute, that is a normal "no imports declared" state — silently
+  # proceed. Other eval errors (syntax, missing inputs, network
+  # failures) get surfaced to stderr so the user notices stale staging.
   if ! manifest=$(nix \
     --extra-experimental-features 'nix-command flakes' \
     eval --raw --no-write-lock-file \
@@ -92,12 +96,21 @@ sync_opencode_imports() {
           lines = builtins.filter (s: s != "") (builtins.map formatImport imports);
         in
           builtins.concatStringsSep "\n" lines
-    ' 2>/dev/null); then
-    # Eval failed (likely the private flake has no `opencode.imports`
-    # attribute). Leave any existing staging untouched so a transient
-    # nix error does not silently strip imports from the build.
+    ' 2>"$stderr_file"); then
+    if grep -qE "(does not provide attribute|attribute '?opencode'?)" "$stderr_file"; then
+      # Expected: private flake has no imports manifest. Leave any
+      # existing staging untouched.
+      rm -f "$stderr_file"
+      return 0
+    fi
+    printf 'warning: failed to read opencode.imports from private flake:\n' >&2
+    cat "$stderr_file" >&2
+    rm -f "$stderr_file"
+    # Existing staging stays in place rather than being wiped on a
+    # transient eval error.
     return 0
   fi
+  rm -f "$stderr_file"
 
   # Eval succeeded — reset the staging root so removed manifest entries
   # do not linger.
@@ -113,8 +126,14 @@ sync_opencode_imports() {
   while IFS=$'\t' read -r name source kind src dest; do
     [ -z "$name" ] && continue
     # Tilde expansion (Nix passes the source as-is from the manifest).
+    # Only `~` and `~/...` are supported; the `~user/...` form would
+    # require user-database lookup and is not worth the complexity.
     case "$source" in
       "~"|"~/"*) source="$HOME${source#\~}" ;;
+      "~"*)
+        printf 'warning: opencode-import "%s" uses unsupported ~user/ form: %s\n' "$name" "$source" >&2
+        continue
+        ;;
     esac
     abs_src="$source/$src"
     abs_dest="$sync_root/$name/$dest"
@@ -133,6 +152,11 @@ sync_opencode_imports() {
           printf 'warning: opencode-import "%s" missing dir: %s\n' "$name" "$abs_src" >&2
           continue
         fi
+        # `cp -R src dst` copies *into* dst when dst already exists,
+        # producing a nested tree on a second sync. The early-return
+        # path above can leave a stale dest behind on the first run,
+        # so wipe it explicitly to keep the operation idempotent.
+        rm -rf "$abs_dest"
         mkdir -p "$(dirname "$abs_dest")"
         # cp -RL dereferences symlinks, producing a clean tree of
         # regular files inside the staging area.
