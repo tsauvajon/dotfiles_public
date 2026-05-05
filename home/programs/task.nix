@@ -19,11 +19,15 @@
 let
   publicConfig = builtins.fromTOML (builtins.readFile ../../config/task/config.toml);
 
-  # Read all `~/.config/dotfiles/task.*.toml` overlays and deep-merge
-  # them so the upstream HM module can take a single attrset.
-  privateOverlayDir = builtins.toPath (builtins.getEnv "HOME" + "/.config/dotfiles");
+  # Read all `task.*.toml` overlays from the private flake's working tree.
+  # Using `inputs.private.outPath` keeps the build pure: every flake input
+  # exposes its source as a store path automatically, so we do not need
+  # `--impure` (and `getEnv "HOME"` is intentionally avoided — it returned
+  # "" on macOS where setup.sh skips `--impure`, which silently dropped
+  # every private overlay).
+  privateOverlayDir = inputs.private.outPath;
   overlayFiles =
-    if privateOverlayDir != "/.config/dotfiles" && builtins.pathExists privateOverlayDir then
+    if builtins.pathExists privateOverlayDir then
       let
         entries = builtins.readDir privateOverlayDir;
         accepted = lib.filterAttrs (
@@ -32,7 +36,8 @@ let
           && lib.hasPrefix "task." name
           && lib.hasSuffix ".toml" name
         ) entries;
-        names = lib.sort (a: b: a < b) (builtins.attrNames accepted);
+        # `builtins.attrNames` already returns names in byte-sorted order.
+        names = builtins.attrNames accepted;
       in
       map (name: privateOverlayDir + "/${name}") names
     else

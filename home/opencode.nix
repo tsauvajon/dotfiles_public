@@ -183,10 +183,11 @@ let
   importJsonFragments = lib.concatMap (
     d: map (p: builtins.fromJSON (builtins.readFile p)) (jsonFragmentsIn d)
   ) importsDirs;
-  # The private flake exposes the directory containing the JSON
-  # fragments. `dirOf privatePaths.configFile` gives us that dir
-  # without us having to expose another path.
-  privateOpencodeDir = dirOf privatePaths.configFile;
+  # JSON fragments live next to the private overlay's `opencode/` dir.
+  # We derive that explicitly from `inputs.private.outPath` so the
+  # discovery root stays stable even if `configFile` is ever pointed
+  # somewhere unusual by a downstream private flake.
+  privateOpencodeDir = inputs.private.outPath + "/opencode";
   privateJsonFragments = map (p: builtins.fromJSON (builtins.readFile p)) (
     jsonFragmentsIn privateOpencodeDir
   );
