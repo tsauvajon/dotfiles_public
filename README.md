@@ -42,9 +42,8 @@ nix --extra-experimental-features 'nix-command flakes' \
 3. Runs the resulting `activate` script.
 
 The activation flow is pure Home Manager. Activation blocks under
-`home/bootstrap.nix` record the repo path at `~/.config/dotfiles/path`, clean
-up any legacy symlinks left over from the old Rust-based setup tool, and run
-`task bootstrap` so workspace dirs are ready.
+`home/bootstrap.nix` clean up any legacy symlinks left over from the old
+Rust-based setup tool and run `task bootstrap` so workspace dirs are ready.
 
 Re-running `./setup.sh` is idempotent. Home Manager keeps generations; roll
 back with `home-manager switch --rollback`.

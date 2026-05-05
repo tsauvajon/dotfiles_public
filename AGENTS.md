@@ -86,8 +86,8 @@ The activation flow itself is pure HM, defined under `home/`:
 1. **`home/bootstrap.nix`** runs three activation blocks:
    - `cleanupLegacyDotfiles` — removes Rust-managed symlinks from earlier
      phases (idempotent; safe on a fresh machine).
-   - `recordDotfilesPath` — writes the live repo path to
-     `~/.config/dotfiles/path` so private flake imports can resolve it.
+   - `removeLegacyDotfilesPath` — removes the obsolete
+     `~/.config/dotfiles/path` file written by older generations.
    - `taskBootstrap` — runs `task bootstrap --yes` after HM linking.
 2. **All other modules** under `home/` declare packages, configs, and
    symlinks. HM atomically swaps the home generation.
@@ -135,7 +135,6 @@ two reusable Nix helpers:
 - `home/lib/concat-files.nix` — concatenate fragment files collected from a
   list of directories, sorted by filename across all sources (LC_ALL=C).
   Later directories win on filename collision. Used for `AGENTS.md`.
-  Substitutes `__DOTFILES_PATH__` to the live repo path.
 - `home/lib/deep-merge-json.nix` — deep-merge JSON-like attrsets. Used for
   `opencode.json` and `package.json`.
 

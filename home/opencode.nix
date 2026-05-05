@@ -9,8 +9,7 @@
 #   `~/.config/dotfiles/opencode/rules/` are collected together,
 #   filename collisions resolve in favor of the private overlay, and
 #   the surviving fragments are sorted by filename in byte order
-#   (LC_ALL=C). Built by `lib/concat-files.nix`. `__DOTFILES_PATH__`
-#   is substituted to the actual repo path.
+#   (LC_ALL=C). Built by `lib/concat-files.nix`.
 # - `opencode.json` and `package.json`: deep JSON merge, private wins.
 #   Built by `lib/deep-merge-json.nix`.
 #
@@ -21,7 +20,6 @@
   lib,
   config,
   inputs,
-  dotfilesRoot,
   ...
 }:
 
@@ -144,8 +142,6 @@ let
   # filename across all sources. Private last so it wins on collision;
   # imports sit between public and private with the same precedence
   # ordering used for commands/skills/agents/plugins.
-  # `__DOTFILES_PATH__` gets substituted with the live dotfiles repo
-  # path.
   agentsFragmentDirs =
     if cfg.rulesMode == "merged" then
       [ (publicRoot + "/rules") ] ++ importRulesDirs ++ [ privatePaths.rulesDir ]
@@ -155,9 +151,6 @@ let
       [ ];
   agentsContent = concatFiles {
     fragmentDirs = agentsFragmentDirs;
-    substitutions = {
-      "__DOTFILES_PATH__" = toString dotfilesRoot;
-    };
   };
 
   # opencode.json: 5-tier deep merge. Each tier wins over the previous

@@ -1,14 +1,14 @@
 # Setup-time bootstrap moved into Home Manager activation scripts.
 #
 # Replaces the Rust setup tool's tail end:
-#   - Records the dotfiles path to ~/.config/dotfiles/path.
 #   - Removes legacy Rust-managed symlinks so HM does not trip over
 #     `checkLinkTargets`.
+#   - Removes the obsolete ~/.config/dotfiles/path file (no longer
+#     written or read by anything).
 #   - Runs `task bootstrap --yes` once HM has finished linking files.
 #
 # Each activation block runs after the named DAG entry. Ordering is:
-#   writeBoundary -> [our cleanup] -> linkGeneration -> [path record,
-#   task bootstrap].
+#   writeBoundary -> [our cleanup] -> linkGeneration -> [task bootstrap].
 {
   config,
   lib,
@@ -109,11 +109,12 @@ let
 in
 {
   home.activation = {
-    # Record the dotfiles path so future invocations of setup.sh and
-    # the `nix run path:./` helper know where the live repo is.
-    recordDotfilesPath = entryAfter [ "writeBoundary" ] ''
-      mkdir -p "${homeDir}/.config/dotfiles"
-      printf '%s\n' "${dotfilesRoot}" > "${homeDir}/.config/dotfiles/path"
+    # Remove the obsolete ~/.config/dotfiles/path file. Earlier
+    # generations recorded the live dotfiles repo path here for the
+    # __DOTFILES_PATH__ substitution; both the substitution and the
+    # writer are gone, so any leftover file is stale.
+    removeLegacyDotfilesPath = entryBefore [ "checkLinkTargets" ] ''
+      rm -f "${homeDir}/.config/dotfiles/path"
     '';
 
     # Clear legacy Rust-managed symlinks before HM tries to create

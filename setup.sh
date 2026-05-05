@@ -16,8 +16,8 @@
 #    `activate` script.
 #
 # The activation block in home/bootstrap.nix takes care of:
-#   - recording this repo's path at ~/.config/dotfiles/path
 #   - cleaning up legacy symlinks the previous Rust setup tool created
+#   - removing the obsolete ~/.config/dotfiles/path file
 #   - running `task bootstrap` so workspace dirs are ready
 #
 # To preview without activating, use:

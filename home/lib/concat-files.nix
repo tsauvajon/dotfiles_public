@@ -10,9 +10,6 @@
 #   is then sorted by filename in byte order (LC_ALL=C).
 # - `headerTemplate`: prepended before each fragment. The literal
 #   string `%FILENAME%` is replaced with the fragment's filename.
-# - `substitutions`: attrset of `{placeholder = value;}` applied to the
-#   final concatenated string. Used for `__DOTFILES_PATH__`-style
-#   placeholders.
 #
 # Empty files are skipped. Fragments are separated by `\n\n`.
 { lib }:
@@ -20,7 +17,6 @@
 {
   fragmentDirs ? [ ],
   headerTemplate ? "# Rules overlay: %FILENAME%\n\n",
-  substitutions ? { },
 }:
 
 let
@@ -67,18 +63,12 @@ let
       content = builtins.readFile f.path;
     }) fragments
   );
-
-  rendered = lib.foldl' (
-    acc: f:
-    let
-      header = lib.replaceStrings [ "%FILENAME%" ] [ f.name ] headerTemplate;
-      separator = if acc == "" then "" else "\n\n";
-    in
-    acc + separator + header + f.content
-  ) "" fragmentsWithContent;
-
-  substituted = lib.replaceStrings (builtins.attrNames substitutions) (
-    builtins.attrValues substitutions
-  ) rendered;
 in
-substituted
+lib.foldl' (
+  acc: f:
+  let
+    header = lib.replaceStrings [ "%FILENAME%" ] [ f.name ] headerTemplate;
+    separator = if acc == "" then "" else "\n\n";
+  in
+  acc + separator + header + f.content
+) "" fragmentsWithContent
