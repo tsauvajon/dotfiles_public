@@ -1,45 +1,48 @@
-# Fish-only aliases. Cross-shell aliases (g, gam, gan, gcb, gcl, gcm,
-# gcn, glog, gp, gpl, gpu, grb, gss, j, la, ll, ls, md, oc, t, td, tf,
-# tp, ts, vim, fmt, cdt) are generated from home/programs/aliases.nix
+# Fish-only aliases. Cross-shell aliases (cdt, fmt, g, gam, gan, gcb,
+# gcl, gcm, gcn, glog, gp, gpl, gpu, grb, gss, j, la, ll, ls, md, oc,
+# t, td, tf, tp, ts, vim) are generated from home/programs/aliases.nix
 # into ~/.config/fish/conf.d/common-aliases.fish (auto-loaded by fish).
+#
+# Each block below is sorted alphabetically (case-insensitive, lowercase
+# first). Path-depth aliases (..//.../...) keep their semantic order.
 
 # eza: lt is a fish-only tree listing on top of the shared la/ll/ls.
 alias lt='eza -aT --color=always --group-directories-first --git --icons --no-user --no-time --no-permissions' # tree listing
 
-# More replacements
-alias top='htop'
+# Tool replacements
 alias btop='htop'
+alias cat='bat'
 alias du='dust'
 alias find='fd'
-alias cat='bat'
+alias top='htop'
 
 # Editor aliases
 alias h='hx'
 alias vi='nvim'
 
 # TUI file explorer aliases
-alias ranger='yazi'
 alias lf='yazi'
+alias ranger='yazi'
 
 # Common use
-alias grubup="sudo grub-mkconfig -o /boot/grub/grub.cfg"
+alias big="expac -H M '%m\t%n' | sort -h | nl"              # Sort installed packages according to size in MB
+alias dir='dir --color=auto'
+alias egrep='egrep --color=auto'
+alias fgrep='fgrep --color=auto'
 alias fixpacman="sudo rm /var/lib/pacman/db.lck"
-alias tarnow='tar -acf '
-alias untar='tar -zxvf '
-alias wget='wget -c '
+alias gitpkg='pacman -Q | grep -i "\-git" | wc -l'          # List amount of -git packages
+alias grep='grep --color=auto'
+alias grubup="sudo grub-mkconfig -o /boot/grub/grub.cfg"
+alias hw='hwinfo --short'                                   # Hardware Info
 alias psmem='ps auxf | sort -nr -k 4'
 alias psmem10='ps auxf | sort -nr -k 4 | head -10'
-alias dir='dir --color=auto'
-alias vdir='vdir --color=auto'
-alias grep='grep --color=auto'
-alias fgrep='fgrep --color=auto'
-alias egrep='egrep --color=auto'
-alias hw='hwinfo --short'                                   # Hardware Info
-alias big="expac -H M '%m\t%n' | sort -h | nl"              # Sort installed packages according to size in MB
-alias gitpkg='pacman -Q | grep -i "\-git" | wc -l'          # List amount of -git packages
+alias tarnow='tar -acf '
+alias untar='tar -zxvf '
 alias update='sudo pacman -Syu'
+alias vdir='vdir --color=auto'
+alias wget='wget -c '
 
-# Path aliases
+# Path aliases (semantic depth-order, NOT alphabetical)
 alias ..='cd ..'
 alias ...='cd ../..'
 alias ....='cd ../../..'
@@ -95,12 +98,12 @@ function search --argument folder --argument pattern
     grep -rnw "$folder" -e "$pattern"
 end
 
-# Git (fish-only extras on top of the cross-shell set)
+# Git extras (on top of the cross-shell set)
 alias ga='git add'
-alias gd='git diff'
 alias gc='git commit'
 alias gco='git checkout'
+alias gd='git diff'
+alias gf='git fetch'
 alias gra='git remote add'
 alias grr='git remote remove'
 alias grv='git remote --verbose'
-alias gf='git fetch'
