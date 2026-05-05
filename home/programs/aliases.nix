@@ -3,8 +3,8 @@
 # Define every alias that should exist in both zsh and fish here.
 # `home/programs/cross-shell-aliases.nix` consumes this and emits the
 # two synchronised fragments. Per-shell-only aliases (Arch pacman
-# stuff in fish, docker shortcuts in zsh, etc.) stay in their per-shell
-# rc files; only the truly common subset belongs here.
+# stuff in fish, machine-private stuff in extras.zsh, etc.) stay in
+# their per-shell rc files; only the truly common subset belongs here.
 #
 # Adding an alias: just add a new attr below and rerun `bash setup.sh`.
 # Both shells will pick it up on next login.
@@ -16,18 +16,45 @@
     cdt = "cd-task";
 
     # Cargo / Rust
+    cov = "cargo llvm-cov nextest --lcov --all --output-path lcov.info && rm -rf target/debug/coverage && grcov lcov.info -s . --binary-path ./target/debug/ -t html --excl-line='^\\s*(\\.await).*' --excl-start='mod test' -o ./target/debug/coverage/ && open ./target/debug/coverage/index.html";
     fmt = "cargo fmt";
+
+    # Docker
+    dco = "docker-compose";
+    dk = "docker";
+    dkps = "docker ps";
+    dksr = "docker stop $(docker ps -qa) && docker rm $(docker ps -qa)";
+    dps = "docker ps";
+
+    # Editor
+    h = "hx";
+    vi = "nvim";
+    vim = "nvim";
 
     # Git — single-letter
     g = "git";
 
+    # Git — add / diff / fetch
+    ga = "git add";
+    gd = "git diff";
+    gf = "git fetch";
+
     # Git — commit / amend
     gam = "git commit -am";
     gan = "git commit --all --amend --no-edit";
+    gc = "git commit";
     gcb = "git checkout -b";
     gcl = "git clone --recurse-submodules";
     gcm = "git commit -m";
     gcn = "git commit --amend --no-edit";
+    gco = "git checkout";
+
+    # Git — branch / merge / rebase
+    gbd = "git branch -d";
+    gbD = "git branch -D";
+    gm = "git merge";
+    gr = "git rebase";
+    grb = "git fetch && git rebase --interactive --autosquash";
 
     # Git — log / status
     glog = "git log --oneline --decorate --graph";
@@ -38,16 +65,24 @@
     gpl = "git pull --rebase --recurse-submodules";
     gpu = "git push --set-upstream";
 
-    # Git — rebase
-    grb = "git fetch && git rebase --interactive --autosquash";
+    # Git — remote
+    gra = "git remote add";
+    grr = "git remote remove";
+    grv = "git remote --verbose";
+
+    # Goto
+    gt = "goto";
 
     # Zoxide
     j = "z";
 
-    # Listing (eza)
+    # Listing (eza). Per-shell-only path: bash via PATH; otherwise the
+    # rich flag set is shared.
+    l = "eza -lah --color=always --group-directories-first --git --icons --no-user --no-time --no-permissions";
     la = "eza -a --color=always --group-directories-first --git --icons --no-user --no-time --no-permissions";
     ll = "eza -l --color=always --group-directories-first --git --icons --no-user --no-time --no-permissions";
     ls = "eza -al --color=always --group-directories-first --git --icons --no-user --no-time --no-permissions";
+    lt = "eza -aT --color=always --group-directories-first --git --icons --no-user --no-time --no-permissions";
 
     # Shorthands
     md = "mdterm";
@@ -59,8 +94,5 @@
     tf = "task finish";
     tp = "task path";
     ts = "task start";
-
-    # Editor
-    vim = "nvim";
   };
 }

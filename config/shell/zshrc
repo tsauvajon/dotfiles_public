@@ -136,39 +136,9 @@ ulimit -S -n 8192
 
 # Cross-shell common aliases (generated from home/programs/aliases.nix).
 [[ -f ~/.config/zsh/common-aliases.zsh ]] && source ~/.config/zsh/common-aliases.zsh
-
-# Zsh-only aliases (per-shell, not part of the cross-shell set).
-# Each block is sorted alphabetically (case-insensitive, lowercase first).
-
-# zshrc edit shortcuts
-alias czc='cat ~/.zshrc'
-alias hzc='hx ~/.zshrc'
-alias lzc='less ~/.zshrc'
-alias szc='source ~/.zshrc'
-alias vzc='hx ~/.zshrc'
-
-# Docker
-alias dco='docker-compose'
-alias dk='docker'
-alias dkps='docker ps'
-alias dksr='docker stop $(docker ps -qa) && docker rm $(docker ps -qa)'
-alias dps='docker ps'
-
-# Listing (l only — la/ll/ls live in the cross-shell set)
-alias l='eza -lah'
-
-alias ktl='kubectl'
-alias ktx='kubectx'
-
-# Git extras (on top of the cross-shell set)
-alias gbd='git branch -d'
-alias gbD='git branch -D'
-alias gm='git merge'
-alias gr='git rebase'
-
-# Cargo / misc
-alias cov="cargo llvm-cov nextest --lcov --all --output-path lcov.info && rm -rf target/debug/coverage && grcov lcov.info -s . --binary-path ./target/debug/ -t html --excl-line='^\s*(\.await).*' --excl-start='mod test' -o ./target/debug/coverage/ && open ./target/debug/coverage/index.html"
-alias gt='goto'
+# Zsh-only aliases live inline below, but the public set is empty.
+# Machine-private aliases live in ~/.config/dotfiles/extras.zsh which
+# is sourced near the bottom of this file.
 
 # pnpm
 export PNPM_HOME="$HOME/Library/pnpm"

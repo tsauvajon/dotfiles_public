@@ -74,3 +74,7 @@ fish_add_path ~/.spicetify
 # Go
 set --export GOPATH "$HOME/go"
 set --export PATH $GOPATH/bin $PATH
+
+# the zsh sibling at ~/.config/dotfiles/extras.zsh sourced near the
+# bottom of config/shell/zshrc.
+test -f ~/.config/dotfiles/extras.fish && source ~/.config/dotfiles/extras.fish

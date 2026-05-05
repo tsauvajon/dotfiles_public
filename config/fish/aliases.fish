@@ -1,13 +1,12 @@
-# Fish-only aliases. Cross-shell aliases (cdt, fmt, g, gam, gan, gcb,
-# gcl, gcm, gcn, glog, gp, gpl, gpu, grb, gss, j, la, ll, ls, md, oc,
-# t, td, tf, tp, ts, vim) are generated from home/programs/aliases.nix
-# into ~/.config/fish/conf.d/common-aliases.fish (auto-loaded by fish).
+# Fish-only aliases.
+#
+# Cross-shell aliases live in home/programs/aliases.nix and are
+# generated into ~/.config/fish/conf.d/common-aliases.fish (auto-loaded
+# by fish). Machine-private aliases live in ~/.config/dotfiles/extras.fish
+# and are sourced from config.fish.
 #
 # Each block below is sorted alphabetically (case-insensitive, lowercase
-# first). Path-depth aliases (..//.../...) keep their semantic order.
-
-# eza: lt is a fish-only tree listing on top of the shared la/ll/ls.
-alias lt='eza -aT --color=always --group-directories-first --git --icons --no-user --no-time --no-permissions' # tree listing
+# first).
 
 # Tool replacements
 alias btop='htop'
@@ -15,10 +14,6 @@ alias cat='bat'
 alias du='dust'
 alias find='fd'
 alias top='htop'
-
-# Editor aliases
-alias h='hx'
-alias vi='nvim'
 
 # TUI file explorer aliases
 alias lf='yazi'
@@ -41,13 +36,6 @@ alias untar='tar -zxvf '
 alias update='sudo pacman -Syu'
 alias vdir='vdir --color=auto'
 alias wget='wget -c '
-
-# Path aliases (semantic depth-order, NOT alphabetical)
-alias ..='cd ..'
-alias ...='cd ../..'
-alias ....='cd ../../..'
-alias .....='cd ../../../..'
-alias ......='cd ../../../../..'
 
 # Get fastest mirrors
 alias mirror="sudo cachyos-rate-mirrors"
@@ -97,13 +85,3 @@ function search --argument folder --argument pattern
     echo "grep -rnw 'FOLDER' -e 'PATTERN'"
     grep -rnw "$folder" -e "$pattern"
 end
-
-# Git extras (on top of the cross-shell set)
-alias ga='git add'
-alias gc='git commit'
-alias gco='git checkout'
-alias gd='git diff'
-alias gf='git fetch'
-alias gra='git remote add'
-alias grr='git remote remove'
-alias grv='git remote --verbose'
