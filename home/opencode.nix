@@ -105,11 +105,11 @@ let
   # base, then append private rules overlays. `__DOTFILES_PATH__` gets
   # substituted with the live dotfiles repo path.
   agentsBase = if cfg.rulesMode == "merged" then publicRoot + "/AGENTS.md" else null;
-  agentsContent = concatFiles {
+   agentsContent = concatFiles {
     base = agentsBase;
     fragmentDirs = [ privatePaths.rulesDir ];
     substitutions = {
-      "__DOTFILES_PATH__" = dotfilesRoot;
+      "__DOTFILES_PATH__" = toString dotfilesRoot;
     };
   };
 

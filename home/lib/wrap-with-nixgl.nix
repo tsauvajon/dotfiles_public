@@ -7,7 +7,11 @@
 #
 # Usage:
 #   wrapWithNixGL alacritty "alacritty"
-{ pkgs, nixgl, nixgl-nixpkgs }:
+{
+  pkgs,
+  nixgl,
+  nixgl-nixpkgs,
+}:
 
 let
   inherit (pkgs.stdenv.hostPlatform) system;
@@ -21,11 +25,7 @@ let
     enable32bits = system == "x86_64-linux";
     enableIntelX86Extensions = system == "x86_64-linux";
   };
-  nixglLauncher =
-    if nvidiaVersion == "" then
-      "${nixglPkgs.nixGLIntel}/bin/nixGLIntel"
-    else
-      "${nixglPkgs.auto.nixGLDefault}/bin/nixGL";
+  nixglLauncher = "${nixglPkgs.auto.nixGLDefault}/bin/nixGL";
 in
 package: binary:
 if pkgs.stdenv.isLinux then

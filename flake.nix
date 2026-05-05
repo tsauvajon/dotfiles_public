@@ -52,11 +52,10 @@
     # Private overlay flake: machine-local secrets, identity, and private
     # OpenCode commands/skills/agents/plugins/rules.
     #
-    # The path resolves at flake-eval time via `--impure` because it lives
-    # outside the repo. Phase 1 declares the input but no module consumes
-    # it yet; Phase 3 will start using it for the OpenCode merges.
+    # Uses a pure placeholder by default; override at build time with:
+    #   --override-input private ~/.config/dotfiles
     private = {
-      url = "path:/Users/thomas/.config/dotfiles";
+      url = "path:./private-placeholder";
       flake = true;
     };
 
@@ -118,31 +117,9 @@
           overlays = [ rust-overlay.overlays.default ];
         };
 
-      # Resolve the live dotfiles repo path for use inside HM modules.
-      # Tries `$DOTFILES` (set by setup.sh) first, then `~/.config/dotfiles/path`
-      # (recorded by the Rust setup tool on first run). Both are used by the
-      # Rust tool today; either is enough to cover typical cases.
-      dotfilesRoot =
-        let
-          fromEnv = builtins.getEnv "DOTFILES";
-          home = builtins.getEnv "HOME";
-          pathFile = "${home}/.config/dotfiles/path";
-          fromFile =
-            if home != "" && builtins.pathExists pathFile then
-              builtins.replaceStrings [ "\n" ] [ "" ] (builtins.readFile pathFile)
-            else
-              "";
-        in
-        if fromEnv != "" then
-          fromEnv
-        else if fromFile != "" then
-          fromFile
-        else
-          throw ''
-            Could not determine the dotfiles repo path.
-            Set $DOTFILES (e.g. by running setup.sh) or write the path to
-            ~/.config/dotfiles/path.
-          '';
+      # The dotfiles repo root is the directory containing this flake.
+      # Pure: no env-var lookups, so --impure is not required.
+      dotfilesRoot = ./.;
 
       mkHome =
         {

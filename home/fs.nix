@@ -8,7 +8,9 @@
     eza
     fd
     fzf
+    jq
     ripgrep
+    tabiew
     xz
     yq
     yazi

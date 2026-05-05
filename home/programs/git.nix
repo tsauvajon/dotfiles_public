@@ -18,8 +18,12 @@
 
 let
   privateGit = inputs.private.git;
+  hasIdentity = privateGit.name != "" && privateGit.email != "";
+  extraConfigInclude = privateGit.extraConfigInclude or null;
+  dummy = if !hasIdentity then throw "Private git identity not found. Override with --override-input private ~/.config/dotfiles" else null;
 in
 {
+
   home.packages = with pkgs; [
     delta
     gh

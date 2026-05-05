@@ -112,6 +112,7 @@
       "glab *": "allow",
       "grep *": "allow",
       "head *": "allow",
+      "hyprctl clients *": "allow",
       "if *": "allow",
       "jq *": "allow",
       "journalctl *": "allow",

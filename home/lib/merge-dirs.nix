@@ -17,12 +17,15 @@
   sources,
 }:
 
+let
+  existingSources = builtins.filter builtins.pathExists sources;
+in
 pkgs.runCommand name { } ''
   mkdir -p "$out"
   ${lib.concatMapStringsSep "\n" (src: ''
-    if [ -d "${toString src}" ]; then
-      find "${toString src}" -mindepth 1 -maxdepth 1 \
+    if [ -d "${src}" ]; then
+      find "${src}" -mindepth 1 -maxdepth 1 \
         -exec ln -sfn {} "$out/" \;
     fi
-  '') sources}
+  '') existingSources}
 ''

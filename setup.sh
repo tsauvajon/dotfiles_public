@@ -38,12 +38,26 @@ case "${DOTFILES_HOST:-}" in
 esac
 
 flake_ref="path:$DOTFILES#homeConfigurations.$host.activationPackage"
+private_ref="$HOME/.config/dotfiles"
+
+if [ ! -f "$private_ref/flake.nix" ]; then
+  printf 'error: private config not found at %s\n' "$private_ref" >&2
+  printf 'Create it from the example or skip if your host does not require private data.\n' >&2
+  exit 1
+fi
+
+# nixGL uses builtins.currentTime which requires --impure on Linux
+IMPURE_FLAG=""
+if [ "$(uname -s)" = "Linux" ]; then
+  IMPURE_FLAG="--impure"
+fi
 
 printf '==> Building home-manager generation for %s\n' "$host"
 out=$(nix \
   --extra-experimental-features 'nix-command flakes' \
-  build --impure --no-link --print-out-paths \
+  build $IMPURE_FLAG --no-link --no-write-lock-file --print-out-paths \
+  --override-input private "$private_ref" \
   "$flake_ref")
 
-printf '==> Activating %s\n' "$out/activate"
+printf '==> Activating %s/activate\n' "$out"
 "$out/activate"

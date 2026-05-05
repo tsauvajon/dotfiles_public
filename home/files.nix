@@ -39,14 +39,15 @@
       "yazi/yazi.toml".source = ../config/yazi/yazi.toml;
       "yazi/keymap.toml".source = ../config/yazi/keymap.toml;
       "yazi/init.lua".source = ../config/yazi/init.lua;
-      "yazi/theme.toml".source =
-        "${inputs.catppuccin-yazi}/themes/mocha/catppuccin-mocha-mauve.toml";
-      "yazi/Catppuccin-mocha.tmTheme".source =
-        "${inputs.catppuccin-bat}/themes/Catppuccin Mocha.tmTheme";
+      "yazi/theme.toml".source = "${inputs.catppuccin-yazi}/themes/mocha/catppuccin-mocha-mauve.toml";
+      "yazi/Catppuccin-mocha.tmTheme".source = "${inputs.catppuccin-bat}/themes/Catppuccin Mocha.tmTheme";
       "zellij/config.kdl".source = ../config/zellij/config.kdl;
       "kitty".source = ../config/kitty;
       "espflash".source = ../config/espflash;
-      "obsidian/Preferences".source = ../config/obsidian/Preferences;
+      "obsidian/Preferences" = {
+        source = ../config/obsidian/Preferences;
+        force = true;
+      };
       "keepassxc/keepassxc.ini".source = ../config/keepassxc/keepassxc.ini;
 
       # Catppuccin themes pulled from upstream flake inputs (Phase 8)

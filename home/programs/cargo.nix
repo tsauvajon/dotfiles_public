@@ -10,13 +10,20 @@
 let
   concatTomlFiles = import ../lib/concat-toml-files.nix { inherit pkgs lib; };
 
+  privateDir = inputs.private;
+  privateDirExists = builtins.pathExists privateDir;
+  privateEntries = if privateDirExists then builtins.readDir privateDir else {};
+  hasPrivateCargo = privateDirExists && (builtins.any (name: 
+    let type = privateEntries.${name}; in
+    (type == "regular" || type == "symlink") &&
+    lib.hasPrefix "cargo." name && 
+    lib.hasSuffix ".toml" name
+  ) (builtins.attrNames privateEntries));
+
   cargoConfig = concatTomlFiles {
     name = "cargo-config.toml";
     base = ../../config/cargo/cargo-config.toml;
-    fragmentDirs = [
-      ../../config/cargo
-      inputs.private
-    ];
+    fragmentDirs = lib.optionals pkgs.stdenv.isDarwin [ ../../config/cargo ] ++ lib.optionals hasPrivateCargo [ privateDir ];
     prefix = "cargo.";
   };
 in

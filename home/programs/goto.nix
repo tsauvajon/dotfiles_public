@@ -7,11 +7,12 @@
 
 let
   privateGoto = inputs.private.goto;
+  hasGoto = lib.isString privateGoto.apiUrl && privateGoto.apiUrl != "";
 in
 {
   imports = [ inputs.goto.homeManagerModules.default ];
 
-  programs.gotoLinks = lib.mkIf (privateGoto.apiUrl != null) {
+  programs.gotoLinks = lib.mkIf hasGoto {
     enable = true;
     apiUrl = privateGoto.apiUrl;
     bookmarksFile = privateGoto.bookmarksFile;

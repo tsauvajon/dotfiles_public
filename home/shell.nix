@@ -15,7 +15,6 @@ in
     (wrapWithNixGL pkgs.alacritty "alacritty")
     (pkgs.direnv.overrideAttrs { doCheck = false; })
     pkgs.fish
-    pkgs.jq
     pkgs.just
     (wrapWithNixGL pkgs.kitty "kitty")
     pkgs.nix-direnv

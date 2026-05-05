@@ -42,9 +42,9 @@ let
   fragments = lib.concatLists (map fragmentsIn fragmentDirs);
 in
 pkgs.runCommand name { } ''
-  cat ${toString base} > "$out"
+  cat ${base} > "$out"
   ${lib.concatMapStringsSep "\n" (f: ''
     printf '\n' >> "$out"
-    cat ${toString f} >> "$out"
+    cat ${f} >> "$out"
   '') fragments}
 ''
