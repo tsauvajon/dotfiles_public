@@ -26,11 +26,6 @@
     dksr = "docker stop $(docker ps -qa) && docker rm $(docker ps -qa)";
     dps = "docker ps";
 
-    # Editor shorthands (h is a 1-letter alias for hx; for tool
-    # replacements where an existing system tool is overridden by a
-    # modern one, see "Tool replacements" below).
-    h = "hx";
-
     # Git — single-letter
     g = "git";
 
@@ -70,17 +65,16 @@
     grr = "git remote remove";
     grv = "git remote --verbose";
 
-    # Goto
-    gt = "goto";
-
-    # Listing (eza)
+    # ls replacements
     l = "eza -lah --color=always --group-directories-first --git --icons --no-user --no-time --no-permissions";
     la = "eza -a --color=always --group-directories-first --git --icons --no-user --no-time --no-permissions";
     ll = "eza -l --color=always --group-directories-first --git --icons --no-user --no-time --no-permissions";
     ls = "eza -al --color=always --group-directories-first --git --icons --no-user --no-time --no-permissions";
     lt = "eza -aT --color=always --group-directories-first --git --icons --no-user --no-time --no-permissions";
 
-    # Shorthands
+    # Other shorthands
+    gt = "goto";
+    h = "hx";
     md = "mdterm";
     oc = "opencode";
 
