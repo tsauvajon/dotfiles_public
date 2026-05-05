@@ -19,9 +19,9 @@ if command -v direnv >/dev/null 2>&1; then
   eval "$(direnv hook bash)"
 fi
 
-if [[ -f "$HOME/task.bash-completion" ]]; then
+if [[ -f "$HOME/.config/bash/completions/task" ]]; then
   # shellcheck source=/dev/null
-  source "$HOME/task.bash-completion"
+  source "$HOME/.config/bash/completions/task"
 fi
 
 alias ls='ls --color=auto'

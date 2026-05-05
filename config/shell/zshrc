@@ -199,8 +199,9 @@ case ":$PATH:" in
 esac
 # pnpm end
 
-# Docker CLI completions
-fpath=(~/.zsh/completions $HOME/.docker/completions $fpath)
+# Completions: include HM-managed dir first so generated functions
+# (e.g. `_task`) load via autoload before compinit runs.
+fpath=(~/.config/zsh/completions ~/.zsh/completions $HOME/.docker/completions $fpath)
 autoload -Uz compinit
 compinit
 
