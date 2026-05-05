@@ -26,10 +26,10 @@
     dksr = "docker stop $(docker ps -qa) && docker rm $(docker ps -qa)";
     dps = "docker ps";
 
-    # Editor
+    # Editor shorthands (h is a 1-letter alias for hx; for tool
+    # replacements where an existing system tool is overridden by a
+    # modern one, see "Tool replacements" below).
     h = "hx";
-    vi = "nvim";
-    vim = "nvim";
 
     # Git — single-letter
     g = "git";
@@ -73,11 +73,7 @@
     # Goto
     gt = "goto";
 
-    # Zoxide
-    j = "z";
-
-    # Listing (eza). Per-shell-only path: bash via PATH; otherwise the
-    # rich flag set is shared.
+    # Listing (eza)
     l = "eza -lah --color=always --group-directories-first --git --icons --no-user --no-time --no-permissions";
     la = "eza -a --color=always --group-directories-first --git --icons --no-user --no-time --no-permissions";
     ll = "eza -l --color=always --group-directories-first --git --icons --no-user --no-time --no-permissions";
@@ -94,5 +90,24 @@
     tf = "task finish";
     tp = "task path";
     ts = "task start";
+
+    # Tar shortcuts
+    untar = "tar -zxvf";
+
+    # Tool replacements: override a classic tool with a modern one.
+    # Every binary on the right MUST be on PATH on every machine
+    # (provided by Nix HM modules in this repo).
+    btop = "htop";       # btop name kept for muscle memory
+    cat = "bat";         # syntax-highlighting pager
+    du = "dust";         # rust replacement, prettier output
+    find = "fd";         # rust replacement, friendlier syntax
+    lf = "y";            # delegate to the yazi `y` wrapper (cd-on-exit)
+    ranger = "y";        # same — old-habits redirect to yazi
+    top = "htop";        # standard quality-of-life override
+    vi = "nvim";         # bring vi habits to nvim
+    vim = "nvim";        # same for vim
+
+    # Zoxide
+    j = "z";
   };
 }

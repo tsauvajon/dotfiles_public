@@ -75,6 +75,18 @@ cd-task() {
   cd "$dir"
 }
 
+# Show timestamps in `history` output. fish has the equivalent in
+# config/fish/aliases.fish via `--show-time`.
+history() {
+  builtin fc -li "$@"
+}
+
+# Copy <file> to <file>.bak. fish has the equivalent in
+# config/fish/aliases.fish.
+backup() {
+  cp "$1" "$1.bak"
+}
+
 # Powerlevel10k = Alacritty theme (homebrew-installed)
 [[ -f /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme ]] && \
   source /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme
