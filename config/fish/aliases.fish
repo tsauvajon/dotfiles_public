@@ -2,16 +2,14 @@
 #
 # Cross-shell aliases live in home/programs/aliases.nix and are
 # generated into ~/.config/fish/conf.d/common-aliases.fish (auto-loaded
-# by fish). Machine-private aliases live in ~/.config/dotfiles/extras.fish
-# and are sourced from config.fish.
+# by fish). Cross-shell functions live in home/programs/functions.nix
+# and are generated into ~/.config/fish/functions/<name>.fish.
+# Cross-shell env vars live in home/sessionEnv.nix and are generated
+# into ~/.config/fish/conf.d/common-env.fish.
 #
-# Only fish-specific functions live here. The zsh equivalents are
-# kept in sync in config/shell/zshrc.
-
-# Show timestamps in `history` output. zsh has its own version that
-# uses `fc -li`; both shells produce a date+time prefix.
-function history
-    builtin history --show-time='%F %T '
-end
-
-# `backup` is a PATH script provided by home/programs/scripts.nix.
+# Machine-private aliases live in ~/.config/dotfiles/extras.fish and
+# are sourced from config.fish.
+#
+# This file is intentionally empty — every fish-specific public alias
+# or function has been moved into the shared/codegen modules. Add
+# fish-only items here if any future need arises.

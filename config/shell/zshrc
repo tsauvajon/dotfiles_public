@@ -56,35 +56,11 @@ if command -v zoxide >/dev/null 2>&1; then
   eval "$(zoxide init --hook pwd zsh)"
 fi
 
-# `rd` (ripgrep + delta) is a PATH script provided by
-# home/programs/scripts.nix.
-
-# Yazi: open and cd into the last yazi cwd on exit.
-# https://yazi-rs.github.io/docs/quick-start
-y() {
-  local tmp cwd
-  tmp="$(mktemp -t "yazi-cwd.XXXXXX")"
-  yazi "$@" --cwd-file="$tmp"
-  if cwd="$(command cat -- "$tmp")" && [[ -n "$cwd" && "$cwd" != "$PWD" ]]; then
-    builtin cd -- "$cwd"
-  fi
-  rm -f -- "$tmp"
-}
-
-# cd to a task worktree path
-cd-task() {
-  local dir
-  dir="$(task path "$@")" || return $?
-  cd "$dir"
-}
-
-# Show timestamps in `history` output. fish has the equivalent in
-# config/fish/aliases.fish via `--show-time`.
-history() {
-  builtin fc -li "$@"
-}
-
-# `backup` is a PATH script provided by home/programs/scripts.nix.
+# `rd` and `backup` are PATH scripts (home/programs/scripts.nix).
+# `cd-task`, `y`, `history` are codegen'd cross-shell functions
+# (home/programs/cross-shell-functions.nix). The loader below sources
+# every generated zsh function file.
+[[ -f ~/.config/zsh/common-functions.zsh ]] && source ~/.config/zsh/common-functions.zsh
 
 # Powerlevel10k = Alacritty theme (homebrew-installed)
 [[ -f /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme ]] && \

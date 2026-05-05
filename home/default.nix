@@ -28,6 +28,8 @@
     ./programs/aliases.nix
     ./programs/cargo.nix
     ./programs/cross-shell-aliases.nix
+    ./programs/cross-shell-functions.nix
+    ./programs/functions.nix
     ./programs/git.nix
     ./programs/goto.nix
     ./programs/scripts.nix
