@@ -30,8 +30,10 @@ assert lib.assertMsg hasIdentity ''
   private.example.nix in the dotfiles repo for the expected shape.
 
   No GPG key yet? Generate one with:
-    nix run nixpkgs#gnupg -- --quick-generate-key "Name <email>" ed25519 default 1y
-    nix run nixpkgs#gnupg -- --list-secret-keys --keyid-format long
+    nix --extra-experimental-features 'nix-command flakes' run nixpkgs#gnupg -- \
+      --quick-generate-key "Name <email>" ed25519 default 1y
+    nix --extra-experimental-features 'nix-command flakes' run nixpkgs#gnupg -- \
+      --list-secret-keys --keyid-format long
 '';
 {
 
@@ -46,17 +48,47 @@ assert lib.assertMsg hasIdentity ''
     ++ lib.optional stdenv.isDarwin pinentry_mac;
 
   # Wire gpg-agent to use pinentry-mac on darwin so commit signing
-  # works from non-TTY contexts (IDEs, Finder-launched git GUIs).
-  # `force = true` overrides an existing single-line user config; if
-  # you keep custom gpg-agent settings (cache TTLs, etc.), drop this
-  # block and add the pinentry-program line manually.
-  home.file = lib.mkIf pkgs.stdenv.isDarwin {
-    ".gnupg/gpg-agent.conf" = {
-      force = true;
-      text = ''
-        pinentry-program ${pkgs.pinentry_mac}/bin/pinentry-mac
-      '';
-    };
+  # works from non-TTY contexts (IDEs, Finder-launched git GUIs). This
+  # preserves existing gpg-agent settings such as cache TTLs.
+  home.activation = lib.mkIf pkgs.stdenv.isDarwin {
+    configureGpgAgentPinentry = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+      conf="$HOME/.gnupg/gpg-agent.conf"
+      pinentry_line="pinentry-program ${pkgs.pinentry_mac}/bin/pinentry-mac"
+
+      ${pkgs.coreutils}/bin/mkdir -p "$HOME/.gnupg"
+      ${pkgs.coreutils}/bin/chmod 700 "$HOME/.gnupg"
+
+      if [ -L "$conf" ]; then
+        target="$(${pkgs.coreutils}/bin/readlink "$conf" || true)"
+        case "$target" in
+          /nix/store/*) ${pkgs.coreutils}/bin/rm -f "$conf" ;;
+        esac
+      fi
+
+      if [ -f "$conf" ]; then
+        tmp="$conf.tmp.$$"
+        found=0
+        while IFS= read -r line || [ -n "$line" ]; do
+          case "$line" in
+            "pinentry-program "*)
+              if [ "$found" -eq 0 ]; then
+                printf '%s\n' "$pinentry_line"
+                found=1
+              fi
+              ;;
+            *) printf '%s\n' "$line" ;;
+          esac
+        done < "$conf" > "$tmp"
+        if [ "$found" -eq 0 ]; then
+          printf '%s\n' "$pinentry_line" >> "$tmp"
+        fi
+        ${pkgs.coreutils}/bin/mv "$tmp" "$conf"
+      else
+        printf '%s\n' "$pinentry_line" > "$conf"
+      fi
+
+      ${pkgs.gnupg}/bin/gpgconf --kill gpg-agent >/dev/null 2>&1 || true
+    '';
   };
 
   programs.git = {

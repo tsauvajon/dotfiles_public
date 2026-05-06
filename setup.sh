@@ -73,9 +73,10 @@ Anything optional (goto, opencode overlays, homeModules) can stay null.
 
 Need a GPG signing key? Generate one without installing anything globally:
 
-  nix run nixpkgs#gnupg -- --quick-generate-key \\
-    "Your Name <you@example.com>" ed25519 default 1y
-  nix run nixpkgs#gnupg -- --list-secret-keys --keyid-format long
+  nix --extra-experimental-features 'nix-command flakes' run nixpkgs#gnupg -- \\
+    --quick-generate-key "Your Name <you@example.com>" ed25519 default 1y
+  nix --extra-experimental-features 'nix-command flakes' run nixpkgs#gnupg -- \\
+    --list-secret-keys --keyid-format long
 
 Copy the 16-char hex after \`sec ed25519/...\` into git.signingKey.
 (Use rsa4096 instead of ed25519 for broader legacy compatibility.)

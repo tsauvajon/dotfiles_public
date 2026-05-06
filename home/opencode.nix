@@ -48,12 +48,13 @@ let
   publicBaseExists = builtins.pathExists (publicRoot + "/opencode.json");
 
   # External imports staged by setup.sh into
-  # ~/.config/dotfiles/opencode-imports/<name>/. Each entry is a Nix
-  # path with the standard opencode/ layout (commands/, skills/,
-  # agents/, plugins/, rules/, opencode.*.json). Treated as additional
-  # sources sandwiched between public and private so private always
-  # wins.
-  importsDirs = privatePaths.importsDirs or [ ];
+  # ~/.config/dotfiles/opencode-imports/<name>/. The private flake only
+  # needs to declare `opencode.imports`; the HM build derives the staged
+  # directories from each import name. `importsDirs` remains as a legacy
+  # escape hatch for hand-written private flakes.
+  declaredImports = privatePaths.imports or [ ];
+  stagedImportsDirs = map (i: inputs.private.outPath + "/opencode-imports/${i.name}") declaredImports;
+  importsDirs = stagedImportsDirs ++ (privatePaths.importsDirs or [ ]);
 
   # Each *Dir field is optional in the private flake. Null is filtered
   # out below before being passed to mergeDirs / concatFiles.

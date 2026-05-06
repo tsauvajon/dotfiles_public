@@ -28,9 +28,10 @@
       # build until you fill them in.
       #
       # No GPG key yet? Generate one without installing anything globally:
-      #   nix run nixpkgs#gnupg -- --quick-generate-key \
-      #     "Your Name <you@example.com>" ed25519 default 1y
-      #   nix run nixpkgs#gnupg -- --list-secret-keys --keyid-format long
+      #   nix --extra-experimental-features 'nix-command flakes' run nixpkgs#gnupg -- \
+      #     --quick-generate-key "Your Name <you@example.com>" ed25519 default 1y
+      #   nix --extra-experimental-features 'nix-command flakes' run nixpkgs#gnupg -- \
+      #     --list-secret-keys --keyid-format long
       # Use rsa4096 instead of ed25519 for broader legacy compatibility.
       git = {
         name = ""; # TODO: e.g. "Your Full Name"
@@ -64,9 +65,6 @@
         # External non-Nix repos contributing skills/commands/etc.
         # See AGENTS.md > "External imports" for the schema.
         imports = [ ];
-
-        # Populated by setup.sh's pre-build sync from `imports` above.
-        importsDirs = [ ];
       };
 
       # Optional — extra Home Manager modules contributed by this overlay.

@@ -8,14 +8,15 @@ from one place via [Home Manager](https://nix-community.github.io/home-manager/)
 Prerequisite: install [Nix](https://nixos.org).
 
 ```bash
-./setup.sh                                # first run auto-copies private.example.nix into ~/.config/dotfiles/flake.nix and exits
-$EDITOR ~/.config/dotfiles/flake.nix      # fill in git.{name,email,signingKey}
-./setup.sh                                # second run builds and activates
+./setup.sh
+$EDITOR ~/.config/dotfiles/flake.nix
+./setup.sh
 ```
 
-The only file you need to create is the private flake at
-`~/.config/dotfiles/flake.nix`. Everything else (goto, OpenCode overlays,
-extra Home Manager modules, per-tool TOML overlays, …) is optional.
+The first run copies `private.example.nix` to
+`~/.config/dotfiles/flake.nix` and exits. Fill in
+`git.{name,email,signingKey}`, then run setup again to build and activate the
+Home Manager generation.
 
 After setup:
 
@@ -24,30 +25,6 @@ After setup:
 - if you use OpenCode, run it once and connect any MCP servers you have
   configured
 
-To preview the generated output without activating it:
-
-```bash
-nix --extra-experimental-features 'nix-command flakes' \
-  build --impure --dry-run \
-  "path:.#homeConfigurations.thomas-darwin.activationPackage"
-```
-
-## What setup does
-
-`setup.sh` is a thin shell shim:
-
-1. Resolves the host attribute — `thomas-darwin` on macOS, `thomas-linux` on
-   Linux. `DOTFILES_HOST` overrides.
-2. Builds `homeConfigurations.<host>.activationPackage` from this flake.
-3. Runs the resulting `activate` script.
-
-The activation flow is pure Home Manager. Activation blocks under
-`home/bootstrap.nix` clean up any legacy symlinks left over from the old
-Rust-based setup tool and run `task bootstrap` so workspace dirs are ready.
-
-Re-running `./setup.sh` is idempotent. Home Manager keeps generations; roll
-back with `home-manager switch --rollback`.
-
 ## What to edit where
 
 - shared config: edit files under `config/<tool>/` or `home/<module>.nix`
@@ -55,26 +32,23 @@ back with `home-manager switch --rollback`.
   overrides, etc.)
 - private machine-specific config: put it under `~/.config/dotfiles/`
 
-After changing anything under `~/.config/dotfiles/`, just rerun `./setup.sh`.
-The build uses `--override-input private "path:$HOME/.config/dotfiles"` so
-Home Manager reads the working tree directly with no flake.lock update needed:
+After changing anything, rerun `./setup.sh`. It auto-detects the host; set
+`DOTFILES_HOST` only when you need to override that.
 
-```bash
-./setup.sh
-```
+Common private overlays:
 
-Common private files:
-
-- `~/.config/dotfiles/flake.nix` — the only required file. Sets git identity
+- `~/.config/dotfiles/flake.nix`: the only required file. Sets git identity
   and wires in optional overlays. Bootstrap from `private.example.nix`.
-- `~/.config/dotfiles/extra.gitconfig` — extra gitconfig included from
+- `~/.config/dotfiles/extra.gitconfig`: extra gitconfig included from
   `~/.config/git/config` when `git.extraConfigInclude` points at it
-- `~/.config/dotfiles/ssh/config` — private SSH hosts and `IdentityFile` paths
-- `~/.config/dotfiles/goto/database.yml` — private goto bookmarks
-- `~/.config/dotfiles/opencode/` — private OpenCode overlays (see below)
-- `~/.config/dotfiles/task.<name>.toml` — private task overlays
-- `~/.config/dotfiles/cargo.<name>.toml` — private cargo overlays
-- `~/.config/dotfiles/aerospace.<name>.toml` — private AeroSpace rules
+- `~/.config/dotfiles/ssh/config`: private SSH hosts and `IdentityFile` paths
+- `~/.config/dotfiles/goto/database.yml`: private goto bookmarks
+- `~/.config/dotfiles/opencode/`: private OpenCode overlays
+- `~/.config/dotfiles/task.<name>.toml`: private task overlays
+- `~/.config/dotfiles/cargo.<name>.toml`: private cargo overlays
+- `~/.config/dotfiles/aerospace.<name>.toml`: private AeroSpace rules
+- `~/.config/dotfiles/opencode/{opencode*.json,rules,commands,skills,agents,plugins,package.json}`:
+  private OpenCode config
 
 ## Repo scope
 
@@ -96,92 +70,34 @@ this flake on macOS leaves them as no-ops automatically.
 
 ## Bumping dependencies
 
-Inputs are pinned in `flake.lock`. To bump them:
+Most dependencies are Nix flake inputs pinned in `flake.lock`. If your Nix
+install already enables flakes, omit the `--extra-experimental-features` prefix.
+
+To bump all inputs and apply the new generation:
 
 ```bash
-# Bump everything
 nix --extra-experimental-features 'nix-command flakes' flake update
-
-# Bump specific inputs (e.g. nixpkgs and home-manager)
-nix --extra-experimental-features 'nix-command flakes' \
-  flake update nixpkgs home-manager
-
-# Apply the new versions
 ./setup.sh
 ```
+
+To bump specific inputs only, name them explicitly:
+
+```bash
+nix --extra-experimental-features 'nix-command flakes' \
+  flake update nixpkgs home-manager
+```
+
+`nixgl-nixpkgs` is intentionally pinned alongside a known-good nixGL commit;
+avoid changing that input unless you are explicitly testing Linux OpenGL.
+
+OpenCode plugin dependencies are declared in `config/opencode/package.json` and
+the optional private package overlay. After changing those package versions,
+run `./setup.sh`; activation automatically runs `bun install` for
+`~/.config/opencode` when the merged package file changes.
 
 If something breaks after a bump, roll back with `home-manager switch
 --rollback`, or revert `flake.lock` (`git checkout flake.lock`) and rerun
 `./setup.sh`.
 
-## Theme sources
-
-Catppuccin and alacritty themes come from upstream flake inputs rather than
-git submodules:
-
-- `inputs.catppuccin` — [catppuccin/nix](https://github.com/catppuccin/nix)
-  metaflake; supplies waybar (and could supply more on demand)
-- `inputs.catppuccin-fzf` — [catppuccin/fzf](https://github.com/catppuccin/fzf)
-- `inputs.catppuccin-zellij` — [catppuccin/zellij](https://github.com/catppuccin/zellij)
-- `inputs.catppuccin-yazi` — [catppuccin/yazi](https://github.com/catppuccin/yazi)
-- `inputs.catppuccin-bat` — [catppuccin/bat](https://github.com/catppuccin/bat)
-- `pkgs.alacritty-theme` (nixpkgs) — full alacritty-theme set, including the
-  `omni` theme this repo imports
-
-To bump theme versions:
-
-```bash
-nix --extra-experimental-features 'nix-command flakes' \
-  flake update \
-    catppuccin catppuccin-fzf catppuccin-zellij \
-    catppuccin-yazi catppuccin-bat
-./setup.sh
-```
-
-## OpenCode customization
-
-Public config lives in `config/opencode/`. Private machine-local overrides
-live in `~/.config/dotfiles/opencode/` and are wired in by setting paths
-inside the `opencode` attribute of `~/.config/dotfiles/flake.nix`. Every
-overlay is independently optional; null/omitted skips it.
-
-| Path | Purpose |
-|---|---|
-| `~/.config/dotfiles/opencode/opencode.*.json` | additional JSON fragments (deep-merged in filename order) |
-| `~/.config/dotfiles/opencode/opencode.json` | full private override (deep-merged last, wins on collision) |
-| `~/.config/dotfiles/opencode/rules/` | AGENTS/rules overlays |
-| `~/.config/dotfiles/opencode/commands/` | private slash commands |
-| `~/.config/dotfiles/opencode/skills/` | private skills |
-| `~/.config/dotfiles/opencode/agents/` | private agents |
-| `~/.config/dotfiles/opencode/plugins/` | private plugins |
-| `~/.config/dotfiles/opencode/package.json` | private plugin dependency overlay |
-
-The `home/opencode.nix` module deep-merges `opencode.*.json` partials, merges
-`commands/`, `skills/`, `agents/`, and `plugins/` from public + private trees,
-and links the result into `~/.config/opencode/`. Set
-`programs.opencode.rulesMode` in `home/hosts/<host>.nix` to choose how
-`AGENTS.md` is built (`merged`, `private_only`, or `disabled`).
-
-After changing plugins or plugin dependencies, install dependencies with:
-
-```bash
-bun install --cwd ~/.config/opencode
-```
-
-## Adding a tool
-
-1. Drop the public source under `config/<tool>/` (or use a Home Manager
-   `programs.<tool>` module if one exists).
-2. Wire it into Home Manager: a one-liner in `home/files.nix` for plain
-   symlinks, or a dedicated module under `home/programs/<tool>.nix` for
-   richer integrations.
-3. Run `./setup.sh`.
-
-For tools that need merging public + private content, reuse the helpers in
-`home/lib/`:
-
-- `merge-dirs.nix` — sort-merge a list of source directories, later wins
-- `concat-files.nix` — concat fragments from multiple dirs, sorted together by filename
-- `concat-toml-files.nix` — same but tailored to the cargo / aerospace /
-  alacritty overlay-append pattern
-- `deep-merge-json.nix` — recursive attrset merge for JSON-shaped configs
+Set `programs.opencode.rulesMode` in `home/hosts/<host>.nix` to choose how
+OpenCode `AGENTS.md` is built: `merged`, `private_only`, or `disabled`.
