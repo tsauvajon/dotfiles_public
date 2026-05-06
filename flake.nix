@@ -139,6 +139,7 @@
       [
         "x86_64-linux"
         "aarch64-darwin"
+        "x86_64-darwin"
       ]
       (
         system:
@@ -153,6 +154,10 @@
       homeConfigurations = {
         thomas-darwin = mkHome {
           system = "aarch64-darwin";
+          hostModule = ./home/hosts/darwin.nix;
+        };
+        thomas-darwin-intel = mkHome {
+          system = "x86_64-darwin";
           hostModule = ./home/hosts/darwin.nix;
         };
         thomas-linux = mkHome {

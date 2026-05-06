@@ -40,7 +40,13 @@ fi
 case "${DOTFILES_HOST:-}" in
   "")
     case "$(uname -s)" in
-      Darwin) host="thomas-darwin" ;;
+      Darwin)
+        case "$(uname -m)" in
+          arm64)  host="thomas-darwin" ;;
+          x86_64) host="thomas-darwin-intel" ;;
+          *)      printf 'error: unsupported Darwin arch %s. Set DOTFILES_HOST.\n' "$(uname -m)" >&2; exit 1 ;;
+        esac
+        ;;
       Linux)  host="thomas-linux"  ;;
       *)      printf 'error: unsupported OS %s. Set DOTFILES_HOST.\n' "$(uname -s)" >&2; exit 1 ;;
     esac
