@@ -12,6 +12,105 @@
   ...
 }:
 
+let
+  catppuccinMocha =
+    (builtins.fromJSON (
+      builtins.readFile "${
+        inputs.catppuccin.packages.${pkgs.stdenv.hostPlatform.system}.palette
+      }/palette.json"
+    )).mocha.colors;
+
+  catppuccin = color: catppuccinMocha.${color}.hex;
+  style = attrs: attrs;
+  boldStyle = attrs: attrs // { add_modifier = "BOLD"; };
+  withBaseBackground = fg: {
+    bg = catppuccin "base";
+    inherit fg;
+  };
+  withCrustForeground = bg: {
+    inherit bg;
+    fg = catppuccin "crust";
+  };
+
+  accentColors = map catppuccin [
+    "blue"
+    "green"
+    "yellow"
+    "red"
+    "pink"
+    "teal"
+  ];
+
+  tabiewCatppuccinMochaTheme = {
+    table_header = style {
+      bg = catppuccin "base";
+      fg = catppuccin "text";
+    };
+
+    table_headers = map (color: boldStyle (withBaseBackground color)) accentColors;
+
+    rows = [
+      (style {
+        bg = catppuccin "surface0";
+        fg = catppuccin "text";
+      })
+      (style {
+        bg = catppuccin "surface1";
+        fg = catppuccin "text";
+      })
+    ];
+
+    row_highlight = style {
+      bg = catppuccin "rosewater";
+      fg = catppuccin "text";
+    };
+
+    table_tags = map (color: boldStyle (withCrustForeground color)) accentColors;
+
+    block = style {
+      bg = catppuccin "base";
+      fg = catppuccin "blue";
+    };
+    block_tag = boldStyle {
+      bg = catppuccin "blue";
+      fg = catppuccin "crust";
+    };
+    text = style {
+      bg = catppuccin "base";
+      fg = catppuccin "text";
+    };
+    text_highlighted = boldStyle {
+      bg = catppuccin "base";
+      fg = catppuccin "blue";
+    };
+    subtext = style {
+      bg = catppuccin "base";
+      fg = catppuccin "overlay0";
+    };
+    error = boldStyle {
+      bg = catppuccin "red";
+      fg = catppuccin "crust";
+    };
+    gutter = style {
+      bg = catppuccin "surface0";
+      fg = catppuccin "overlay0";
+    };
+
+    chart = map (color: boldStyle (withBaseBackground color)) accentColors;
+  };
+
+  tabiewReadableSelection = {
+    row_highlight = boldStyle {
+      bg = catppuccin "blue";
+      fg = catppuccin "crust";
+    };
+  };
+
+  tabiewTheme = (pkgs.formats.toml { }).generate "tabiew-theme.toml" (
+    tabiewCatppuccinMochaTheme // tabiewReadableSelection
+  );
+in
+
 {
   # Files at $HOME (not under .config).
   home.file = {
@@ -33,13 +132,15 @@
       "fish".source = ../config/fish;
       "helix".source = ../config/helix;
       "bat".source = ../config/bat;
+      "tabiew/config.toml".source = ../config/tabiew/config.toml;
+      "tabiew/theme.toml".source = tabiewTheme;
       # yazi: wire each config file individually so theme.toml and the
       # syntect tmTheme can come from upstream catppuccin flakes rather
       # than the broken in-tree symlinks left behind by phase 8.
       "yazi/yazi.toml".source = ../config/yazi/yazi.toml;
       "yazi/keymap.toml".source = ../config/yazi/keymap.toml;
       "yazi/init.lua".source = ../config/yazi/init.lua;
-      "yazi/theme.toml".source = "${inputs.catppuccin-yazi}/themes/mocha/catppuccin-mocha-mauve.toml";
+      "yazi/theme.toml".source = "${inputs.catppuccin-yazi}/themes/mocha/catppuccin-mocha-blue.toml";
       "yazi/Catppuccin-mocha.tmTheme".source = "${inputs.catppuccin-bat}/themes/Catppuccin Mocha.tmTheme";
       "zellij/config.kdl".source = ../config/zellij/config.kdl;
       "kitty".source = ../config/kitty;
