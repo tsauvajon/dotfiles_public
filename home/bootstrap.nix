@@ -1,10 +1,7 @@
-# Setup-time bootstrap moved into Home Manager activation scripts.
-#
-# Replaces the Rust setup tool's tail end:
-#   - Removes legacy Rust-managed symlinks so HM does not trip over
+# Home Manager activation scripts:
+#   - Removes managed symlinks at known paths that may collide with
 #     `checkLinkTargets`.
-#   - Removes the obsolete ~/.config/dotfiles/path file (no longer
-#     written or read by anything).
+#   - Removes the unused ~/.config/dotfiles/path file if present.
 #   - Runs `task bootstrap --yes` once HM has finished linking files.
 #
 # Each activation block runs after the named DAG entry. Ordering is:
@@ -20,11 +17,10 @@
 let
   inherit (lib.hm.dag) entryAfter entryBefore;
 
-  # Paths that were managed by the Rust setup tool in earlier phases.
-  # HM owns these now; clear them on first run after Phase 7 so HM
-  # activation does not abort with "would be clobbered".
-  legacyPaths = [
-    # Phase 3 (opencode merges)
+  # Paths HM owns. Removed before `checkLinkTargets` runs so that any
+  # pre-existing symlink into a managed root does not abort activation
+  # with "would be clobbered".
+  managedPaths = [
     ".config/opencode/AGENTS.md"
     ".config/opencode/opencode.json"
     ".config/opencode/package.json"
@@ -32,7 +28,6 @@ let
     ".config/opencode/skills"
     ".config/opencode/agents"
     ".config/opencode/plugins"
-    # Phase 4 (programs.tmux, programs.git, desktop modules)
     ".tmux.conf"
     ".tmux/plugins"
     ".gitconfig"
@@ -40,11 +35,9 @@ let
     ".config/mako"
     ".config/rofi"
     ".config/waybar"
-    # Phase 5 (programs.gotoLinks, programs.task)
     ".config/goto/config.yml"
     ".config/goto/database.yml"
     ".config/task/config.toml"
-    # Phase 6 (files.nix + programs/{aerospace,alacritty,cargo}.nix)
     ".profile"
     ".bashrc"
     ".bash_profile"
@@ -69,7 +62,6 @@ let
     ".config/alacritty/alacritty.toml"
     ".config/alacritty/themes"
     ".ssh/config"
-    # Retired in earlier phases
     "flakes"
   ];
 
@@ -84,11 +76,11 @@ let
     (homeDir + "/.local/share/dotfiles")
   ];
 
-  cleanupScript = pkgs.writeShellScript "dotfiles-cleanup-legacy" ''
+  cleanupScript = pkgs.writeShellScript "dotfiles-cleanup-managed" ''
     set -eu
     home="${homeDir}"
     managed_roots=(${lib.concatMapStringsSep " " (r: "'${r}'") managedRoots})
-    for rel in ${lib.concatMapStringsSep " " (p: "'${p}'") legacyPaths}; do
+    for rel in ${lib.concatMapStringsSep " " (p: "'${p}'") managedPaths}; do
       dest="$home/$rel"
       if [ -L "$dest" ]; then
         target=$(readlink "$dest")
@@ -101,28 +93,19 @@ let
           esac
         done
       fi
-      # NOTE: an earlier version also unlinked empty regular files at
-      # these paths to clean up stale placeholders left by the Rust
-      # setup tool. That branch was overly aggressive — it would
-      # delete any empty file the user happened to put at one of the
-      # legacy paths. HM `checkLinkTargets` will surface real
-      # conflicts loudly on its own, so we let it.
     done
   '';
 in
 {
   home.activation = {
-    # Remove the obsolete ~/.config/dotfiles/path file. Earlier
-    # generations recorded the live dotfiles repo path here for the
-    # __DOTFILES_PATH__ substitution; both the substitution and the
-    # writer are gone, so any leftover file is stale.
-    removeLegacyDotfilesPath = entryBefore [ "checkLinkTargets" ] ''
+    # Remove the unused ~/.config/dotfiles/path file if present.
+    removeDotfilesPath = entryBefore [ "checkLinkTargets" ] ''
       rm -f "${homeDir}/.config/dotfiles/path"
     '';
 
-    # Clear legacy Rust-managed symlinks before HM tries to create
+    # Clear pre-existing managed symlinks before HM tries to create
     # its own, otherwise checkLinkTargets aborts the activation.
-    cleanupLegacyDotfiles = entryBefore [ "checkLinkTargets" ] ''
+    cleanupManagedDotfiles = entryBefore [ "checkLinkTargets" ] ''
       ${cleanupScript}
     '';
 

@@ -4,10 +4,6 @@
 # each module via `lib.mkIf pkgs.stdenv.isLinux` (and similar) so that
 # both `homeConfigurations.thomas-darwin` and `thomas-linux` can import
 # the same set of files.
-#
-# Phase 1: only `home.packages` is set across modules; existing dotfile
-# symlinks, merges, and template generation remain managed by the Rust
-# setup tool. Later phases progressively migrate those into HM modules.
 { ... }:
 
 {

@@ -1,7 +1,5 @@
 # OpenCode public/private overlay merges.
 #
-# Replaces the Rust merge logic from src/merge.rs:
-#
 # - `commands`, `skills`, `agents`, `plugins`: per-tree directory merge,
 #   private wins on collision. Built by `lib/merge-dirs.nix`.
 # - `AGENTS.md`: cross-source fragment merge. Public rules in
@@ -48,10 +46,10 @@ let
   publicBaseExists = builtins.pathExists (publicRoot + "/opencode.json");
 
   # External imports staged by setup.sh into
-  # ~/.config/dotfiles/opencode-imports/<name>/. The private flake only
-  # needs to declare `opencode.imports`; the HM build derives the staged
-  # directories from each import name. `importsDirs` remains as a legacy
-  # escape hatch for hand-written private flakes.
+  # ~/.config/dotfiles/opencode-imports/<name>/. The private flake
+  # declares `opencode.imports` and the HM build derives the staged
+  # directories from each import name. `importsDirs` is an escape
+  # hatch for hand-written private flakes.
   declaredImports = privatePaths.imports or [ ];
   stagedImportsDirs = map (i: inputs.private.outPath + "/opencode-imports/${i.name}") declaredImports;
   importsDirs = stagedImportsDirs ++ (privatePaths.importsDirs or [ ]);
@@ -189,8 +187,8 @@ let
     fragmentDirs = agentsFragmentDirs;
   };
 
-  # opencode.json: 4-tier deep merge. Each tier wins over the previous
-  # on key collision (private always last so it overrides everything).
+  # opencode.json: 4-tier deep merge. Each tier wins over the prior
+  # one on key collision (private always last so it overrides everything).
   # The merged result is written to ~/.config/opencode/opencode.json;
   # there is intentionally no public base file — the public side is
   # fragment-only so every section has a self-documenting filename

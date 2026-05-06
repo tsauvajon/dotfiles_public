@@ -32,11 +32,11 @@
       #     --quick-generate-key "Your Name <you@example.com>" ed25519 default 1y
       #   nix --extra-experimental-features 'nix-command flakes' run nixpkgs#gnupg -- \
       #     --list-secret-keys --keyid-format long
-      # Use rsa4096 instead of ed25519 for broader legacy compatibility.
+      # Use rsa4096 instead of ed25519 for broader compatibility.
       git = {
-        name = ""; # TODO: e.g. "Your Full Name"
-        email = ""; # TODO: e.g. "you@example.com"
-        signingKey = ""; # TODO: 16-char hex after `sec ed25519/...`
+        name = ""; # e.g. "Your Full Name"
+        email = ""; # e.g. "you@example.com"
+        signingKey = ""; # 16-char hex after `sec ed25519/...`
 
         # Optional: extra gitconfig include for per-machine tweaks.
         # extraConfigInclude = ./extra.gitconfig;

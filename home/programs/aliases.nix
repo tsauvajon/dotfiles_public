@@ -91,17 +91,17 @@
     # Tool replacements: override a classic tool with a modern one.
     # Every binary on the right MUST be on PATH on every machine
     # (provided by Nix HM modules in this repo).
-    btop = "htop";       # btop name kept for muscle memory
-    cat = "bat";         # syntax-highlighting pager
-    less = "bat";        # syntax-highlighting pager
-    du = "dust";         # rust replacement, prettier output
-    find = "fd";         # rust replacement, friendlier syntax
+    btop = "htop";
+    cat = "bat";
+    less = "bat";
+    du = "dust";
+    find = "fd";
     lf = "y";            # delegate to the yazi `y` wrapper (cd-on-exit)
-    nano = "hx";         # editor reflex hijack
-    ranger = "y";        # same — old-habits redirect to yazi
-    top = "htop";        # standard quality-of-life override
-    vi = "nvim";         # bring vi habits to nvim
-    vim = "nvim";        # same for vim
+    nano = "hx";
+    ranger = "y";
+    top = "htop";
+    vi = "nvim";
+    vim = "nvim";
 
     # Zoxide
     j = "z";

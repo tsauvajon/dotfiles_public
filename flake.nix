@@ -15,14 +15,12 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # nixGL pinned alongside a known-good nixpkgs commit. The pin matches
-    # the existing config/nix/flakes/shell setup; touching it will likely
-    # break OpenGL on Linux.
+    # nixGL pinned alongside a known-good nixpkgs commit. Touching the
+    # pin will likely break OpenGL on Linux.
     nixgl.url = "github:nix-community/nixGL";
     nixgl-nixpkgs.url = "github:nixos/nixpkgs/93e8cdce7afc64297cfec447c311470788131cd9";
 
-    # Helix Steel and pinned plugin sources, mirroring
-    # config/nix/flakes/helix-plugins/flake.nix.
+    # Helix Steel and pinned plugin sources.
     helix-steel = {
       url = "github:mattwparas/helix/steel-event-system";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -59,8 +57,8 @@
       flake = true;
     };
 
-    # Phase 5: consume goto and task as upstream flakes that expose
-    # their own homeManagerModules.
+    # goto and task are consumed as upstream flakes that expose their
+    # own homeManagerModules.
     goto = {
       url = "github:tsauvajon/goto";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -73,10 +71,9 @@
       inputs.rust-overlay.follows = "rust-overlay";
     };
 
-    # Phase 8: catppuccin theme content sourced from upstream flakes
-    # so the ./config/<tool>/catppuccin/ submodules can be retired.
-    # The catppuccin/nix metaflake covers most tools; fzf and zellij
-    # are not in the metaflake, so we pin their source repos directly.
+    # Catppuccin theme content sourced from upstream flakes. The
+    # catppuccin/nix metaflake covers most tools; fzf and zellij are
+    # not in the metaflake, so we pin their source repos directly.
     catppuccin = {
       url = "github:catppuccin/nix";
       inputs.nixpkgs.follows = "nixpkgs";

@@ -2,9 +2,8 @@
 #
 # Each source's top-level entries (files or subdirectories) are
 # symlinked into the output. Later sources override earlier ones on
-# filename collision — i.e. pass `[ public private ]` to make private
-# wins on conflict, matching the Rust setup tool's old MERGED_DIRS
-# semantics.
+# filename collision — i.e. pass `[ public private ]` to let the
+# private overlay win on conflict.
 #
 # Use the result as `home.file."<target>".source = mergeDirs { ... };`
 # or `xdg.configFile."<target>".source = mergeDirs { ... };`.

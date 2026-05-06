@@ -11,8 +11,7 @@
 
 {
   home.packages = [
-    # ripgrep + delta with default `-C2` context. Replaces what was
-    # an `rd()` function in zshrc and a fish function file.
+    # ripgrep + delta with default `-C2` context.
     (pkgs.writeShellApplication {
       name = "rd";
       runtimeInputs = [ pkgs.ripgrep pkgs.delta ];

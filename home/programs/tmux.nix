@@ -1,12 +1,6 @@
 # Tmux configuration via Home Manager.
 #
-# Replaces:
-# - The git submodule plugins under config/tmux/plugins/{tpm,
-#   tmux-resurrect, tmux-continuum, tmux (catppuccin), tmux-cpu}.
-# - The Rust setup tool's symlinks for ~/.tmux.conf and ~/.tmux/plugins.
-#
-# The user keeps editing config/tmux/tmux.conf as the source of truth.
-# This module:
+# `config/tmux/tmux.conf` is the source of truth. This module:
 # 1. Strips TPM-only lines from the conf (`set -g @plugin '...'` and
 #    `run ~/.tmux/plugins/...`).
 # 2. Rewrites the absolute `~/.tmux/plugins/tmux-cpu/...` path to its

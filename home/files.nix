@@ -2,9 +2,9 @@
 #
 # Most tools just need their config directory or single file present
 # at the canonical $HOME / $XDG_CONFIG_HOME path. This module wires
-# all of them in one place so the Rust setup tool no longer has to.
-# Tools that benefit from a richer HM integration (programs.tmux,
-# programs.git, programs.opencode etc.) live in their own modules.
+# all of them in one place. Tools that benefit from a richer HM
+# integration (programs.tmux, programs.git, programs.opencode etc.)
+# live in their own modules.
 {
   pkgs,
   lib,
@@ -148,8 +148,7 @@ in
       "tabiew/config.toml".source = ../config/tabiew/config.toml;
       "tabiew/theme.toml".source = tabiewTheme;
       # yazi: wire each config file individually so theme.toml and the
-      # syntect tmTheme can come from upstream catppuccin flakes rather
-      # than the broken in-tree symlinks left behind by phase 8.
+      # syntect tmTheme can come from upstream catppuccin flakes.
       "yazi/yazi.toml".source = ../config/yazi/yazi.toml;
       "yazi/keymap.toml".source = ../config/yazi/keymap.toml;
       "yazi/init.lua".source = ../config/yazi/init.lua;
@@ -164,9 +163,8 @@ in
       };
       "keepassxc/keepassxc.ini".source = ../config/keepassxc/keepassxc.ini;
 
-      # Catppuccin themes pulled from upstream flake inputs (Phase 8)
-      # rather than git submodules. Paths preserve the layout the
-      # consumers expect:
+      # Catppuccin themes pulled from upstream flake inputs. Paths
+      # preserve the layout the consumers expect:
       #   ~/.config/fzf/catppuccin/themes/catppuccin-fzf-mocha.fish
       #     — sourced by config/fish/config.fish
       #   ~/.config/zellij/themes/catppuccin.kdl

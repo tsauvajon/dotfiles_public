@@ -6,12 +6,10 @@
 # dart-sass output), so waybar resolves the path relative to
 # ~/.config/waybar/ at startup.
 #
-# Phase 8 retired the catppuccin git submodule under
-# config/waybar/catppuccin/. The flake input `inputs.catppuccin`
-# (catppuccin/nix metaflake) ships catppuccin-waybar with the per-flavor
-# CSS files at the top of the package output. We mount it at
-# `catppuccin/themes/` so `mocha.css`, `frappe.css`, etc. land at the
-# path the SCSS import expects.
+# `inputs.catppuccin` (catppuccin/nix metaflake) ships catppuccin-waybar
+# with the per-flavor CSS files at the top of the package output. We
+# mount it at `catppuccin/themes/` so `mocha.css`, `frappe.css`, etc.
+# land at the path the SCSS import expects.
 {
   pkgs,
   lib,

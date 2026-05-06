@@ -104,9 +104,6 @@ assert lib.assertMsg hasIdentity ''
       path = toString extraConfigInclude;
     };
 
-    # Single `settings` attrset replaces the legacy `userName`,
-    # `userEmail`, and `extraConfig` options that home-manager renamed
-    # in mid-2026.
     settings = {
       user = {
         inherit name email;

@@ -19,8 +19,8 @@
 #    `activate` script.
 #
 # The activation block in home/bootstrap.nix takes care of:
-#   - cleaning up legacy symlinks the previous Rust setup tool created
-#   - removing the obsolete ~/.config/dotfiles/path file
+#   - removing managed symlinks before checkLinkTargets runs
+#   - removing the unused ~/.config/dotfiles/path file if present
 #   - running `task bootstrap` so workspace dirs are ready
 #
 # To preview without activating, use:
@@ -79,7 +79,7 @@ Need a GPG signing key? Generate one without installing anything globally:
     --list-secret-keys --keyid-format long
 
 Copy the 16-char hex after \`sec ed25519/...\` into git.signingKey.
-(Use rsa4096 instead of ed25519 for broader legacy compatibility.)
+(Use rsa4096 instead of ed25519 for broader compatibility.)
 EOF
   exit 0
 fi

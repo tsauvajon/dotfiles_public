@@ -7,7 +7,7 @@
 
   # The HM state version. Pin to the release used at first activation;
   # do not bump unless you have read the HM release notes for that
-  # version's migration steps.
+  # version.
   home.stateVersion = "25.05";
 
   # Use the cross-source merge: public rules in

@@ -5,7 +5,7 @@
   - [Layout](#layout)
   - [How Setup Works](#how-setup-works)
     - [Symlink strategy](#symlink-strategy)
-    - [OpenCode merges (HM-owned, since Phase 3)](#opencode-merges-hm-owned-since-phase-3)
+    - [OpenCode merges](#opencode-merges)
       - [AGENTS.md](#agentsmd)
       - [Commands, Skills, Agents, Plugins](#commands-skills-agents-plugins)
       - [opencode.json (4-tier deep merge)](#opencodejson-4-tier-deep-merge)
@@ -83,10 +83,10 @@ dotfiles/
 The activation flow itself is pure HM, defined under `home/`:
 
 1. **`home/bootstrap.nix`** runs three activation blocks:
-   - `cleanupLegacyDotfiles` — removes Rust-managed symlinks from earlier
-     phases (idempotent; safe on a fresh machine).
-   - `removeLegacyDotfilesPath` — removes the obsolete
-     `~/.config/dotfiles/path` file written by older generations.
+   - `cleanupManagedDotfiles` — removes pre-existing managed symlinks
+     before `checkLinkTargets` runs (idempotent; safe on a fresh machine).
+   - `removeDotfilesPath` — removes the unused `~/.config/dotfiles/path`
+     file if present.
    - `taskBootstrap` — runs `task bootstrap --yes` after HM linking.
 2. **All other modules** under `home/` declare packages, configs, and
    symlinks. HM atomically swaps the home generation.
@@ -132,7 +132,7 @@ HM rebuilds the generation and updates the symlink.
 - `~/.config/opencode/{AGENTS.md, opencode.json, package.json, commands, skills, agents, plugins}` — built from public + private overlays
 - `~/.cargo/config.toml`, `~/.aerospace.toml`, `~/.config/alacritty/alacritty.toml` — base + platform + private overlays concatenated
 
-### OpenCode merges (HM-owned, since Phase 3)
+### OpenCode merges
 
 The OpenCode merges live in `home/opencode.nix` and are built declaratively from
 two reusable Nix helpers:
@@ -192,7 +192,7 @@ The public side is fragment-only — every section lives in its own
 public `opencode.json` base; the merged result is written to
 `~/.config/opencode/opencode.json`.
 
-Each tier wins over the previous on key collision:
+Each tier wins over the prior one on key collision:
 
 1. Repo fragments — `config/opencode/opencode.*.json` (sorted by filename)
 2. Import fragments — `~/.config/dotfiles/opencode-imports/<name>/opencode.*.json`

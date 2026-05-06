@@ -1,9 +1,7 @@
 # Alacritty config: base + private overlays
 # (~/.config/dotfiles/alacritty.*.toml), plus alacritty-theme from
 # nixpkgs symlinked so `import = [ "~/.config/alacritty/themes/<name>.toml" ]`
-# directives in the user's config resolve. Phase 8 retired the
-# alacritty-theme git submodule that used to live at
-# `config/alacritty/themes/`.
+# directives in the user's config resolve.
 {
   pkgs,
   lib,
