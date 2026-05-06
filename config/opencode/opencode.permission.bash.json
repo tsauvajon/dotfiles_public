@@ -106,7 +106,6 @@
       "journalctl *": "allow",
       "just *": "allow",
       "karabiner_cli *": "allow",
-      "kstack *": "allow",
       "lsof *": "allow",
       "ls *": "allow",
       "make *": "allow",
