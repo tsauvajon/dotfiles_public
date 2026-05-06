@@ -34,7 +34,11 @@ let
   concatFiles = import ./lib/concat-files.nix { inherit lib; };
 
   publicRoot = ../config/opencode;
-  privatePaths = inputs.private.opencode;
+  # Every field of `inputs.private.opencode` is optional. A user's
+  # private flake.nix may omit the entire `opencode` attribute (the
+  # placeholder does), in which case we fall back to an empty attrset
+  # and every consumed path is null.
+  privatePaths = inputs.private.opencode or { };
 
   # Guardrail: the public side is fragment-only (`opencode.<scope>.json`).
   # A bare `config/opencode/opencode.json` would be silently ignored by
@@ -51,6 +55,16 @@ let
   # wins.
   importsDirs = privatePaths.importsDirs or [ ];
 
+  # Each *Dir field is optional in the private flake. Null is filtered
+  # out below before being passed to mergeDirs / concatFiles.
+  privateCommandsDir = privatePaths.commandsDir or null;
+  privateSkillsDir = privatePaths.skillsDir or null;
+  privateAgentsDir = privatePaths.agentsDir or null;
+  privatePluginsDir = privatePaths.pluginsDir or null;
+  privateRulesDir = privatePaths.rulesDir or null;
+  privateConfigFile = privatePaths.configFile or null;
+  privatePackageFile = privatePaths.packageFile or null;
+
   # Helper: subdir of an import dir if it exists, else null.
   importSubdir =
     sub: dir:
@@ -59,11 +73,7 @@ let
     in
     if builtins.pathExists p then p else null;
 
-  importDirsFor =
-    sub:
-    lib.filter (x: x != null) (
-      map (importSubdir sub) importsDirs
-    );
+  importDirsFor = sub: lib.filter (x: x != null) (map (importSubdir sub) importsDirs);
 
   importCommandsDirs = importDirsFor "commands";
   importSkillsDirs = importDirsFor "skills";
@@ -98,22 +108,31 @@ let
   # indent — jq's default). Matches serde_json structurally.
   prettyJson =
     name: value:
-    pkgs.runCommand name {
-      jsonContent = builtins.toJSON value;
-      nativeBuildInputs = [ pkgs.jq ];
-    } ''
-      echo "$jsonContent" | jq . > $out
-    '';
+    pkgs.runCommand name
+      {
+        jsonContent = builtins.toJSON value;
+        nativeBuildInputs = [ pkgs.jq ];
+      }
+      ''
+        echo "$jsonContent" | jq . > $out
+      '';
 
   # Read a JSON file if it exists, otherwise return an empty attrset.
+  # `null` short-circuits to the default so callers can pass an
+  # optional path straight through.
   readJsonOr =
     path: default:
-    if builtins.pathExists path then builtins.fromJSON (builtins.readFile path) else default;
+    if path == null || !builtins.pathExists path then
+      default
+    else
+      builtins.fromJSON (builtins.readFile path);
 
   # Build commands / skills / agents / plugins merged dirs. The private
   # flake exposes paths by name; the public root mirrors the same
   # subdirectory layout under config/opencode/. Imports are sandwiched
   # between public and private so private always wins on collision.
+  # `privatePath` is optional — null is filtered out before merging
+  # so a private flake without the corresponding overlay still works.
   mkMergedDir =
     {
       name,
@@ -122,30 +141,31 @@ let
     }:
     mergeDirs {
       name = "opencode-${name}";
-      sources =
-        [ (publicRoot + "/${name}") ]
-        ++ importDirs
-        ++ [ privatePath ];
+      sources = [
+        (publicRoot + "/${name}")
+      ]
+      ++ importDirs
+      ++ lib.optional (privatePath != null) privatePath;
     };
 
   mergedCommands = mkMergedDir {
     name = "commands";
-    privatePath = privatePaths.commandsDir;
+    privatePath = privateCommandsDir;
     importDirs = importCommandsDirs;
   };
   mergedSkills = mkMergedDir {
     name = "skills";
-    privatePath = privatePaths.skillsDir;
+    privatePath = privateSkillsDir;
     importDirs = importSkillsDirs;
   };
   mergedAgents = mkMergedDir {
     name = "agents";
-    privatePath = privatePaths.agentsDir;
+    privatePath = privateAgentsDir;
     importDirs = importAgentsDirs;
   };
   mergedPlugins = mkMergedDir {
     name = "plugins";
-    privatePath = privatePaths.pluginsDir;
+    privatePath = privatePluginsDir;
     importDirs = importPluginsDirs;
   };
 
@@ -153,12 +173,15 @@ let
   # private directories depending on rulesMode, then concat-sort by
   # filename across all sources. Private last so it wins on collision;
   # imports sit between public and private with the same precedence
-  # ordering used for commands/skills/agents/plugins.
+  # ordering used for commands/skills/agents/plugins. `privateRulesDir`
+  # is optional; null is filtered out so a flake without rules still
+  # produces a valid (public-only) AGENTS.md.
+  privateRulesList = lib.optional (privateRulesDir != null) privateRulesDir;
   agentsFragmentDirs =
     if cfg.rulesMode == "merged" then
-      [ (publicRoot + "/rules") ] ++ importRulesDirs ++ [ privatePaths.rulesDir ]
+      [ (publicRoot + "/rules") ] ++ importRulesDirs ++ privateRulesList
     else if cfg.rulesMode == "private_only" then
-      importRulesDirs ++ [ privatePaths.rulesDir ]
+      importRulesDirs ++ privateRulesList
     else
       [ ];
   agentsContent = concatFiles {
@@ -178,9 +201,7 @@ let
   #                        in flake-declared order)
   #   3. private fragments ~/.config/dotfiles/opencode/opencode.*.json
   #   4. private overlay   ~/.config/dotfiles/opencode/opencode.json
-  repoJsonFragments = map (p: builtins.fromJSON (builtins.readFile p)) (
-    jsonFragmentsIn publicRoot
-  );
+  repoJsonFragments = map (p: builtins.fromJSON (builtins.readFile p)) (jsonFragmentsIn publicRoot);
   importJsonFragments = lib.concatMap (
     d: map (p: builtins.fromJSON (builtins.readFile p)) (jsonFragmentsIn d)
   ) importsDirs;
@@ -192,7 +213,7 @@ let
   privateJsonFragments = map (p: builtins.fromJSON (builtins.readFile p)) (
     jsonFragmentsIn privateOpencodeDir
   );
-  privateJson = readJsonOr privatePaths.configFile { };
+  privateJson = readJsonOr privateConfigFile { };
   mergedJson =
     assert lib.assertMsg (!publicBaseExists) ''
       config/opencode/opencode.json must not exist.
@@ -201,15 +222,10 @@ let
       permission.fs, permission.web, experimental.quotaToast).
       See AGENTS.md > "opencode.json (4-tier deep merge)" for details.
     '';
-    deepMergeAll (
-      repoJsonFragments
-      ++ importJsonFragments
-      ++ privateJsonFragments
-      ++ [ privateJson ]
-    );
+    deepMergeAll (repoJsonFragments ++ importJsonFragments ++ privateJsonFragments ++ [ privateJson ]);
 
   publicPackage = readJsonOr (publicRoot + "/package.json") { };
-  privatePackage = readJsonOr privatePaths.packageFile { };
+  privatePackage = readJsonOr privatePackageFile { };
   mergedPackage = deepMergeAll [
     publicPackage
     privatePackage

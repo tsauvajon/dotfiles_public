@@ -8,14 +8,14 @@ from one place via [Home Manager](https://nix-community.github.io/home-manager/)
 Prerequisite: install [Nix](https://nixos.org).
 
 ```bash
-mkdir -p ~/.config/dotfiles
-cp dotfiles.example.toml ~/.config/dotfiles/config.toml
-$EDITOR ~/.config/dotfiles/config.toml
-./setup.sh
+./setup.sh                                # first run auto-copies private.example.nix into ~/.config/dotfiles/flake.nix and exits
+$EDITOR ~/.config/dotfiles/flake.nix      # fill in git.{name,email,signingKey}
+./setup.sh                                # second run builds and activates
 ```
 
-`config.toml` is optional for a minimal first run. You can run `./setup.sh`
-first and fill private values in later.
+The only file you need to create is the private flake at
+`~/.config/dotfiles/flake.nix`. Everything else (goto, OpenCode overlays,
+extra Home Manager modules, per-tool TOML overlays, …) is optional.
 
 After setup:
 
@@ -65,9 +65,10 @@ Home Manager reads the working tree directly with no flake.lock update needed:
 
 Common private files:
 
-- `~/.config/dotfiles/config.toml` — git identity, goto API URL
+- `~/.config/dotfiles/flake.nix` — the only required file. Sets git identity
+  and wires in optional overlays. Bootstrap from `private.example.nix`.
 - `~/.config/dotfiles/extra.gitconfig` — extra gitconfig included from
-  `~/.config/git/config`
+  `~/.config/git/config` when `git.extraConfigInclude` points at it
 - `~/.config/dotfiles/ssh/config` — private SSH hosts and `IdentityFile` paths
 - `~/.config/dotfiles/goto/database.yml` — private goto bookmarks
 - `~/.config/dotfiles/opencode/` — private OpenCode overlays (see below)
@@ -91,7 +92,7 @@ See [`docs/nodejs.md`](docs/nodejs.md) for the Bun-first JavaScript workflow and
 Node.js fallback options.
 
 Linux-only modules are gated with `lib.mkIf pkgs.stdenv.isLinux`, so importing
-this flake on macOS leaves them as no-ops without explicit skip lists.
+this flake on macOS leaves them as no-ops automatically.
 
 ## Bumping dependencies
 
@@ -140,12 +141,14 @@ nix --extra-experimental-features 'nix-command flakes' \
 ## OpenCode customization
 
 Public config lives in `config/opencode/`. Private machine-local overrides
-live in `~/.config/dotfiles/opencode/`.
+live in `~/.config/dotfiles/opencode/` and are wired in by setting paths
+inside the `opencode` attribute of `~/.config/dotfiles/flake.nix`. Every
+overlay is independently optional; null/omitted skips it.
 
 | Path | Purpose |
 |---|---|
-| `~/.config/dotfiles/opencode/opencode.json` | main private override |
-| `~/.config/dotfiles/opencode/opencode.*.json` | additional JSON fragments |
+| `~/.config/dotfiles/opencode/opencode.*.json` | additional JSON fragments (deep-merged in filename order) |
+| `~/.config/dotfiles/opencode/opencode.json` | full private override (deep-merged last, wins on collision) |
 | `~/.config/dotfiles/opencode/rules/` | AGENTS/rules overlays |
 | `~/.config/dotfiles/opencode/commands/` | private slash commands |
 | `~/.config/dotfiles/opencode/skills/` | private skills |

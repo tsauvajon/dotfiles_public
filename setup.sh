@@ -4,12 +4,15 @@
 # 1. Verifies Nix is installed.
 # 2. Resolves the host attribute. Defaults: macOS -> thomas-darwin,
 #    Linux -> thomas-linux. Override with $DOTFILES_HOST.
-# 3. Reads opencode.imports from the private flake and syncs each
+# 3. Auto-bootstraps ~/.config/dotfiles/flake.nix from
+#    private.example.nix on first run when missing, then exits so
+#    the user can edit the placeholders before the actual build.
+# 4. Reads opencode.imports from the private flake and syncs each
 #    listed source into ~/.config/dotfiles/opencode-imports/<name>/
 #    so external (non-Nix) repos can contribute partial OpenCode
 #    config (commands, skills, plugins, opencode.*.json fragments,
 #    rules) without absolute symlinks that break Nix purity.
-# 4. Builds homeConfigurations.<host>.activationPackage from this
+# 5. Builds homeConfigurations.<host>.activationPackage from this
 #    flake (with --override-input private "path:..." so the working
 #    tree of the private overlay is used, including the staged
 #    imports tree which is gitignored) and runs the resulting
@@ -47,11 +50,37 @@ esac
 
 flake_ref="path:$DOTFILES#homeConfigurations.$host.activationPackage"
 private_ref="$HOME/.config/dotfiles"
+example_ref="$DOTFILES/private.example.nix"
 
 if [ ! -f "$private_ref/flake.nix" ]; then
-  printf 'error: private config not found at %s\n' "$private_ref" >&2
-  printf 'Create it from the example or skip if your host does not require private data.\n' >&2
-  exit 1
+  if [ ! -f "$example_ref" ]; then
+    printf 'error: private flake missing at %s/flake.nix and example template missing at %s\n' \
+      "$private_ref" "$example_ref" >&2
+    exit 1
+  fi
+  printf '==> No private flake at %s/flake.nix\n' "$private_ref"
+  printf '==> Bootstrapping from %s\n' "$example_ref"
+  mkdir -p "$private_ref"
+  cp "$example_ref" "$private_ref/flake.nix"
+  cat <<EOF
+
+Next steps:
+  1. \$EDITOR $private_ref/flake.nix
+  2. fill in the git.{name,email,signingKey} placeholders (required)
+  3. rerun ./setup.sh
+
+Anything optional (goto, opencode overlays, homeModules) can stay null.
+
+Need a GPG signing key? Generate one without installing anything globally:
+
+  nix run nixpkgs#gnupg -- --quick-generate-key \\
+    "Your Name <you@example.com>" ed25519 default 1y
+  nix run nixpkgs#gnupg -- --list-secret-keys --keyid-format long
+
+Copy the 16-char hex after \`sec ed25519/...\` into git.signingKey.
+(Use rsa4096 instead of ed25519 for broader legacy compatibility.)
+EOF
+  exit 0
 fi
 
 # nixGL uses builtins.currentTime which requires --impure on Linux

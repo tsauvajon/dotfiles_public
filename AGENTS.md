@@ -12,7 +12,6 @@
       - [package.json](#packagejson)
       - [Picking up private changes](#picking-up-private-changes)
     - [Overlay-append merges (Cargo, AeroSpace, Alacritty, task)](#overlay-append-merges-cargo-aerospace-alacritty-task)
-    - [Skip lists](#skip-lists)
   - [Private config](#private-config)
   - [OpenCode config](#opencode-config)
   - [Key invariants](#key-invariants)
@@ -92,11 +91,20 @@ The activation flow itself is pure HM, defined under `home/`:
 2. **All other modules** under `home/` declare packages, configs, and
    symlinks. HM atomically swaps the home generation.
 
-Identity, API URLs, and other private values are read from
-`~/.config/dotfiles/config.toml` by the **private flake** at
-`~/.config/dotfiles/flake.nix`, which the dotfiles flake imports as
-`inputs.private`. The HM module `home/programs/git.nix` (and others)
-consume those values via `inputs.private.git.{name,email,signingKey}` etc.
+Identity, API URLs, and other private values are exposed by the
+**private flake** at `~/.config/dotfiles/flake.nix`, which the dotfiles
+flake imports as `inputs.private`. HM modules consume those values
+directly: `home/programs/git.nix` reads
+`inputs.private.git.{name,email,signingKey}`,
+`home/programs/goto.nix` reads `inputs.private.goto.{apiUrl,bookmarksFile}`,
+`home/opencode.nix` reads `inputs.private.opencode.*`, and so on. Every
+field except `git.{name,email,signingKey}` is optional — HM modules use
+`inputs.private.<x> or { }` defensively so a minimal private flake
+(only git identity set) builds cleanly.
+
+`setup.sh` auto-copies `private.example.nix` from the repo root into
+`~/.config/dotfiles/flake.nix` on first run when the file is missing,
+then exits so the user can edit the placeholders before rebuilding.
 
 When you change anything under `~/.config/dotfiles/`, just rerun `setup.sh`.
 The build uses `--override-input private "path:$HOME/.config/dotfiles"`, so the
@@ -265,32 +273,13 @@ These configs are built by appending overlays onto a base file:
 Overlays are sorted by filename (byte order) within each group. Repo overlays are appended
 first, then private overlays (private wins on conflict).
 
-Source filtering happens before merge; destination filtering happens at link time.
-
-> `skip_links` is a deprecated alias for `skip_destinations`.
-
-### Skip lists
-
-Two skip lists in `config.toml` control what gets linked/merged:
-
-- **`skip_destinations`** — suffix-matched against the destination path relative to `$HOME`.
-  Prevents a managed symlink or merge output from being created. Use this to omit
-  platform-specific outputs (e.g. skip `.config/hypr` on macOS).
-- **`skip_sources`** — suffix-matched against source paths relative to the dotfiles repo root.
-  Prevents a source file from being linked or included in a merge. Use this to exclude
-  platform-specific overlays (e.g. skip `config/cargo/cargo.darwin.toml` on Linux).
-
-Source filtering happens before merge; destination filtering happens at link time.
-
-> `skip_links` is a deprecated alias for `skip_destinations`.
-
 ## Private config
 
 Everything private lives **outside the repo** at `~/.config/dotfiles/`:
 
 | Path | Purpose |
 |---|---|
-| `~/.config/dotfiles/config.toml` | Git identity, API URLs, trusted roots |
+| `~/.config/dotfiles/flake.nix` | **Required.** Private flake — git identity, optional goto/opencode/homeModules wiring |
 | `~/.config/dotfiles/opencode/skills/` | Private OpenCode skills (not committed) |
 | `~/.config/dotfiles/opencode/commands/` | Private OpenCode commands (not committed) |
 | `~/.config/dotfiles/opencode/rules/` | Private AGENTS.md rules overlays (not committed) |
@@ -299,8 +288,10 @@ Everything private lives **outside the repo** at `~/.config/dotfiles/`:
 | `~/.config/dotfiles/opencode/package.json` | Private plugin dependency overlay (not committed) |
 | `~/.config/dotfiles/opencode/opencode.json` | Private OpenCode config overlay (for MCP servers and local-only overrides) |
 
-Copy `dotfiles.example.toml` to get started. Private skills need no registration — drop a
-`<skill-name>/SKILL.md` directory into `opencode/skills/` and rerun `setup.sh`.
+Bootstrap `~/.config/dotfiles/flake.nix` from `private.example.nix` at the repo root
+(`setup.sh` does this automatically on first run when the file is missing). Private
+skills need no registration — drop a `<skill-name>/SKILL.md` directory into
+`opencode/skills/` and rerun `setup.sh`.
 
 Private commands also need no registration — drop a `<name>.md` file into
 `opencode/commands/` and rerun `setup.sh`.
@@ -333,5 +324,6 @@ To add a new slash command that does not need a skill file, add it directly to t
 - **Never edit** the symlinks under `~/.config/`, `~/.cargo/`, etc. directly — they
   point into `/nix/store/` and are read-only. Edit the source under `config/<tool>/`
   or the matching `home/<module>.nix`, then run `bash setup.sh`.
-- Setup must stay idempotent and work without `config.toml` present.
+- Setup must stay idempotent and work with a minimal private flake (only the
+  required `git.{name,email,signingKey}` fields set; everything else null/omitted).
 - New tools must not be introduced unless already present in the Nix flake or the project.
