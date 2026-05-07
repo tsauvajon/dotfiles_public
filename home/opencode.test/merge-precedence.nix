@@ -57,10 +57,19 @@ in
     expected = "allow";
   };
 
-  testImportFragmentMerged = {
-    # Tier 2 (imports) contributes mcp.sample.* into the result.
+  testImportFragmentContributesDisjointKey = {
+    # Tier 2 (imports) sets mcp.sample.url; no other tier touches it,
+    # so the import value must survive the merge.
+    expr = merged.mcp.sample.url;
+    expected = "https://example/mcp";
+  };
+
+  testPrivateFragmentBeatsImportFragment = {
+    # imports/sample/opencode.mcp.json sets mcp.sample.type="remote".
+    # private/opencode.mcp.json sets mcp.sample.type="private-wins".
+    # Tier 3 (private fragment) must beat tier 2 (import) on collision.
     expr = merged.mcp.sample.type;
-    expected = "remote";
+    expected = "private-wins";
   };
 
   testOverlayKeyAdded = {

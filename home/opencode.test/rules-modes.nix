@@ -5,7 +5,9 @@
 #
 # Within "merged" mode, the byte-sorted filename order across all dirs
 # is: 10-public.md, 15-import.md, 20-shared.md, 30-private.md.
-# `20-shared.md` exists in both public and private; private wins.
+# Two collisions are exercised:
+#   - `20-shared.md` exists in public and private; private wins.
+#   - `30-private.md` exists in import and private; private wins.
 { lib }:
 
 let
@@ -50,6 +52,15 @@ in
 
   testMergedHasPrivateOnlyRule = {
     expr = lib.hasInfix "private-rule-30" mergedContent;
+    expected = true;
+  };
+
+  testMergedImportPrivateCollisionPrivateWins = {
+    # 30-private.md collides between imports/sample/rules and private/rules.
+    # Private's content must appear and the import body must be excluded.
+    expr =
+      lib.hasInfix "private-rule-30" mergedContent
+      && !(lib.hasInfix "import-rule-30-overridden" mergedContent);
     expected = true;
   };
 
