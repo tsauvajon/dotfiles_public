@@ -78,7 +78,7 @@ alt-s = 'workspace S'
 alt-v = 'workspace V'
 alt-w = 'workspace W'
 alt-x = 'workspace X'
-alt-y = 'workspace Y'
+# alt-y = 'workspace Y'
 alt-z = 'workspace Z'
 
 # Move node to workspace

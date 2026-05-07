@@ -17,19 +17,19 @@ Style and structure rules to apply when writing or reviewing Rust. This skill is
 
 #### 1. Strong types over `String`
 
-Wrap domain values in a newtype. Never pass naked `String` for things like IDs, names, paths, or chain identifiers.
+Wrap domain values in a newtype. Never pass naked `String` for things like IDs, names, paths, or resource identifiers.
 
 Before:
 ```rust
-fn fetch_balance(user: String, chain: String) -> Balance { ... }
+fn load_profile(user: String, workspace: String) -> Profile { ... }
 ```
 
 After:
 ```rust
 pub struct UserId(u64);
-pub struct ChainName(String);
+pub struct WorkspaceName(String);
 
-fn fetch_balance(user: UserId, chain: ChainName) -> Balance { ... }
+fn load_profile(user: UserId, workspace: WorkspaceName) -> Profile { ... }
 ```
 
 #### 2. Enums over string parsing
@@ -38,10 +38,10 @@ Closed sets are enums. Do not `match s.as_str()`.
 
 Before:
 ```rust
-match env.as_str() {
-    "prod" => deploy_prod(),
-    "uat"  => deploy_uat(),
-    _      => panic!("bad env"),
+match format.as_str() {
+    "json" => export_json(),
+    "csv"  => export_csv(),
+    _      => panic!("bad format"),
 }
 ```
 
@@ -49,11 +49,11 @@ After:
 ```rust
 #[derive(strum::EnumString)]
 #[strum(serialize_all = "lowercase")]
-pub enum Env { Prod, Uat }
+pub enum ExportFormat { Json, Csv }
 
-match env {
-    Env::Prod => deploy_prod(),
-    Env::Uat  => deploy_uat(),
+match format {
+    ExportFormat::Json => export_json(),
+    ExportFormat::Csv  => export_csv(),
 }
 ```
 
@@ -88,19 +88,19 @@ If the same representation is built in more than one place, implement `Display` 
 
 Before:
 ```rust
-let key = format!("{}:{}:{}", tenant.id, chain.name, account.id);
-log::info!("cache miss for {}:{}:{}", tenant.id, chain.name, account.id);
+let key = format!("{}:{}:{}", workspace.id, project.slug, job.id);
+log::info!("cache miss for {}:{}:{}", workspace.id, project.slug, job.id);
 ```
 
 After:
 ```rust
 impl fmt::Display for CacheKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}:{}:{}", self.tenant, self.chain, self.account)
+        write!(f, "{}:{}:{}", self.workspace, self.project, self.job)
     }
 }
 
-let key = CacheKey { tenant, chain, account };
+let key = CacheKey { workspace, project, job };
 log::info!("cache miss for {key}");
 ```
 
@@ -112,22 +112,22 @@ A comment describing *what* the next line does is a signal to rename a variable,
 
 Before:
 ```rust
-// check if user can send more than their daily limit
-if amount > 10_000 && !user.is_premium {
-    return Err(Error::OverLimit);
+// check whether this upload exceeds the workspace quota
+if upload_size > 10_000 && !workspace.has_extra_storage {
+    return Err(Error::QuotaExceeded);
 }
 
-// convert satoshis to BTC for display
-let display = amount as f64 / 100_000_000.0;
+// convert bytes to megabytes for display
+let display = bytes as f64 / 1_000_000.0;
 ```
 
 After:
 ```rust
-if exceeds_daily_limit(amount, &user) {
-    return Err(Error::OverLimit);
+if exceeds_workspace_quota(upload_size, &workspace) {
+    return Err(Error::QuotaExceeded);
 }
 
-let display = Btc::from(amount);
+let display = Megabytes::from(bytes);
 ```
 
 #### 6. Inline calculations - extract a function or a strong type
@@ -163,12 +163,12 @@ Before:
 ```rust
 fn handle(req: Request) -> Response {
     if req.user.is_empty() { return Response::bad(); }
-    if req.chain.is_empty() { return Response::bad(); }
+    if req.workspace.is_empty() { return Response::bad(); }
 
-    let acct = db.get(&req.user)?;
-    let bal  = chain_client.balance(&req.chain, &acct)?;
+    let user = db.get(&req.user)?;
+    let profile = directory.profile(&req.workspace, &user)?;
 
-    Response::ok(format!("{bal}"))
+    Response::ok(format!("{profile}"))
 }
 ```
 
@@ -176,8 +176,8 @@ After:
 ```rust
 fn handle(req: Request) -> Response {
     let req = validate(req)?;
-    let bal = fetch_balance(&req)?;
-    Response::ok(format!("{bal}"))
+    let profile = fetch_profile(&req)?;
+    Response::ok(format!("{profile}"))
 }
 ```
 
@@ -257,16 +257,16 @@ fn process(opt: Option<Req>) -> Result<Res, Error> {
 
 #### 10. Boundary types - strong types, custom `Deserialize`
 
-At I/O edges (HTTP bodies, Kafka messages, DB rows, env vars) prefer strong types with a `Deserialize` or `TryFrom<String>` impl over carrying `String` through the code.
+At I/O edges (HTTP bodies, queue messages, DB rows, env vars) prefer strong types with a `Deserialize` or `TryFrom<String>` impl over carrying `String` through the code.
 
 Before:
 ```rust
 #[derive(Deserialize)]
-struct Body { chain: String, user: String }
+struct Body { workspace: String, user: String }
 
 fn handler(b: Body) {
-    if !is_known_chain(&b.chain) { return; }
-    // ... b.chain and b.user flow through everything as String
+    if !is_known_workspace(&b.workspace) { return; }
+    // ... b.workspace and b.user flow through everything as String
 }
 ```
 
@@ -274,12 +274,12 @@ After:
 ```rust
 #[derive(Deserialize)]
 struct Body {
-    chain: ChainName, // ChainName has a Deserialize that validates
-    user:  UserId,
+    workspace: WorkspaceName, // WorkspaceName has a Deserialize that validates
+    user:      UserId,
 }
 
 fn handler(b: Body) {
-    // invalid chains and users were rejected at deserialize time
+    // invalid workspaces and users were rejected at deserialize time
 }
 ```
 

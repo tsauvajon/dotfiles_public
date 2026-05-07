@@ -230,14 +230,6 @@ opencode = {
         { src = "skills/second-brain"; }
       ];
     }
-    {
-      name = "philip-claude";
-      source = "~/dev/repo/philip-claude";
-      dirs = [
-        # Rename a skill at copy time.
-        { src = "skills/logs"; dest = "skills/splunk-logs"; }
-      ];
-    }
   ];
 };
 ```

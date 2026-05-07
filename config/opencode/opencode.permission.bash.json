@@ -33,7 +33,6 @@
       "echo *": "allow",
       "env *": "allow",
       "export *": "allow",
-      "fast-chg *": "allow",
       "file *": "allow",
       "find *": "allow",
       "fish *": "allow",
