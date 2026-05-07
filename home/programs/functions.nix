@@ -56,5 +56,15 @@
         builtin history --show-time='%F %T '
       '';
     };
+
+    opencode = {
+      description = "open OpenCode through the shared local server";
+      zshBody = ''
+        opencode-shared "$@"
+      '';
+      fishBody = ''
+        opencode-shared $argv
+      '';
+    };
   };
 }
