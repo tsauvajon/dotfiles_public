@@ -285,18 +285,27 @@ fn handler(b: Body) {
 
 #### 11. Re-exports over new dependencies
 
-Before adding a crate, check `cargo tree` and the re-exports of crates already in the tree. Common sources: `anyhow`, `tokio`, `serde`, workspace-internal prelude crates.
+Before adding a direct dependency, check whether an existing dependency re-exports the type you need. Prefer the re-export when it is part of that dependency's public API, so your crate stays aligned with the version used by the framework or client library.
 
 Before:
 ```toml
 # Cargo.toml
 [dependencies]
-parking_lot = "0.12"  # tokio already re-exports sync primitives
+axum = "0.8"
+http = "1"  # only used for StatusCode and HeaderMap
+```
+```rust
+use http::{HeaderMap, StatusCode};
 ```
 
 After:
+```toml
+# Cargo.toml — drop the redundant `http` dependency.
+[dependencies]
+axum = "0.8"
+```
 ```rust
-use tokio::sync::Mutex;
+use axum::http::{HeaderMap, StatusCode};
 ```
 
 #### 12. Avoid positional arguments
