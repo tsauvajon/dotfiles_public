@@ -78,15 +78,16 @@ this flake on macOS leaves them as no-ops automatically.
 not use `nix-darwin` — the same effect is achieved with three sudo-less
 mechanisms:
 
-- **GUI casks via Homebrew** — `config/Brewfile` declares casks that cannot
-  (or should not) be Nix-managed (e.g. `gimp` and `vlc` lack
-  aarch64-darwin nixpkgs builds). After Home Manager activation,
-  `setup.sh` runs `brew bundle install --no-upgrade` to add anything
-  declared but missing. It never removes anything implicitly.
+- **GUI casks via Homebrew** — `config/Brewfile` declares public casks that
+  cannot (or should not) be Nix-managed (e.g. `gimp` and `vlc` lack
+  aarch64-darwin nixpkgs builds). Personal Darwin casks are generated into
+  `~/.config/dotfiles-managed/Brewfile.personal` from `home/personal.nix`.
+  After Home Manager activation, `setup.sh` runs `brew bundle install
+  --no-upgrade` for each managed Brewfile, then removes any installed cask not
+  declared in either file. Formulae and taps are not reconciled.
 
-  To prune casks not in the Brewfile, run
-  `scripts/brew-cleanup.sh` (dry run by default; pass `--apply` to
-  actually uninstall).
+  To inspect extra casks without removing them, run `scripts/brew-cleanup.sh`
+  without `--apply`.
 
 - **Fonts via `~/Library/Fonts/`** — `home/darwin-apps.nix` adds the desired
   `nerd-fonts.*` packages and an activation script that symlinks every
@@ -105,8 +106,6 @@ mechanisms:
 Occasional manual steps (one-offs that need sudo and are kept out of
 `setup.sh`):
 
-- `brew uninstall --cask --force <name>` for casks left over after we
-  switched a tool to Nix.
 - `sudo rm -rf /opt/homebrew/Cellar/<name>` to clean a stuck keg that
   Brew refused to remove (rare).
 

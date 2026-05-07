@@ -22,6 +22,7 @@
     ./launchd-goto.nix
     ./nodejs.nix
     ./opencode.nix
+    ./personal.nix
     ./sessionEnv.nix
     ./programs/aerospace.nix
     ./programs/alacritty.nix

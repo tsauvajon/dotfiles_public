@@ -43,6 +43,21 @@
         bookmarksFile = null; # e.g. ./goto/database.yml
       };
 
+      # Optional — personal-only applications and services. Keep the
+      # top-level switch false on work machines; flipping it to true
+      # enables the per-app toggles below.
+      #
+      # Per-app install paths:
+      #   signal     pkgs.signal-desktop on both Linux and macOS.
+      #   syncthing  HM service (systemd user / launchd agent).
+      #   tailscale  Linux: pkgs.tailscale. macOS: Homebrew cask.
+      personal = {
+        enable = false;
+        signal.enable = true;
+        syncthing.enable = true;
+        tailscale.enable = true;
+      };
+
       # Optional — OpenCode private overlays. Each path is independently
       # optional; null/omitted skips that overlay. Files referenced by
       # configFile / packageFile may not exist — missing files are

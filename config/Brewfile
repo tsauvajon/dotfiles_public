@@ -1,10 +1,11 @@
-# Declarative Homebrew casks managed by setup.sh.
+# Public Homebrew casks managed by setup.sh.
 #
-# `setup.sh` runs `brew bundle install --no-upgrade --file=<this>` after
-# Home Manager activation. Anything listed here will be installed if
-# missing; nothing is removed implicitly.
+# `setup.sh` reconciles this file plus the optional generated personal
+# Brewfile at ~/.config/dotfiles-managed/Brewfile.personal after Home
+# Manager activation. Anything listed in either file will be installed if
+# missing; any installed cask absent from both files will be removed.
 #
-# To prune casks not in this file, run `scripts/brew-cleanup.sh` manually.
+# To inspect extra casks without removing them, run `scripts/brew-cleanup.sh`.
 #
 # Add an entry only if a cask cannot (or should not) be Nix-managed:
 # - `gimp` and `vlc` are not built for aarch64-darwin in current nixpkgs

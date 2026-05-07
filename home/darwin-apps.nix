@@ -24,7 +24,13 @@ let
     pkgs.nerd-fonts.meslo-lg
   ];
   fontPaths = lib.concatStringsSep " " (map (p: "${p}/share/fonts") fontPackages);
+  personal = config.dotfiles.personal;
 
+  # Finder aliases for Nix-installed app bundles. Homebrew casks already
+  # install into /Applications and surface in Spotlight/Launchpad without
+  # help, so cask-managed apps are intentionally absent here. Keep personal
+  # app aliases conditional below so disabled toggles do not force package
+  # evaluation.
   darwinAppAliases = [
     {
       name = "AeroSpace.app";
@@ -41,6 +47,17 @@ let
     {
       name = "Obsidian.app";
       target = "${pkgs.obsidian}/Applications/Obsidian.app";
+    }
+  ]
+  # Signal Desktop is Nix-managed on Darwin; the install phase puts
+  # the app bundle at `$out/Applications/Signal.app` (see nixpkgs
+  # `pkgs/by-name/si/signal-desktop/package.nix`). Alias it the same
+  # way as the other Nix-installed bundles so it shows up in
+  # ~/Applications/Nix Apps and Spotlight.
+  ++ lib.optionals (personal.enable && personal.signal.enable) [
+    {
+      name = "Signal.app";
+      target = "${pkgs.signal-desktop}/Applications/Signal.app";
     }
   ];
 
