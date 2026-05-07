@@ -32,8 +32,8 @@ let
   inherit (import ./lib/opencode-merge.nix { inherit lib; })
     mkMergedOpencodeJson
     mkAgentsContent
-    readJsonOr
     ;
+  readJsonOr = import ./lib/read-json-or.nix;
 
   publicRoot = ../config/opencode;
   # Every field of `inputs.private.opencode` is optional. A user's

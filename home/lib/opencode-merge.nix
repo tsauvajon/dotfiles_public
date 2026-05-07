@@ -11,6 +11,7 @@
 let
   inherit (import ./deep-merge-json.nix { inherit lib; }) deepMergeAll;
   concatFiles = import ./concat-files.nix { inherit lib; };
+  readJsonOr = import ./read-json-or.nix;
 
   # List `opencode.*.json` fragment files in `dir`, sorted by filename
   # bytes (LC_ALL=C). Excludes the bare `opencode.json` so the
@@ -34,15 +35,6 @@ let
         names = builtins.attrNames accepted;
       in
       map (name: dir + "/${name}") names;
-
-  # Read a JSON file, returning `default` if `path` is null or does
-  # not exist. Used to make the private overlay file optional.
-  readJsonOr =
-    path: default:
-    if path == null || !builtins.pathExists path then
-      default
-    else
-      builtins.fromJSON (builtins.readFile path);
 
   # Compute the merged `opencode.json` value by combining the four
   # tiers in order, with later tiers winning on key collision:
@@ -78,7 +70,8 @@ let
       privateOverlay = readJsonOr privateConfigFile { };
     in
     assert lib.assertMsg (!publicBaseExists) ''
-      ${toString publicRoot}/opencode.json must not exist.
+      config/opencode/opencode.json must not exist.
+      (Detected at: ${toString publicRoot}/opencode.json)
       The public side is fragment-only — split content into one of the
       `opencode.<scope>.json` partials (meta, watcher, permission.bash,
       permission.fs, permission.web, experimental.quotaToast).
@@ -116,7 +109,6 @@ in
 {
   inherit
     jsonFragmentsIn
-    readJsonOr
     mkMergedOpencodeJson
     mkAgentsContent
     ;

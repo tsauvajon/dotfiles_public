@@ -66,6 +66,11 @@ in
   testEmptyFilesAreSkipped = {
     # `empty.md` has zero bytes; per the function contract it is
     # filtered out. Only `full.md` should appear in the output.
+    #
+    # Invariant: `concat-files.test/with-empty/empty.md` MUST stay a
+    # zero-byte file for this case to remain meaningful — the filter
+    # at concat-files.nix:61 keys off `f.content != ""`. Adding even
+    # a single newline would defeat the test.
     expr = concatFiles { fragmentDirs = [ ./concat-files.test/with-empty ]; };
     expected = "# Rules overlay: full.md\n\nfull content\n";
   };
