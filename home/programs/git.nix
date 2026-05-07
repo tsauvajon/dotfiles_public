@@ -3,7 +3,8 @@
 # Identity (name, email, signingKey) comes from the private flake at
 # ~/.config/dotfiles/flake.nix under the `git` attribute. The build
 # throws if any of those three fields is empty so missing identity is
-# caught loudly rather than producing unsigned commits as "".
+# caught loudly rather than producing unsigned commits as "". setup.sh
+# fills signingKey automatically when it generates or detects a GPG key.
 #
 # Optional ~/.config/dotfiles/extra.gitconfig is included as a
 # per-machine overlay when `git.extraConfigInclude` points at it.
@@ -26,14 +27,11 @@ in
 assert lib.assertMsg hasIdentity ''
 
   Private git identity not set. Edit ~/.config/dotfiles/flake.nix and
-  fill in `git.name`, `git.email`, and `git.signingKey`. See
-  private.example.nix in the dotfiles repo for the expected shape.
+  fill in `git.name` and `git.email`, then rerun setup.sh so it can
+  generate or detect a GPG key and fill `git.signingKey`.
 
-  No GPG key yet? Generate one with:
-    nix --extra-experimental-features 'nix-command flakes' run nixpkgs#gnupg -- \
-      --quick-generate-key "Name <email>" ed25519 default 1y
-    nix --extra-experimental-features 'nix-command flakes' run nixpkgs#gnupg -- \
-      --list-secret-keys --keyid-format long
+  To inspect or reprint key upload commands manually:
+    ./scripts/bootstrap-keys.sh --show
 '';
 {
 
@@ -42,8 +40,10 @@ assert lib.assertMsg hasIdentity ''
     [
       delta
       gh
+      git-lfs
       glab
       gnupg
+      pre-commit
     ]
     ++ lib.optional stdenv.isDarwin pinentry_mac;
 

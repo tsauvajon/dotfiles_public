@@ -8,7 +8,8 @@
 # `inputs.private`. Every field below is read by a Home Manager
 # module under home/. Required vs. optional:
 #
-#   git.{name,email,signingKey}  REQUIRED — build throws if empty.
+#   git.{name,email}             REQUIRED — used to generate machine keys.
+#   git.signingKey               REQUIRED by the build, auto-filled by setup.
 #   everything else              OPTIONAL — null/[]/omitted is fine.
 #
 # After editing this file, just rerun:
@@ -23,20 +24,13 @@
   outputs =
     { self, ... }:
     {
-      # REQUIRED — git identity. The build throws if any field is empty,
-      # so leaving the placeholders here means setup.sh will refuse to
-      # build until you fill them in.
-      #
-      # No GPG key yet? Generate one without installing anything globally:
-      #   nix --extra-experimental-features 'nix-command flakes' run nixpkgs#gnupg -- \
-      #     --quick-generate-key "Your Name <you@example.com>" ed25519 default 1y
-      #   nix --extra-experimental-features 'nix-command flakes' run nixpkgs#gnupg -- \
-      #     --list-secret-keys --keyid-format long
-      # Use rsa4096 instead of ed25519 for broader compatibility.
+      # REQUIRED — git identity. Fill name/email, then rerun setup.sh.
+      # When signingKey is empty, setup.sh generates or detects a GPG
+      # key for this email and patches the key id into this file.
       git = {
         name = ""; # e.g. "Your Full Name"
         email = ""; # e.g. "you@example.com"
-        signingKey = ""; # 16-char hex after `sec ed25519/...`
+        signingKey = ""; # auto-filled by scripts/bootstrap-keys.sh
 
         # Optional: extra gitconfig include for per-machine tweaks.
         # extraConfigInclude = ./extra.gitconfig;
@@ -96,7 +90,11 @@
   #     Task overlays, merged onto config/task/config.toml.
   #
   #   ~/.config/dotfiles/plist/<name>.plist
-  #     Extra macOS LaunchAgents; symlinked into ~/Library/LaunchAgents/.
+  #     Fallback macOS LaunchAgents loader: hand-authored XML plists
+  #     here are symlinked into ~/Library/LaunchAgents/. Prefer typed
+  #     `launchd.agents.<name>` in a Home Manager module for new
+  #     agents; see `home/launchd-goto.nix` in the public dotfiles
+  #     for the canonical example.
   #
   #   ~/.config/dotfiles/opencode/opencode.*.json
   #     OpenCode JSON fragments (deep-merged in filename order).

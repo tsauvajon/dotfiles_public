@@ -36,9 +36,9 @@ let
   # Read all `task.*.toml` overlays from the private flake's working tree.
   # Using `inputs.private.outPath` keeps the build pure: every flake input
   # exposes its source as a store path automatically, so we do not need
-  # `--impure` (and `getEnv "HOME"` is intentionally avoided — it returned
-  # "" on macOS where setup.sh skips `--impure`, which silently dropped
-  # every private overlay).
+  # `--impure`. `getEnv "HOME"` is intentionally avoided — it returns ""
+  # under pure eval, which setup.sh now uses on every host, and would
+  # silently drop every private overlay.
   privateOverlayDir = inputs.private.outPath;
   overlayFiles =
     if builtins.pathExists privateOverlayDir then

@@ -1,0 +1,17 @@
+# Declarative Homebrew casks managed by setup.sh.
+#
+# `setup.sh` runs `brew bundle install --no-upgrade --file=<this>` after
+# Home Manager activation. Anything listed here will be installed if
+# missing; nothing is removed implicitly.
+#
+# To prune casks not in this file, run `scripts/brew-cleanup.sh` manually.
+#
+# Add an entry only if a cask cannot (or should not) be Nix-managed:
+# - `gimp` and `vlc` are not built for aarch64-darwin in current nixpkgs
+#   (`meta.platforms` excludes Darwin).
+# - `visual-studio-code` is intentionally kept on Brew alongside the
+#   Nix-managed `vscodium` so both editors coexist.
+
+cask "gimp"
+cask "vlc"
+cask "visual-studio-code"

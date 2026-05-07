@@ -4,6 +4,8 @@
 { pkgs, lib, ... }:
 
 lib.mkIf pkgs.stdenv.isLinux {
+  # `keepassxc` is declared cross-platform in `home/apps.nix`; do not
+  # add it back here.
   home.packages = with pkgs; [
     audacity
     bibata-cursors
@@ -11,7 +13,6 @@ lib.mkIf pkgs.stdenv.isLinux {
     # firefox
     hyprpicker
     nerd-fonts.jetbrains-mono
-    keepassxc
     libnotify
     mako
     swappy

@@ -12,7 +12,9 @@
 #    so external (non-Nix) repos can contribute partial OpenCode
 #    config (commands, skills, plugins, opencode.*.json fragments,
 #    rules) without absolute symlinks that break Nix purity.
-# 5. Builds homeConfigurations.<host>.activationPackage from this
+# 5. Bootstraps missing per-machine GPG/SSH keys from the private git
+#    identity and fills git.signingKey when it can do so safely.
+# 6. Builds homeConfigurations.<host>.activationPackage from this
 #    flake (with --override-input private "path:..." so the working
 #    tree of the private overlay is used, including the staged
 #    imports tree which is gitignored) and runs the resulting
@@ -25,7 +27,7 @@
 #
 # To preview without activating, use:
 #   nix --extra-experimental-features 'nix-command flakes' \
-#     build --impure --dry-run \
+#     build --dry-run \
 #     "path:.#homeConfigurations.<host>.activationPackage"
 set -euo pipefail
 
@@ -72,28 +74,15 @@ if [ ! -f "$private_ref/flake.nix" ]; then
 
 Next steps:
   1. \$EDITOR $private_ref/flake.nix
-  2. fill in the git.{name,email,signingKey} placeholders (required)
+  2. fill in git.{name,email}; leave git.signingKey empty if you need a new key
   3. rerun ./setup.sh
 
 Anything optional (goto, opencode overlays, homeModules) can stay null.
 
-Need a GPG signing key? Generate one without installing anything globally:
-
-  nix --extra-experimental-features 'nix-command flakes' run nixpkgs#gnupg -- \\
-    --quick-generate-key "Your Name <you@example.com>" ed25519 default 1y
-  nix --extra-experimental-features 'nix-command flakes' run nixpkgs#gnupg -- \\
-    --list-secret-keys --keyid-format long
-
-Copy the 16-char hex after \`sec ed25519/...\` into git.signingKey.
-(Use rsa4096 instead of ed25519 for broader compatibility.)
+On the next run, setup.sh will generate missing GPG/SSH keys, fill
+git.signingKey when safe, and print public-key upload commands.
 EOF
   exit 0
-fi
-
-# nixGL uses builtins.currentTime which requires --impure on Linux
-IMPURE_FLAG=""
-if [ "$(uname -s)" = "Linux" ]; then
-  IMPURE_FLAG="--impure"
 fi
 
 # Sync external OpenCode imports declared in the private flake's
@@ -105,7 +94,7 @@ fi
 #   <name>\t<source>\t<kind>\t<src-rel>\t<dest-rel>
 # where <kind> is "file" or "dir".
 sync_opencode_imports() {
-  local manifest stage source name kind src dest abs_src abs_dest stderr_file
+  local manifest source name kind src dest abs_src abs_dest stderr_file
   local sync_root="$private_ref/opencode-imports"
 
   stderr_file=$(mktemp -t dotfiles-imports-stderr.XXXXXX)
@@ -114,6 +103,7 @@ sync_opencode_imports() {
   # attribute, that is a normal "no imports declared" state — silently
   # proceed. Other eval errors (syntax, missing inputs, network
   # failures) get surfaced to stderr so the user notices stale staging.
+  # shellcheck disable=SC2016
   if ! manifest=$(nix \
     --extra-experimental-features 'nix-command flakes' \
     eval --raw --no-write-lock-file \
@@ -164,6 +154,7 @@ sync_opencode_imports() {
     # Tilde expansion (Nix passes the source as-is from the manifest).
     # Only `~` and `~/...` are supported; the `~user/...` form would
     # require user-database lookup and is not worth the complexity.
+    # shellcheck disable=SC2088
     case "$source" in
       "~"|"~/"*) source="$HOME${source#\~}" ;;
       "~"*)
@@ -217,12 +208,27 @@ if [ -f "$private_ref/pre-build.sh" ]; then
   . "$private_ref/pre-build.sh"
 fi
 
+"$DOTFILES/scripts/bootstrap-keys.sh"
+
 printf '==> Building home-manager generation for %s\n' "$host"
 out=$(nix \
   --extra-experimental-features 'nix-command flakes' \
-  build $IMPURE_FLAG --no-link --no-write-lock-file --print-out-paths \
+  build --no-link --no-write-lock-file --print-out-paths \
   --override-input private "path:$private_ref" \
   "$flake_ref")
 
 printf '==> Activating %s/activate\n' "$out"
 "$out/activate"
+
+# Declarative Homebrew casks (Darwin only). `brew bundle install` adds
+# anything in $DOTFILES/config/Brewfile that's missing without removing
+# extras. Pruning unmanaged packages is opt-in via
+# `scripts/brew-cleanup.sh`. We never invoke `brew` with sudo here so
+# `setup.sh` stays passwordless.
+if [ "$(uname -s)" = "Darwin" ]; then
+  brewfile="$DOTFILES/config/Brewfile"
+  if [ -f "$brewfile" ] && command -v brew >/dev/null 2>&1; then
+    printf '==> Reconciling Homebrew casks from %s\n' "$brewfile"
+    brew bundle install --no-upgrade --file="$brewfile"
+  fi
+fi

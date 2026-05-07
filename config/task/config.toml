@@ -3,14 +3,4 @@ wt_dir = "~/dev/wt"
 detached_dir = "~/dev/detached"
 editor = "helix"
 
-[[install]]
-repo = "github.com/tsauvajon/goto"
-
-[[install]]
-repo = "github.com/tsauvajon/task"
-
-[[install]]
-repo = "github.com/bahdotsh/mdterm"
-
-[[install]]
-repo = "github.com/jrobhoward/dumap"
+# Add `[[install]]` entries here for tools that need a `cargo install` from source.

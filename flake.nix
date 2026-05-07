@@ -72,11 +72,18 @@
     };
 
     # Catppuccin theme content sourced from upstream flakes. The
-    # catppuccin/nix metaflake covers most tools; fzf and zellij are
-    # not in the metaflake, so we pin their source repos directly.
+    # catppuccin/nix metaflake covers most tools; fzf, zellij, and the
+    # raw palette JSON are pinned as source repos directly.
     catppuccin = {
       url = "github:catppuccin/nix";
       inputs.nixpkgs.follows = "nixpkgs";
+    };
+    # Source-only palette so home/files.nix can read palette.json without
+    # forcing an import-from-derivation on a system-specific catppuccin
+    # build (which previously broke pure cross-system eval).
+    catppuccin-palette = {
+      url = "github:catppuccin/palette";
+      flake = false;
     };
     catppuccin-fzf = {
       url = "github:catppuccin/fzf";
@@ -135,22 +142,7 @@
           ] ++ (inputs.private.homeModules or [ ]);
         };
     in
-    flake-utils.lib.eachSystem
-      [
-        "x86_64-linux"
-        "aarch64-darwin"
-        "x86_64-darwin"
-      ]
-      (
-        system:
-        let
-          pkgs = import nixpkgs { inherit system; };
-        in
-        {
-          formatter = pkgs.nixfmt-rfc-style;
-        }
-      )
-    // {
+    let
       homeConfigurations = {
         thomas-darwin = mkHome {
           system = "aarch64-darwin";
@@ -165,5 +157,40 @@
           hostModule = ./home/hosts/linux.nix;
         };
       };
+    in
+    flake-utils.lib.eachSystem
+      [
+        "x86_64-linux"
+        "aarch64-darwin"
+        "x86_64-darwin"
+      ]
+      (
+        system:
+        let
+          pkgs = import nixpkgs { inherit system; };
+          # Map each host to the system it targets so `nix flake check
+          # --all-systems` exercises every homeConfiguration. Pure
+          # evaluation alone catches issues like the nixGL fetchurl
+          # regression; building still requires the matching system or
+          # a remote builder.
+          hostsForSystem = {
+            "aarch64-darwin" = [ "thomas-darwin" ];
+            "x86_64-darwin" = [ "thomas-darwin-intel" ];
+            "x86_64-linux" = [ "thomas-linux" ];
+          };
+          hosts = hostsForSystem.${system} or [ ];
+        in
+        {
+          formatter = pkgs.nixfmt-rfc-style;
+          checks = builtins.listToAttrs (
+            map (h: {
+              name = h;
+              value = homeConfigurations.${h}.activationPackage;
+            }) hosts
+          );
+        }
+      )
+    // {
+      inherit homeConfigurations;
     };
 }

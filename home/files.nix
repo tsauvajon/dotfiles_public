@@ -13,11 +13,14 @@
 }:
 
 let
+  # Read the palette directly from the source-only catppuccin-palette
+  # flake input. Going through `inputs.catppuccin.packages.<system>.palette`
+  # forced an import-from-derivation on a system-specific build, which
+  # blocked pure cross-system eval (e.g. `nix flake check --all-systems`
+  # from a Darwin host).
   catppuccinMocha =
     (builtins.fromJSON (
-      builtins.readFile "${
-        inputs.catppuccin.packages.${pkgs.stdenv.hostPlatform.system}.palette
-      }/palette.json"
+      builtins.readFile "${inputs.catppuccin-palette}/palette.json"
     )).mocha.colors;
 
   catppuccin = color: catppuccinMocha.${color}.hex;

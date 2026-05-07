@@ -14,9 +14,10 @@ $EDITOR ~/.config/dotfiles/flake.nix
 ```
 
 The first run copies `private.example.nix` to
-`~/.config/dotfiles/flake.nix` and exits. Fill in
-`git.{name,email,signingKey}`, then run setup again to build and activate the
-Home Manager generation.
+`~/.config/dotfiles/flake.nix` and exits. Fill in `git.{name,email}`; leave
+`git.signingKey` empty if you need a new signing key. The next run generates
+missing GPG/SSH keys, fills `git.signingKey` when safe, prints public-key upload
+commands, then builds and activates the Home Manager generation.
 
 After setup:
 
@@ -39,6 +40,9 @@ Common private overlays:
 
 - `~/.config/dotfiles/flake.nix`: the only required file. Sets git identity
   and wires in optional overlays. Bootstrap from `private.example.nix`.
+- `~/.local/state/dotfiles/gpg-signing-key-*.asc`: exported public GPG key from
+  `scripts/bootstrap-keys.sh`, useful for GitLab/GitHub uploads. If
+  `$XDG_STATE_HOME` is set, the export lives under `$XDG_STATE_HOME/dotfiles/`.
 - `~/.config/dotfiles/extra.gitconfig`: extra gitconfig included from
   `~/.config/git/config` when `git.extraConfigInclude` points at it
 - `~/.config/dotfiles/ssh/config`: private SSH hosts and `IdentityFile` paths
@@ -67,6 +71,44 @@ Node.js fallback options.
 
 Linux-only modules are gated with `lib.mkIf pkgs.stdenv.isLinux`, so importing
 this flake on macOS leaves them as no-ops automatically.
+
+## macOS workflow
+
+`setup.sh` is intentionally passwordless: every step runs as the user. We do
+not use `nix-darwin` — the same effect is achieved with three sudo-less
+mechanisms:
+
+- **GUI casks via Homebrew** — `config/Brewfile` declares casks that cannot
+  (or should not) be Nix-managed (e.g. `gimp` and `vlc` lack
+  aarch64-darwin nixpkgs builds). After Home Manager activation,
+  `setup.sh` runs `brew bundle install --no-upgrade` to add anything
+  declared but missing. It never removes anything implicitly.
+
+  To prune casks not in the Brewfile, run
+  `scripts/brew-cleanup.sh` (dry run by default; pass `--apply` to
+  actually uninstall).
+
+- **Fonts via `~/Library/Fonts/`** — `home/darwin-apps.nix` adds the desired
+  `nerd-fonts.*` packages and an activation script that symlinks every
+  `.ttf`/`.otf` from the Nix store into `~/Library/Fonts/`. macOS picks
+  them up with no additional configuration. A marker file at
+  `~/Library/Fonts/dotfiles-managed` tracks which symlinks are owned
+  by us so removed packages get cleaned up on the next activation.
+
+- **Typed `launchd` user agents** — Home Manager's
+  `launchd.agents.<name>` writes generated plists into
+  `~/Library/LaunchAgents/` and runs the `launchctl bootstrap`/`bootout`
+  lifecycle as the user. See `home/launchd-goto.nix` for an example.
+  Hand-written XML plists still work via the `home/launchd.nix` symlink
+  pattern; prefer the typed form for new agents.
+
+Occasional manual steps (one-offs that need sudo and are kept out of
+`setup.sh`):
+
+- `brew uninstall --cask --force <name>` for casks left over after we
+  switched a tool to Nix.
+- `sudo rm -rf /opt/homebrew/Cellar/<name>` to clean a stuck keg that
+  Brew refused to remove (rare).
 
 ## Bumping dependencies
 

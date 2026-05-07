@@ -8,14 +8,18 @@
 
 {
   imports = [
+    ./apps.nix
     ./bootstrap.nix
+    ./darwin-apps.nix
     ./desktop
+    ./devtools.nix
     ./editors.nix
     ./files.nix
     ./fs.nix
     ./helix-langs.nix
     ./helix-plugins.nix
     ./launchd.nix
+    ./launchd-goto.nix
     ./nodejs.nix
     ./opencode.nix
     ./sessionEnv.nix
