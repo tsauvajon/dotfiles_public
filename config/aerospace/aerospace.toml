@@ -115,6 +115,19 @@ alt-shift-g = 'move-node-to-workspace G'
 # alt-shift-y = 'move-node-to-workspace Y'
 # alt-shift-z = 'move-node-to-workspace Z'
 
+# Application launchers
+# `open -na` forces a fresh instance against the Nix-managed bundle exposed
+# by Home Manager at ~/Applications/Home Manager Apps/. Going through .app +
+# `open` (rather than the bare nix-profile binary) is required: AeroSpace's
+# `exec-and-forget` runs commands via /bin/bash with no GUI session, so a
+# direct binary launch fails with `glfw error 65544: Cocoa: Failed to find
+# service port for display`.
+alt-enter = 'exec-and-forget open -na "$HOME/Applications/Home Manager Apps/kitty.app"'
+alt-o = 'exec-and-forget open -a "$HOME/Applications/Home Manager Apps/Obsidian.app"'
+alt-t = 'exec-and-forget open -a "$HOME/Applications/Home Manager Apps/Alacritty.app"'
+alt-a = 'exec-and-forget open -a "$HOME/Applications/Home Manager Apps/AeroSpace.app"'
+alt-y = 'exec-and-forget open -a "yazi"'
+
 # Workspace back and forth
 alt-tab = 'workspace-back-and-forth'
 
