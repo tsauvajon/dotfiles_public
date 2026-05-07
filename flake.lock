@@ -100,6 +100,23 @@
         "type": "github"
       }
     },
+    "ddcctl-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1669707528,
+        "narHash": "sha256-ICi7bZoDig8NVBZmcFlprnwSTQnnD+e+/wHak3vvnsk=",
+        "owner": "kfix",
+        "repo": "ddcctl",
+        "rev": "06c7ab6eba5b1c903678f8113a92cef990acaf90",
+        "type": "github"
+      },
+      "original": {
+        "owner": "kfix",
+        "repo": "ddcctl",
+        "rev": "06c7ab6eba5b1c903678f8113a92cef990acaf90",
+        "type": "github"
+      }
+    },
     "fake-warp-hx": {
       "flake": false,
       "locked": {
@@ -358,6 +375,7 @@
         "catppuccin-palette": "catppuccin-palette",
         "catppuccin-yazi": "catppuccin-yazi",
         "catppuccin-zellij": "catppuccin-zellij",
+        "ddcctl-src": "ddcctl-src",
         "fake-warp-hx": "fake-warp-hx",
         "flake-utils": "flake-utils",
         "goto": "goto",

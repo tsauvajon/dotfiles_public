@@ -10,6 +10,11 @@ lib.mkIf pkgs.stdenv.isLinux {
     audacity
     bibata-cursors
     dart-sass
+    # ddcutil — DDC/CI monitor control. Used by the `monitor-input`
+    # wrapper (see home/programs/monitor-input.nix). Requires the
+    # i2c-dev kernel module and the user in the `i2c` group; that
+    # layer is system-level and not managed by Home Manager.
+    ddcutil
     # firefox
     hyprpicker
     nerd-fonts.jetbrains-mono

@@ -33,6 +33,7 @@
     ./programs/functions.nix
     ./programs/git.nix
     ./programs/goto.nix
+    ./programs/monitor-input.nix
     ./programs/scripts.nix
     ./programs/task.nix
     ./programs/tmux.nix

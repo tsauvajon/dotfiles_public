@@ -15,6 +15,7 @@
   pkgs,
   lib,
   config,
+  inputs,
   ...
 }:
 
@@ -25,6 +26,20 @@ let
   ];
   fontPaths = lib.concatStringsSep " " (map (p: "${p}/share/fonts") fontPackages);
   personal = config.dotfiles.personal;
+
+  # DDC/CI monitor control backend, exposed on PATH for direct use.
+  # Apple Silicon Macs use m1ddc (nixpkgs); Intel Macs use kfix/ddcctl
+  # built from a pinned flake input. The `monitor-input` wrapper in
+  # home/programs/monitor-input.nix calls these by absolute path; they
+  # are listed here so the user can also run them directly for
+  # debugging or one-off tweaks.
+  ddcPackages =
+    if pkgs.stdenv.isAarch64 then
+      [ pkgs.m1ddc ]
+    else if pkgs.stdenv.isx86_64 then
+      [ (pkgs.callPackage ./lib/ddcctl.nix { src = inputs.ddcctl-src; }) ]
+    else
+      [ ];
 
   # Finder aliases for Nix-installed app bundles. Homebrew casks already
   # install into /Applications and surface in Spotlight/Launchpad without
@@ -71,7 +86,8 @@ lib.mkIf pkgs.stdenv.isDarwin {
     [
       aerospace
     ]
-    ++ fontPackages;
+    ++ fontPackages
+    ++ ddcPackages;
 
   # Symlink Nix-installed font files into ~/Library/Fonts/ on activation.
   # The marker file `dotfiles-managed` records every symlink we own so

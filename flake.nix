@@ -101,6 +101,14 @@
       url = "github:catppuccin/bat";
       flake = false;
     };
+
+    # ddcctl: macOS DDC/CI monitor control. Only used on x86_64-darwin
+    # (Apple Silicon uses pkgs.m1ddc from nixpkgs). Pinned to a specific
+    # commit because upstream is in self-described maintenance mode.
+    ddcctl-src = {
+      url = "github:kfix/ddcctl/06c7ab6eba5b1c903678f8113a92cef990acaf90";
+      flake = false;
+    };
   };
 
   outputs =

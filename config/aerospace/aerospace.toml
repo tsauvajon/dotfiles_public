@@ -128,6 +128,15 @@ alt-t = 'exec-and-forget open -a "$HOME/Applications/Home Manager Apps/Alacritty
 alt-a = 'exec-and-forget open -a "$HOME/Applications/Home Manager Apps/AeroSpace.app"'
 alt-y = 'exec-and-forget open -a "yazi"'
 
+# Monitor input switching for the Dell U4025QW via DDC/CI.
+# `monitor-input` is built from home/programs/monitor-input.nix and uses
+# m1ddc on Apple Silicon / ddcctl on Intel under the hood. The wrapper
+# binary is referenced through ~/.nix-profile/bin so that AeroSpace's
+# bash-with-no-shell exec context does not depend on PATH inheritance.
+ctrl-alt-1 = 'exec-and-forget $HOME/.nix-profile/bin/monitor-input dp'
+ctrl-alt-2 = 'exec-and-forget $HOME/.nix-profile/bin/monitor-input hdmi'
+ctrl-alt-3 = 'exec-and-forget $HOME/.nix-profile/bin/monitor-input thunderbolt'
+
 # Workspace back and forth
 alt-tab = 'workspace-back-and-forth'
 
