@@ -24,6 +24,29 @@ let
     pkgs.nerd-fonts.meslo-lg
   ];
   fontPaths = lib.concatStringsSep " " (map (p: "${p}/share/fonts") fontPackages);
+
+  darwinAppAliases = [
+    {
+      name = "AeroSpace.app";
+      target = "${pkgs.aerospace}/Applications/AeroSpace.app";
+    }
+    {
+      name = "Alacritty.app";
+      target = "${pkgs.alacritty}/Applications/Alacritty.app";
+    }
+    {
+      name = "Kitty.app";
+      target = "${pkgs.kitty}/Applications/kitty.app";
+    }
+    {
+      name = "Obsidian.app";
+      target = "${pkgs.obsidian}/Applications/Obsidian.app";
+    }
+  ];
+
+  darwinAppAliasCommands = lib.concatMapStringsSep "\n" (app: ''
+    link_app_alias ${lib.escapeShellArg app.name} ${lib.escapeShellArg app.target}
+  '') darwinAppAliases;
 in
 lib.mkIf pkgs.stdenv.isDarwin {
   home.packages =
@@ -68,5 +91,63 @@ lib.mkIf pkgs.stdenv.isDarwin {
         $DRY_RUN_CMD sh -c "printf '%s\n' \"$name\" >> \"$marker\""
       done < <(${pkgs.findutils}/bin/find "$srcRoot" -type f \( -name '*.ttf' -o -name '*.otf' \))
     done
+  '';
+
+  # Home Manager exposes app bundles through a symlink farm under
+  # ~/Applications/Home Manager Apps, which Spotlight and Dock pinning do not
+  # handle reliably. Finder aliases are stable, Spotlight-visible app entries.
+  home.activation.linkDarwinAppAliases = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+    aliasDir="${config.home.homeDirectory}/Applications/Nix Apps"
+    marker="$aliasDir/.dotfiles-managed"
+    oldAerospaceLauncher="${config.home.homeDirectory}/Applications/AeroSpace.app"
+    oldAerospaceMarker="$oldAerospaceLauncher/Contents/.dotfiles-managed-aerospace-launcher"
+    lsregister=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+
+    if [ -f "$oldAerospaceMarker" ]; then
+      $DRY_RUN_CMD rm -rf "$oldAerospaceLauncher"
+    fi
+
+    if [ -e "$aliasDir" ] && [ ! -d "$aliasDir" ]; then
+      printf 'error: refusing to replace non-directory: %s\n' "$aliasDir" >&2
+      exit 1
+    fi
+
+    $DRY_RUN_CMD mkdir -p "$aliasDir"
+
+    if [ -f "$marker" ]; then
+      while IFS= read -r name; do
+        [ -z "$name" ] && continue
+        dest="$aliasDir/$name"
+        if [ -e "$dest" ] || [ -L "$dest" ]; then
+          $DRY_RUN_CMD rm -rf "$dest"
+        fi
+      done < "$marker"
+    fi
+    $DRY_RUN_CMD : > "$marker"
+
+    link_app_alias() {
+      name="$1"
+      target="$2"
+      dest="$aliasDir/$name"
+
+      if [ ! -e "$target" ]; then
+        printf 'warning: skipping missing app bundle: %s\n' "$target" >&2
+        return 0
+      fi
+
+      if [ -e "$dest" ] || [ -L "$dest" ]; then
+        printf 'error: refusing to replace unmanaged app alias: %s\n' "$dest" >&2
+        exit 1
+      fi
+
+      $DRY_RUN_CMD ${pkgs.mkalias}/bin/mkalias "$target" "$dest"
+      $DRY_RUN_CMD sh -c 'printf "%s\n" "$1" >> "$2"' sh "$name" "$marker"
+
+      if [ -x "$lsregister" ]; then
+        $DRY_RUN_CMD "$lsregister" -f "$dest" >/dev/null 2>&1 || true
+      fi
+    }
+
+    ${darwinAppAliasCommands}
   '';
 }
