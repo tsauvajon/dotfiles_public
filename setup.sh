@@ -229,6 +229,7 @@ if [ "$(uname -s)" = "Darwin" ]; then
   brewfile="$DOTFILES/config/Brewfile"
   if [ -f "$brewfile" ] && command -v brew >/dev/null 2>&1; then
     printf '==> Reconciling Homebrew casks from %s\n' "$brewfile"
-    brew bundle install --no-upgrade --file="$brewfile"
+    # Work around Homebrew 5.1.9's cask API parser crashing on empty macOS requirements.
+    HOMEBREW_NO_INSTALL_FROM_API=1 brew bundle install --no-upgrade --file="$brewfile"
   fi
 fi
