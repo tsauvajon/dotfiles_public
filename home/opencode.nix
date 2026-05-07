@@ -27,9 +27,13 @@
 let
   cfg = config.programs.opencode;
 
-  inherit (import ./lib/deep-merge-json.nix { inherit lib; }) deepMergeAll;
   mergeDirs = import ./lib/merge-dirs.nix { inherit pkgs lib; };
-  concatFiles = import ./lib/concat-files.nix { inherit lib; };
+  inherit (import ./lib/deep-merge-json.nix { inherit lib; }) deepMergeAll;
+  inherit (import ./lib/opencode-merge.nix { inherit lib; })
+    mkMergedOpencodeJson
+    mkAgentsContent
+    readJsonOr
+    ;
 
   publicRoot = ../config/opencode;
   # Every field of `inputs.private.opencode` is optional. A user's
@@ -37,13 +41,6 @@ let
   # placeholder does), in which case we fall back to an empty attrset
   # and every consumed path is null.
   privatePaths = inputs.private.opencode or { };
-
-  # Guardrail: the public side is fragment-only (`opencode.<scope>.json`).
-  # A bare `config/opencode/opencode.json` would be silently ignored by
-  # the fragment filter (`name != "opencode.json"`), which is a real
-  # footgun if someone restores it from a backup or copies it back by
-  # mistake. Force the build to fail early with a clear message instead.
-  publicBaseExists = builtins.pathExists (publicRoot + "/opencode.json");
 
   # External imports staged by setup.sh into
   # ~/.config/dotfiles/opencode-imports/<name>/. The private flake
@@ -80,29 +77,6 @@ let
   importPluginsDirs = importDirsFor "plugins";
   importRulesDirs = importDirsFor "rules";
 
-  # Collect `opencode.*.json` JSON fragments in `dir`, sorted by
-  # filename bytes (LC_ALL=C). Excludes the bare `opencode.json` so
-  # the private overlay file (tier 4) is handled separately; the public
-  # side has no `opencode.json` so this filter is a no-op there.
-  jsonFragmentsIn =
-    dir:
-    if !builtins.pathExists dir then
-      [ ]
-    else
-      let
-        entries = builtins.readDir dir;
-        accepted = lib.filterAttrs (
-          name: type:
-          (type == "regular" || type == "symlink")
-          && lib.hasPrefix "opencode." name
-          && lib.hasSuffix ".json" name
-          && name != "opencode.json"
-        ) entries;
-        # `builtins.attrNames` already returns names in byte-sorted order.
-        names = builtins.attrNames accepted;
-      in
-      map (name: dir + "/${name}") names;
-
   # Pretty-print a JSON-shaped attrset to a file (sorted keys, 2-space
   # indent — jq's default). Matches serde_json structurally.
   prettyJson =
@@ -115,16 +89,6 @@ let
       ''
         echo "$jsonContent" | jq . > $out
       '';
-
-  # Read a JSON file if it exists, otherwise return an empty attrset.
-  # `null` short-circuits to the default so callers can pass an
-  # optional path straight through.
-  readJsonOr =
-    path: default:
-    if path == null || !builtins.pathExists path then
-      default
-    else
-      builtins.fromJSON (builtins.readFile path);
 
   # Build commands / skills / agents / plugins merged dirs. The private
   # flake exposes paths by name; the public root mirrors the same
@@ -168,60 +132,27 @@ let
     importDirs = importPluginsDirs;
   };
 
-  # AGENTS.md: collect rule fragments from public, imports, and/or
-  # private directories depending on rulesMode, then concat-sort by
-  # filename across all sources. Private last so it wins on collision;
-  # imports sit between public and private with the same precedence
-  # ordering used for commands/skills/agents/plugins. `privateRulesDir`
-  # is optional; null is filtered out so a flake without rules still
-  # produces a valid (public-only) AGENTS.md.
-  privateRulesList = lib.optional (privateRulesDir != null) privateRulesDir;
-  agentsFragmentDirs =
-    if cfg.rulesMode == "merged" then
-      [ (publicRoot + "/rules") ] ++ importRulesDirs ++ privateRulesList
-    else if cfg.rulesMode == "private_only" then
-      importRulesDirs ++ privateRulesList
-    else
-      [ ];
-  agentsContent = concatFiles {
-    fragmentDirs = agentsFragmentDirs;
+  # AGENTS.md content respecting cfg.rulesMode. The pure merge logic
+  # lives in lib/opencode-merge.nix so it can be unit-tested with
+  # synthetic fixtures.
+  agentsContent = mkAgentsContent {
+    rulesMode = cfg.rulesMode;
+    publicRulesDir = publicRoot + "/rules";
+    inherit importRulesDirs;
+    inherit privateRulesDir;
   };
 
-  # opencode.json: 4-tier deep merge. Each tier wins over the prior
-  # one on key collision (private always last so it overrides everything).
-  # The merged result is written to ~/.config/opencode/opencode.json;
-  # there is intentionally no public base file — the public side is
-  # fragment-only so every section has a self-documenting filename
-  # (opencode.meta.json, opencode.permission.bash.json, etc.).
-  #
-  #   1. repo fragments    config/opencode/opencode.*.json     (sorted)
-  #   2. import fragments  opencode-imports/<name>/opencode.*.json
-  #                        (sorted within each import; imports applied
-  #                        in flake-declared order)
-  #   3. private fragments ~/.config/dotfiles/opencode/opencode.*.json
-  #   4. private overlay   ~/.config/dotfiles/opencode/opencode.json
-  repoJsonFragments = map (p: builtins.fromJSON (builtins.readFile p)) (jsonFragmentsIn publicRoot);
-  importJsonFragments = lib.concatMap (
-    d: map (p: builtins.fromJSON (builtins.readFile p)) (jsonFragmentsIn d)
-  ) importsDirs;
-  # JSON fragments live next to the private overlay's `opencode/` dir.
-  # We derive that explicitly from `inputs.private.outPath` so the
+  # opencode.json: 4-tier deep merge. The pure merge logic (including
+  # the publicBaseExists guardrail) lives in lib/opencode-merge.nix.
+  # JSON fragments live next to the private overlay's `opencode/` dir;
+  # we derive that explicitly from `inputs.private.outPath` so the
   # discovery root stays stable even if `configFile` is ever pointed
   # somewhere unusual by a downstream private flake.
   privateOpencodeDir = inputs.private.outPath + "/opencode";
-  privateJsonFragments = map (p: builtins.fromJSON (builtins.readFile p)) (
-    jsonFragmentsIn privateOpencodeDir
-  );
-  privateJson = readJsonOr privateConfigFile { };
-  mergedJson =
-    assert lib.assertMsg (!publicBaseExists) ''
-      config/opencode/opencode.json must not exist.
-      The public side is fragment-only — split content into one of the
-      `opencode.<scope>.json` partials (meta, watcher, permission.bash,
-      permission.fs, permission.web, experimental.quotaToast).
-      See AGENTS.md > "opencode.json (4-tier deep merge)" for details.
-    '';
-    deepMergeAll (repoJsonFragments ++ importJsonFragments ++ privateJsonFragments ++ [ privateJson ]);
+  mergedJson = mkMergedOpencodeJson {
+    inherit publicRoot importsDirs privateOpencodeDir;
+    inherit privateConfigFile;
+  };
 
   publicPackage = readJsonOr (publicRoot + "/package.json") { };
   privatePackage = readJsonOr privatePackageFile { };

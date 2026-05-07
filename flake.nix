@@ -139,7 +139,8 @@
           modules = [
             ./home
             hostModule
-          ] ++ (inputs.private.homeModules or [ ]);
+          ]
+          ++ (inputs.private.homeModules or [ ]);
         };
     in
     let
@@ -168,6 +169,7 @@
         system:
         let
           pkgs = import nixpkgs { inherit system; };
+          inherit (pkgs) lib;
           # Map each host to the system it targets so `nix flake check
           # --all-systems` exercises every homeConfiguration. Pure
           # evaluation alone catches issues like the nixGL fetchurl
@@ -179,15 +181,50 @@
             "x86_64-linux" = [ "thomas-linux" ];
           };
           hosts = hostsForSystem.${system} or [ ];
+
+          # Pure value-equality unit tests for the lib helpers. Each
+          # imported file returns an attrset of `{expr; expected;}`
+          # cases; we union them and feed the union to `lib.runTests`.
+          # `runTests` returns `[]` on success or a list of failed
+          # cases, which we convert into a 0/non-zero exit by writing
+          # `$out` only when the list is empty.
+          libRunTestsCases =
+            (import ./home/lib/deep-merge-json.test.nix { inherit lib; })
+            // (import ./home/lib/concat-files.test.nix { inherit lib; });
+          libRunTestsFailures = lib.runTests libRunTestsCases;
+          libRunTestsCheck = pkgs.runCommand "lib-runTests" { } (
+            if libRunTestsFailures == [ ] then
+              ''
+                echo "lib runTests: all ${toString (builtins.length (builtins.attrNames libRunTestsCases))} cases passed"
+                touch "$out"
+              ''
+            else
+              ''
+                echo "lib runTests failures:" >&2
+                cat <<'EOF' >&2
+                ${builtins.toJSON libRunTestsFailures}
+                EOF
+                exit 1
+              ''
+          );
+
+          mergeDirsCheck = import ./home/lib/merge-dirs.test.nix { inherit pkgs lib; };
+          opencodeTestsCheck = import ./home/opencode.test { inherit pkgs lib; };
         in
         {
           formatter = pkgs.nixfmt-rfc-style;
-          checks = builtins.listToAttrs (
-            map (h: {
-              name = h;
-              value = homeConfigurations.${h}.activationPackage;
-            }) hosts
-          );
+          checks =
+            builtins.listToAttrs (
+              map (h: {
+                name = h;
+                value = homeConfigurations.${h}.activationPackage;
+              }) hosts
+            )
+            // {
+              lib-runTests = libRunTestsCheck;
+              merge-dirs-test = mergeDirsCheck;
+              opencode-tests = opencodeTestsCheck;
+            };
         }
       )
     // {

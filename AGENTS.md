@@ -311,6 +311,31 @@ to the merged OpenCode config.
 To add a new slash command that does not need a skill file, add it directly to the
 `config/opencode/commands/` directory as a Markdown file.
 
+## Tests
+
+Run all tests with `nix flake check --all-systems` (or the per-arch
+`nix flake check`). Three flake checks back the merge pipeline:
+
+| Check | What it covers |
+|---|---|
+| `lib-runTests` | Pure unit tests of `home/lib/deep-merge-json.nix` and `home/lib/concat-files.nix` via `lib.runTests` |
+| `merge-dirs-test` | Integration test for `home/lib/merge-dirs.nix` (builds a derivation and asserts on its contents) |
+| `opencode-tests` | End-to-end tests of `home/lib/opencode-merge.nix` (4-tier JSON merge, filename sort, rules modes, missing-private fallback, public-base guardrail) |
+
+The OpenCode JSON merge and AGENTS.md composition live as pure
+functions in `home/lib/opencode-merge.nix`. `home/opencode.nix`
+delegates to those functions and only retains the HM-specific glue
+(xdg.configFile wiring, prettyJson derivation, bun activation hook).
+
+Tests are co-located with the code:
+
+- `home/lib/<module>.test.nix` — pure tests next to each lib helper
+- `home/lib/<module>.test/` — fixture trees for tests that need real files
+- `home/opencode.test/` — end-to-end opencode merge tests + fixtures
+
+When changing merge behaviour, update or add tests in the same
+co-located directory and rerun `nix flake check`.
+
 ## Key invariants
 
 - **Never edit** the symlinks under `~/.config/`, `~/.cargo/`, etc. directly — they
