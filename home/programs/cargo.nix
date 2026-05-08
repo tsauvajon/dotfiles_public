@@ -10,20 +10,15 @@
 let
   concatTomlFiles = import ../lib/concat-toml-files.nix { inherit pkgs lib; };
 
-  privateDir = inputs.private;
-  privateDirExists = builtins.pathExists privateDir;
-  privateEntries = if privateDirExists then builtins.readDir privateDir else {};
-  hasPrivateCargo = privateDirExists && (builtins.any (name: 
-    let type = privateEntries.${name}; in
-    (type == "regular" || type == "symlink") &&
-    lib.hasPrefix "cargo." name && 
-    lib.hasSuffix ".toml" name
-  ) (builtins.attrNames privateEntries));
-
+  # `concatTomlFiles` already guards each `fragmentDir` with
+  # `pathExists`, so we can pass `inputs.private` unconditionally —
+  # matches the pattern used in aerospace.nix and alacritty.nix.
   cargoConfig = concatTomlFiles {
     name = "cargo-config.toml";
     base = ../../config/cargo/cargo-config.toml;
-    fragmentDirs = lib.optionals pkgs.stdenv.isDarwin [ ../../config/cargo ] ++ lib.optionals hasPrivateCargo [ privateDir ];
+    fragmentDirs =
+      lib.optionals pkgs.stdenv.isDarwin [ ../../config/cargo ]
+      ++ [ inputs.private ];
     prefix = "cargo.";
   };
 in
