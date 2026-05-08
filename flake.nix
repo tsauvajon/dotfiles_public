@@ -200,7 +200,8 @@
             (import ./home/lib/deep-merge-json.test.nix { inherit lib; })
             // (import ./home/lib/concat-files.test.nix { inherit lib; })
             // (import ./home/lib/list-files-in.test.nix { inherit lib; })
-            // (import ./home/default.test.nix { inherit lib; });
+            // (import ./home/default.test.nix { inherit lib; })
+            // (import ./home/bootstrap.test.nix { inherit lib; });
           libRunTestsFailures = lib.runTests libRunTestsCases;
           libRunTestsCheck = pkgs.runCommand "lib-runTests" { } (
             if libRunTestsFailures == [ ] then

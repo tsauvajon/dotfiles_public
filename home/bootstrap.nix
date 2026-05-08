@@ -1,7 +1,6 @@
 # Home Manager activation scripts:
 #   - Removes managed symlinks at known paths that may collide with
 #     `checkLinkTargets`.
-#   - Removes the unused ~/.config/dotfiles/path file if present.
 #   - Runs `task bootstrap --yes` once HM has finished linking files.
 #
 # Each activation block runs after the named DAG entry. Ordering is:
@@ -98,11 +97,6 @@ let
 in
 {
   home.activation = {
-    # Remove the unused ~/.config/dotfiles/path file if present.
-    removeDotfilesPath = entryBefore [ "checkLinkTargets" ] ''
-      rm -f "${homeDir}/.config/dotfiles/path"
-    '';
-
     # Clear pre-existing managed symlinks before HM tries to create
     # its own, otherwise checkLinkTargets aborts the activation.
     cleanupManagedDotfiles = entryBefore [ "checkLinkTargets" ] ''

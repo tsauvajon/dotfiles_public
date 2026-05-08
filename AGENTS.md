@@ -82,11 +82,9 @@ dotfiles/
 
 The activation flow itself is pure HM, defined under `home/`:
 
-1. **`home/bootstrap.nix`** runs three activation blocks:
+1. **`home/bootstrap.nix`** runs two activation blocks:
    - `cleanupManagedDotfiles` — removes pre-existing managed symlinks
      before `checkLinkTargets` runs (idempotent; safe on a fresh machine).
-   - `removeDotfilesPath` — removes the unused `~/.config/dotfiles/path`
-     file if present.
    - `taskBootstrap` — runs `task bootstrap --yes` after HM linking.
 2. **All other modules** under `home/` declare packages, configs, and
    symlinks. HM atomically swaps the home generation.

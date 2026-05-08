@@ -22,7 +22,6 @@
 #
 # The activation block in home/bootstrap.nix takes care of:
 #   - removing managed symlinks before checkLinkTargets runs
-#   - removing the unused ~/.config/dotfiles/path file if present
 #   - running `task bootstrap` so workspace dirs are ready
 #
 # To preview without activating, use:
