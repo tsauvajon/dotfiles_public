@@ -185,6 +185,7 @@ patch_field() {
     2) warn "$field already set to a different value in $private_flake; not overwriting" ;;
     3) warn "$field is not in the empty-literal form in $private_flake; set it manually to \"$value\"" ;;
     4) warn "private flake missing while trying to patch $field: $private_flake" ;;
+    5) warn "$field is absent from $private_flake; add it manually as $field = \"$value\";" ;;
     *) warn "failed to patch $field in $private_flake (helper exit $rc)" ;;
   esac
   return "$rc"

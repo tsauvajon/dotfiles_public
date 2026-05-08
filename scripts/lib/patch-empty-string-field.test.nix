@@ -14,6 +14,7 @@ let
   helper = ./patch-empty-string-field.sh;
   fixtureEmpty = ./patch-empty-string-field.test/flake-empty.nix;
   fixtureNull = ./patch-empty-string-field.test/flake-null.nix;
+  fixtureAbsent = ./patch-empty-string-field.test/flake-absent.nix;
 in
 pkgs.runCommand "patch-string-field-test"
   {
@@ -23,7 +24,12 @@ pkgs.runCommand "patch-string-field-test"
       pkgs.gnugrep
       pkgs.coreutils
     ];
-    inherit helper fixtureEmpty fixtureNull;
+    inherit
+      helper
+      fixtureEmpty
+      fixtureNull
+      fixtureAbsent
+      ;
   }
   ''
     set -eu
@@ -115,6 +121,34 @@ pkgs.runCommand "patch-string-field-test"
     rc=$?
     set -e
     [ "$rc" -eq 64 ] || fail "test8: expected exit 64 on empty value, got $rc"
+
+    # --- Test 9: field absent entirely -> exit 5 ---------------------
+    # The "absent" fixture omits `name` and `signingKey` but defines
+    # `email`. Patching the missing fields exits 5; the present field
+    # behaves like the matching shape (set to a non-empty value).
+    fix9="$TMPDIR/test9.nix"
+    install -m 0644 "$fixtureAbsent" "$fix9"
+    set +e
+    bash "$helper" "$fix9" name "Thomas" 2>/dev/null
+    rc=$?
+    set -e
+    [ "$rc" -eq 5 ] || fail "test9: expected exit 5 on absent field, got $rc"
+    grep -q 'name' "$fix9" \
+      && fail "test9: absent field should not be added to the file"
+    set +e
+    bash "$helper" "$fix9" signingKey "ABCDEF" 2>/dev/null
+    rc=$?
+    set -e
+    [ "$rc" -eq 5 ] || fail "test9: expected exit 5 on absent signingKey, got $rc"
+
+    # --- Test 10: present field with non-empty literal -> exit 2 -----
+    # The "absent" fixture also exercises a present field set to a
+    # different value. This must continue to exit 2 (not 5).
+    set +e
+    bash "$helper" "$fix9" email "other@example.com" 2>/dev/null
+    rc=$?
+    set -e
+    [ "$rc" -eq 2 ] || fail "test10: expected exit 2 on present-different value, got $rc"
 
     echo "all patch-string-field assertions passed"
     touch "$out"

@@ -20,6 +20,8 @@
 #      (e.g. `null`, multi-line, comment-stripped). Caller should
 #      ask the user to set it manually.
 #   4  Flake file does not exist.
+#   5  Field is absent from the flake file entirely. Caller should
+#      ask the user to add it.
 #   64 Usage error (wrong arg count, empty arg).
 #
 # Notes:
@@ -54,8 +56,11 @@ fi
 
 # Shape detection. We only patch the empty-literal form to avoid
 # clobbering a hand-edited value or a non-string expression.
+# `present_re` matches any `<field> = ...` line (regardless of RHS),
+# so we can tell "absent" apart from "present in odd shape".
 empty_re="^[[:space:]]*${field}[[:space:]]*=[[:space:]]*\"\"[[:space:]]*;"
 existing_re="^[[:space:]]*${field}[[:space:]]*=[[:space:]]*\"([^\"]*)\"[[:space:]]*;"
+present_re="^[[:space:]]*${field}[[:space:]]*="
 
 if grep -Eq "$empty_re" "$file"; then
   # Empty literal — patch it. Escape `\` and `&` in the replacement
@@ -87,8 +92,13 @@ if [ -n "$current" ]; then
   exit 2
 fi
 
-# Field present but in some other shape (null, multi-line, etc.) or
-# not present at all. Either way we cannot safely patch.
-printf 'warning: %s in %s is not in the empty-literal form; set it manually to %s\n' \
-  "$field" "$file" "\"$value\"" >&2
-exit 3
+# Distinguish "field present in odd shape" from "field absent".
+if grep -Eq "$present_re" "$file"; then
+  printf 'warning: %s in %s is not in the empty-literal form; set it manually to %s\n' \
+    "$field" "$file" "\"$value\"" >&2
+  exit 3
+fi
+
+printf 'warning: %s is absent from %s; add it manually as %s = %s;\n' \
+  "$field" "$file" "$field" "\"$value\"" >&2
+exit 5
