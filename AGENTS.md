@@ -247,9 +247,9 @@ opencode = {
     # auto-discovery, so the rename pulls it in under the new name).
     # `exclude` skips listed source-rel paths during the auto walk.
     {
-      name = "second-brain";
-      source = "~/dev/repo/second-brain/opencode";
-      rename  = { "mcp.fragment.json" = "opencode.sbs.mcp.json"; };
+      name = "notes-vault";
+      source = "~/dev/repo/notes-vault/opencode";
+      rename  = { "mcp.fragment.json" = "opencode.notes.mcp.json"; };
       exclude = [ "skills/wip-skill" ];
     }
 

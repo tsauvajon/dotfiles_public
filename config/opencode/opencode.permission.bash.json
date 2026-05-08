@@ -145,7 +145,6 @@
       "rustc *": "allow",
       "rustup *": "allow",
       "rustup run *": "allow",
-      "sbs *": "allow",
       "sccache *": "allow",
       "security *": "allow",
       "sed *": "allow",
