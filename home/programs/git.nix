@@ -48,45 +48,16 @@ assert lib.assertMsg hasIdentity ''
     ++ lib.optional stdenv.isDarwin pinentry_mac;
 
   # Wire gpg-agent to use pinentry-mac on darwin so commit signing
-  # works from non-TTY contexts (IDEs, Finder-launched git GUIs). This
-  # preserves existing gpg-agent settings such as cache TTLs.
+  # works from non-TTY contexts (IDEs, Finder-launched git GUIs). The
+  # heavy lifting lives in scripts/lib/configure-gpg-pinentry.sh so it
+  # can be exercised by the configure-gpg-pinentry-test flake check
+  # (covers missing-file, empty, single-line, multi-line, and
+  # preserves-other-settings shapes).
   home.activation = lib.mkIf pkgs.stdenv.isDarwin {
     configureGpgAgentPinentry = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
-      conf="$HOME/.gnupg/gpg-agent.conf"
-      pinentry_line="pinentry-program ${pkgs.pinentry_mac}/bin/pinentry-mac"
-
-      ${pkgs.coreutils}/bin/mkdir -p "$HOME/.gnupg"
-      ${pkgs.coreutils}/bin/chmod 700 "$HOME/.gnupg"
-
-      if [ -L "$conf" ]; then
-        target="$(${pkgs.coreutils}/bin/readlink "$conf" || true)"
-        case "$target" in
-          /nix/store/*) ${pkgs.coreutils}/bin/rm -f "$conf" ;;
-        esac
-      fi
-
-      if [ -f "$conf" ]; then
-        tmp="$conf.tmp.$$"
-        found=0
-        while IFS= read -r line || [ -n "$line" ]; do
-          case "$line" in
-            "pinentry-program "*)
-              if [ "$found" -eq 0 ]; then
-                printf '%s\n' "$pinentry_line"
-                found=1
-              fi
-              ;;
-            *) printf '%s\n' "$line" ;;
-          esac
-        done < "$conf" > "$tmp"
-        if [ "$found" -eq 0 ]; then
-          printf '%s\n' "$pinentry_line" >> "$tmp"
-        fi
-        ${pkgs.coreutils}/bin/mv "$tmp" "$conf"
-      else
-        printf '%s\n' "$pinentry_line" > "$conf"
-      fi
-
+      ${pkgs.bash}/bin/bash ${../../scripts/lib/configure-gpg-pinentry.sh} \
+        "$HOME/.gnupg/gpg-agent.conf" \
+        "${pkgs.pinentry_mac}/bin/pinentry-mac"
       ${pkgs.gnupg}/bin/gpgconf --kill gpg-agent >/dev/null 2>&1 || true
     '';
   };
