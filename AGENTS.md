@@ -64,7 +64,8 @@ dotfiles/
     ├── kitty/                # Terminal emulator
     ├── mako/                 # Notification daemon
     ├── nix/
-    │   └── nix-channels      # → ~/.nix-channels
+    │   ├── nix-channels      # → ~/.nix-channels
+    │   └── nix.conf          # → ~/.config/nix/nix.conf (flakes + parallel builds)
     ├── rofi/                 # App launcher
     ├── shell/                # bashrc, bash_profile, profile, fish_profile → $HOME
     ├── ssh/                  # ssh config (includes private overlay first)

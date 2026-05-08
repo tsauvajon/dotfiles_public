@@ -148,6 +148,11 @@ in
       };
       "helix".source = ../config/helix;
       "bat".source = ../config/bat;
+      # User-level Nix config: enables flakes + nix-command on every
+      # machine and turns on parallel builds (max-jobs auto, cores 0).
+      # Without this file, fresh hosts default to max-jobs=1 / cores=1
+      # and `nix build` is single-threaded.
+      "nix/nix.conf".source = ../config/nix/nix.conf;
       "tabiew/config.toml".source = ../config/tabiew/config.toml;
       "tabiew/theme.toml".source = tabiewTheme;
       # yazi: wire each config file individually so theme.toml and the

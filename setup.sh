@@ -365,8 +365,13 @@ fi
 "$DOTFILES/scripts/bootstrap-keys.sh"
 
 printf '==> Building home-manager generation for %s\n' "$host"
+# `--max-jobs auto --cores 0` parallelises the very first build, before
+# the HM-managed ~/.config/nix/nix.conf (config/nix/nix.conf) is in
+# place. After activation, those defaults are picked up from nix.conf
+# and the flags become harmless redundancy.
 out=$(nix \
   --extra-experimental-features 'nix-command flakes' \
+  --max-jobs auto --cores 0 \
   build --no-link --no-write-lock-file --print-out-paths \
   --override-input private "path:$private_ref" \
   "$flake_ref")
