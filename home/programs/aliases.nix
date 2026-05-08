@@ -10,6 +10,12 @@
 # Both shells will pick it up on next login.
 { ... }:
 
+let
+  # Shared flag set for eza-based ls aliases. Lift it once so adding
+  # a new variant (e.g. another column or sort order) is a one-line
+  # change instead of an N-line one.
+  ezaFlags = "--color=always --group-directories-first --git --icons --no-user --no-time --no-permissions";
+in
 {
   programs.crossShellAliases.aliases = {
     # cd helpers
@@ -66,11 +72,11 @@
     grv = "git remote --verbose";
 
     # ls replacements
-    l = "eza -lah --color=always --group-directories-first --git --icons --no-user --no-time --no-permissions";
-    la = "eza -a --color=always --group-directories-first --git --icons --no-user --no-time --no-permissions";
-    ll = "eza -l --color=always --group-directories-first --git --icons --no-user --no-time --no-permissions";
-    ls = "eza -al --color=always --group-directories-first --git --icons --no-user --no-time --no-permissions";
-    lt = "eza -aT --color=always --group-directories-first --git --icons --no-user --no-time --no-permissions";
+    l = "eza -lah ${ezaFlags}";
+    la = "eza -a ${ezaFlags}";
+    ll = "eza -l ${ezaFlags}";
+    ls = "eza -al ${ezaFlags}";
+    lt = "eza -aT ${ezaFlags}";
 
     # Other shorthands
     a = "aerospace";
