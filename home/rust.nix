@@ -21,6 +21,8 @@ let
     name = "dotfiles-rust";
     paths = [
       pkgs.cargo-llvm-cov
+      pkgs.cargo-nextest
+      pkgs.grcov
       pkgs.sccache
       stableRust
     ];
