@@ -1,6 +1,5 @@
 # Rust development tools.
-# Mirrors config/nix/flakes/rust/flake.nix.
-{ pkgs, ... }:
+{ pkgs, lib, ... }:
 
 let
   stableRust = pkgs.rust-bin.stable.latest.default.override {
@@ -21,7 +20,6 @@ let
     name = "dotfiles-rust";
     paths = [
       pkgs.cargo-llvm-cov
-      pkgs.cargo-nextest
       pkgs.grcov
       pkgs.sccache
       stableRust
@@ -34,5 +32,13 @@ let
   };
 in
 {
-  home.packages = [ rustWithNightlyFmt ];
+  # `cargo-nextest` ships separately so a private overlay can shadow
+  # it (e.g. a private overlay may expose a vendored nextest with the same
+  # binary name). `lib.lowPrio` makes the public copy lose the
+  # buildEnv collision; without a competing definition it is used as
+  # the only `cargo-nextest` on PATH.
+  home.packages = [
+    rustWithNightlyFmt
+    (lib.lowPrio pkgs.cargo-nextest)
+  ];
 }
