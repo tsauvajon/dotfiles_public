@@ -183,6 +183,7 @@ let
   ];
 
   opencodeAllowedEntries = [
+    ".gitignore"
     "AGENTS.md"
     "agents"
     "bun.lock"
@@ -193,6 +194,7 @@ let
     "package.json"
     "plugins"
     "skills"
+    "themes"
     "tui.json"
   ];
 
@@ -225,6 +227,8 @@ in
         "opencode/skills".source = mergedSkills;
         "opencode/agents".source = mergedAgents;
         "opencode/plugins".source = mergedPlugins;
+        "opencode/themes/catppuccin-mocha-lavender.json".source =
+          "${inputs.catppuccin-opencode}/themes/mocha/catppuccin-mocha-lavender.json";
         "opencode/opencode.json".source = prettyJson "opencode.json" mergedJson;
         # tui.json is a separate OpenCode file (different $schema) — not
         # part of the opencode.json deep-merge. Symlinked verbatim from

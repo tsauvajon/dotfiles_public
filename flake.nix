@@ -101,6 +101,10 @@
       url = "github:catppuccin/bat";
       flake = false;
     };
+    catppuccin-opencode = {
+      url = "github:catppuccin/opencode";
+      flake = false;
+    };
 
     # ddcctl: macOS DDC/CI monitor control. Only used on x86_64-darwin
     # (Apple Silicon uses pkgs.m1ddc from nixpkgs). Pinned to a specific

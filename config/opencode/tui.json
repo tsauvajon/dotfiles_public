@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/tui.json",
-  "theme": "opencode",
+  "theme": "catppuccin-mocha-lavender",
   "plugin": [
     "~/dev/detached/github.com/slkiser/opencode-quota"
   ]

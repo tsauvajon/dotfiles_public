@@ -28,6 +28,7 @@ let
     ".config/opencode/skills"
     ".config/opencode/agents"
     ".config/opencode/plugins"
+    ".config/opencode/themes"
     ".tmux.conf"
     ".tmux/plugins"
     ".gitconfig"

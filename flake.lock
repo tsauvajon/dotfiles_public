@@ -52,6 +52,22 @@
         "type": "github"
       }
     },
+    "catppuccin-opencode": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1775398747,
+        "narHash": "sha256-Gf+YdT3dW5NnwOHbDD2O5y0JVsbYhD1MEHVwjd/Tq7g=",
+        "owner": "catppuccin",
+        "repo": "opencode",
+        "rev": "eebee30512751c898ff35ae43a4db6fe67e83330",
+        "type": "github"
+      },
+      "original": {
+        "owner": "catppuccin",
+        "repo": "opencode",
+        "type": "github"
+      }
+    },
     "catppuccin-palette": {
       "flake": false,
       "locked": {
@@ -372,6 +388,7 @@
         "catppuccin": "catppuccin",
         "catppuccin-bat": "catppuccin-bat",
         "catppuccin-fzf": "catppuccin-fzf",
+        "catppuccin-opencode": "catppuccin-opencode",
         "catppuccin-palette": "catppuccin-palette",
         "catppuccin-yazi": "catppuccin-yazi",
         "catppuccin-zellij": "catppuccin-zellij",
