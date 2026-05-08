@@ -23,6 +23,7 @@ let
     ".config/opencode/AGENTS.md"
     ".config/opencode/opencode.json"
     ".config/opencode/package.json"
+    ".config/opencode/tui.json"
     ".config/opencode/commands"
     ".config/opencode/skills"
     ".config/opencode/agents"

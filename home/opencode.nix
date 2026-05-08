@@ -181,6 +181,24 @@ let
     publicPackage
     privatePackage
   ];
+
+  opencodeAllowedEntries = [
+    "AGENTS.md"
+    "agents"
+    "bun.lock"
+    "bun.lockb"
+    "commands"
+    "node_modules"
+    "opencode.json"
+    "package.json"
+    "plugins"
+    "skills"
+    "tui.json"
+  ];
+
+  opencodeAllowedEntryCases = lib.concatMapStringsSep "\n" (
+    name: "          ${name}) ;;"
+  ) opencodeAllowedEntries;
 in
 {
   options.programs.opencode = {
@@ -235,7 +253,36 @@ in
     # because HM activation runs with a minimal PATH that does not yet
     # include the user profile's bin dir.
     home.activation = {
-      opencodeBunInstall = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+      opencodeCheckUnmanaged = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+        dir="${config.xdg.configHome}/opencode"
+        unmanaged=""
+        if [ -d "$dir" ]; then
+          for path in "$dir"/* "$dir"/.[!.]* "$dir"/..?*; do
+            [ -e "$path" ] || [ -L "$path" ] || continue
+            name="''${path##*/}"
+            case "$name" in
+${opencodeAllowedEntryCases}
+              *)
+                if [ -z "$unmanaged" ]; then
+                  unmanaged="  $name"
+                else
+                  unmanaged="$unmanaged
+  $name"
+                fi
+                ;;
+            esac
+          done
+        fi
+
+        if [ -n "$unmanaged" ]; then
+          printf '%s\n' "Found unmanaged OpenCode config under $dir:" >&2
+          printf '%s\n' "$unmanaged" >&2
+          printf '%s\n' "Move it into dotfiles/private overlay or remove it before activating." >&2
+          exit 1
+        fi
+      '';
+
+      opencodeBunInstall = lib.hm.dag.entryAfter [ "opencodeCheckUnmanaged" ] ''
         pkg="${config.xdg.configHome}/opencode/package.json"
         marker="${config.xdg.cacheHome}/dotfiles/opencode-package.sha256"
         ${pkgs.coreutils}/bin/mkdir -p "$(dirname "$marker")"

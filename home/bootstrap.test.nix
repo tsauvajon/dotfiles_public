@@ -27,6 +27,11 @@ in
     expected = true;
   };
 
+  testOpencodeTuiJsonCleanupPathPresent = {
+    expr = lib.hasInfix ''".config/opencode/tui.json"'' source;
+    expected = true;
+  };
+
   testTaskBootstrapPresent = {
     expr = lib.hasInfix "taskBootstrap" source;
     expected = true;

@@ -64,12 +64,6 @@ if test "$TERM" = xterm-kitty
     end
 end
 
-if test -d ~/.cargo/bin
-    if not contains -- ~/.cargo/bin $PATH
-        set -p PATH ~/.cargo/bin
-    end
-end
-
 # Go
 set --export GOPATH "$HOME/go"
 set --export PATH $GOPATH/bin $PATH

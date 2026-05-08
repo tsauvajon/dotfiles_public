@@ -22,6 +22,8 @@ let
   goodResult = builtins.tryEval (
     builtins.deepSeq (mkMergedOpencodeJson { publicRoot = ./fixtures/public; }) "ok"
   );
+
+  opencodeModuleSource = builtins.readFile ../opencode.nix;
 in
 {
   testGuardrailFiresWhenBareOpencodeJsonExists = {
@@ -31,6 +33,23 @@ in
 
   testNoGuardrailWhenFragmentOnly = {
     expr = goodResult.success;
+    expected = true;
+  };
+
+  testUnmanagedActivationCheckPresent = {
+    expr = lib.hasInfix "opencodeCheckUnmanaged" opencodeModuleSource;
+    expected = true;
+  };
+
+  testBunGeneratedEntriesAllowed = {
+    expr =
+      (lib.hasInfix ''"bun.lock"'' opencodeModuleSource)
+      && (lib.hasInfix ''"node_modules"'' opencodeModuleSource);
+    expected = true;
+  };
+
+  testBunInstallRunsAfterUnmanagedCheck = {
+    expr = lib.hasInfix ''opencodeBunInstall = lib.hm.dag.entryAfter [ "opencodeCheckUnmanaged" ]'' opencodeModuleSource;
     expected = true;
   };
 }
