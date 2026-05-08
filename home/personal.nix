@@ -97,7 +97,10 @@ in
       lib.optionals cfg.signal.enable [ pkgs.signal-desktop ]
       ++ lib.optionals (cfg.tailscale.enable && pkgs.stdenv.isLinux) [ pkgs.tailscale ];
 
-    services.syncthing.enable = lib.mkIf cfg.syncthing.enable true;
+    services.syncthing = lib.mkIf cfg.syncthing.enable {
+      enable = true;
+      extraOptions = [ "--allow-newer-config" ];
+    };
 
     # Only write Brewfile.personal on Darwin and only when at least
     # one cask is selected. Skipping the file entirely when empty
