@@ -42,10 +42,13 @@
       };
 
       # Optional — goto bookmarks (https://github.com/tsauvajon/goto).
-      # Set apiUrl to enable; leave null to skip.
+      # Setting `apiUrl` enables the goto client config; clear it (or
+      # set to null) to skip. On Darwin, the goto-api launchd agent
+      # reads from `bookmarksFile`; create the file at the path below
+      # to populate the database.
       goto = {
-        apiUrl = null; # e.g. "http://127.0.0.1:50002"
-        bookmarksFile = null; # e.g. ./goto/database.yml
+        apiUrl = "http://127.0.0.1:50002";
+        bookmarksFile = ./goto/database.yml;
       };
 
       # Optional — personal-only applications and services. Keep the
@@ -63,21 +66,50 @@
         tailscale.enable = true;
       };
 
-      # Optional — OpenCode private overlays. Each path is independently
-      # optional; null/omitted skips that overlay. Files referenced by
-      # configFile / packageFile may not exist — missing files are
-      # treated as empty objects and merged accordingly.
+      # Optional — OpenCode private overlays.
+      #
+      # Defaults: every overlay path falls back to the standard
+      # subpath under `<this flake>/opencode/`. Just drop a file or
+      # directory at one of these locations and it gets merged in:
+      #
+      #   ./opencode/commands/        slash commands
+      #   ./opencode/skills/          loadable skills
+      #   ./opencode/agents/          agent definitions
+      #   ./opencode/plugins/         autoloaded plugins
+      #   ./opencode/rules/           AGENTS.md fragments
+      #   ./opencode/opencode.json    config overlay (e.g. MCP servers)
+      #   ./opencode/package.json     plugin dependency overlay
+      #
+      # Override only when you need a non-standard layout. Use `null`
+      # to disable an overlay even when the standard subpath exists,
+      # or pass a custom Nix path to point elsewhere — e.g.:
+      #
+      #   opencode.commandsDir = ./alt-commands;
+      #   opencode.skillsDir   = null;
       opencode = {
-        commandsDir = null; # e.g. ./opencode/commands
-        skillsDir = null; # e.g. ./opencode/skills
-        agentsDir = null; # e.g. ./opencode/agents
-        pluginsDir = null; # e.g. ./opencode/plugins
-        rulesDir = null; # e.g. ./opencode/rules
-        configFile = null; # e.g. ./opencode/opencode.json
-        packageFile = null; # e.g. ./opencode/package.json
-
-        # External non-Nix repos contributing skills/commands/etc.
-        # See AGENTS.md > "External imports" for the schema.
+        # External non-Nix repos contributing skills, commands, plugins,
+        # rules, and opencode.*.json fragments. setup.sh syncs each
+        # source into ./opencode-imports/<name>/ before the build.
+        #
+        # Schema (see AGENTS.md > "External imports" for full details):
+        #   { name    = "...";          # required, staging dir name
+        #     source  = "~/path/to/repo";   # required, supports leading ~
+        #
+        #     # Auto mode (default): every entry under commands/, skills/,
+        #     # agents/, plugins/, rules/, plus top-level opencode.*.json
+        #     # and package.json, is staged automatically. These tweaks
+        #     # apply to the auto walk:
+        #     rename  = { "<src>" = "<dest>"; ... };
+        #         # Renames an auto-discovered item; also imports
+        #         # non-standard files (e.g. mcp.fragment.json).
+        #     exclude = [ "<src>" ... ];
+        #         # Skip these during the auto walk.
+        #
+        #     # Cherry-pick mode: when `paths` is set, auto walk is OFF
+        #     # and only these mappings are imported. Mutually exclusive
+        #     # with `rename` / `exclude`.
+        #     paths   = { "<src>" = "<dest>"; ... };
+        #   }
         imports = [ ];
       };
 

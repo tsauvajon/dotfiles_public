@@ -39,8 +39,28 @@ let
   # Every field of `inputs.private.opencode` is optional. A user's
   # private flake.nix may omit the entire `opencode` attribute (the
   # placeholder does), in which case we fall back to an empty attrset
-  # and every consumed path is null.
+  # and every consumed path defaults to its standard subpath under
+  # `<private flake>/opencode/` — see `defaultPrivateSubpath` below.
   privatePaths = inputs.private.opencode or { };
+
+  # Standard layout: every private OpenCode overlay lives under
+  # `<private flake outPath>/opencode/<name>` (e.g. `commands/`,
+  # `skills/`, `opencode.json`). We expose this dir explicitly so the
+  # discovery root stays stable even when a downstream private flake
+  # overrides individual fields with non-standard locations.
+  privateOpencodeDir = inputs.private.outPath + "/opencode";
+
+  # Resolve a private subpath to its absolute Nix path if it exists,
+  # else null. Used to default each `*Dir` / `*File` field below so
+  # users do not need to enumerate the standard layout in their
+  # private flake — dropping a file under `<private>/opencode/<name>`
+  # is enough to wire it into the merge.
+  defaultPrivateSubpath =
+    sub:
+    let
+      p = privateOpencodeDir + "/${sub}";
+    in
+    if builtins.pathExists p then p else null;
 
   # External imports staged by setup.sh into
   # ~/.config/dotfiles/opencode-imports/<name>/. The private flake
@@ -51,15 +71,18 @@ let
   stagedImportsDirs = map (i: inputs.private.outPath + "/opencode-imports/${i.name}") declaredImports;
   importsDirs = stagedImportsDirs ++ (privatePaths.importsDirs or [ ]);
 
-  # Each *Dir field is optional in the private flake. Null is filtered
-  # out below before being passed to mergeDirs / concatFiles.
-  privateCommandsDir = privatePaths.commandsDir or null;
-  privateSkillsDir = privatePaths.skillsDir or null;
-  privateAgentsDir = privatePaths.agentsDir or null;
-  privatePluginsDir = privatePaths.pluginsDir or null;
-  privateRulesDir = privatePaths.rulesDir or null;
-  privateConfigFile = privatePaths.configFile or null;
-  privatePackageFile = privatePaths.packageFile or null;
+  # Each *Dir / *File field is optional in the private flake. When
+  # omitted, fall back to the standard subpath under
+  # `<private>/opencode/<name>`. Setting a field to `null` explicitly
+  # disables the overlay even if the standard subpath exists; setting
+  # it to a custom path overrides the default location.
+  privateCommandsDir = privatePaths.commandsDir or (defaultPrivateSubpath "commands");
+  privateSkillsDir = privatePaths.skillsDir or (defaultPrivateSubpath "skills");
+  privateAgentsDir = privatePaths.agentsDir or (defaultPrivateSubpath "agents");
+  privatePluginsDir = privatePaths.pluginsDir or (defaultPrivateSubpath "plugins");
+  privateRulesDir = privatePaths.rulesDir or (defaultPrivateSubpath "rules");
+  privateConfigFile = privatePaths.configFile or (defaultPrivateSubpath "opencode.json");
+  privatePackageFile = privatePaths.packageFile or (defaultPrivateSubpath "package.json");
 
   # Helper: subdir of an import dir if it exists, else null.
   importSubdir =
@@ -144,11 +167,9 @@ let
 
   # opencode.json: 4-tier deep merge. The pure merge logic (including
   # the publicBaseExists guardrail) lives in lib/opencode-merge.nix.
-  # JSON fragments live next to the private overlay's `opencode/` dir;
-  # we derive that explicitly from `inputs.private.outPath` so the
-  # discovery root stays stable even if `configFile` is ever pointed
-  # somewhere unusual by a downstream private flake.
-  privateOpencodeDir = inputs.private.outPath + "/opencode";
+  # JSON fragments live next to the private overlay's `opencode/` dir
+  # (see `privateOpencodeDir` above) so the discovery root stays stable
+  # even when `configFile` is overridden by a downstream private flake.
   mergedJson = mkMergedOpencodeJson {
     inherit publicRoot importsDirs privateOpencodeDir;
     inherit privateConfigFile;
