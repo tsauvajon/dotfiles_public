@@ -18,7 +18,6 @@
     ./fs.nix
     ./helix-langs.nix
     ./helix-plugins.nix
-    ./launchd.nix
     ./launchd-goto.nix
     ./nodejs.nix
     ./opencode.nix
