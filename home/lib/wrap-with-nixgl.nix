@@ -23,14 +23,15 @@
 
 let
   inherit (pkgs.stdenv.hostPlatform) system;
+  isX86Linux = system == "x86_64-linux";
   nixglPkgs = import nixgl {
     pkgs = import nixgl-nixpkgs {
       inherit system;
       config.allowUnfree = true;
     };
     inherit nvidiaVersion nvidiaHash;
-    enable32bits = system == "x86_64-linux";
-    enableIntelX86Extensions = system == "x86_64-linux";
+    enable32bits = isX86Linux;
+    enableIntelX86Extensions = isX86Linux;
   };
   # Build the launcher explicitly instead of using `nixglPkgs.auto.nixGLDefault`.
   # `auto.nixGLDefault` reconstructs the nvidia derivation via
