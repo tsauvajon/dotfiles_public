@@ -126,7 +126,7 @@ alt-enter = 'exec-and-forget open -na "$HOME/Applications/Home Manager Apps/kitt
 alt-o = 'exec-and-forget open -a "$HOME/Applications/Home Manager Apps/Obsidian.app"'
 alt-t = 'exec-and-forget open -a "$HOME/Applications/Home Manager Apps/Alacritty.app"'
 alt-a = 'exec-and-forget open -a "$HOME/Applications/Home Manager Apps/AeroSpace.app"'
-alt-y = 'exec-and-forget open -a "yazi"'
+alt-w = 'exec-and-forget open -a "yazi"'
 
 # Monitor input switching for the Dell U4025QW via DDC/CI.
 # `monitor-input` is built from home/programs/monitor-input.nix and uses
