@@ -1,5 +1,4 @@
 # Steel-enabled Helix with pinned plugins.
-# Mirrors config/nix/flakes/helix-plugins/flake.nix.
 #
 # Builds a single derivation `helixPlugins` whose `bin/hx` is a wrapper
 # that exports STEEL_HOME / STEEL_SEARCH_PATHS and adds steel/rust/git to

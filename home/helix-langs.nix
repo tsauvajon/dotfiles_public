@@ -1,5 +1,4 @@
 # Helix language servers, formatters, and debuggers.
-# Mirrors config/nix/flakes/helix-langs/flake.nix.
 { pkgs, ... }:
 
 {

@@ -1,5 +1,4 @@
 # Filesystem navigation and search tools.
-# Mirrors config/nix/flakes/fs/flake.nix.
 { pkgs, ... }:
 
 {

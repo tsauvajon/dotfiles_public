@@ -27,8 +27,8 @@ dotfiles/
 ├── flake.nix                 # Pure Home Manager flake
 ├── home/                     # All managed config lives here
 │   ├── default.nix           # Top-level module, imports per-domain modules
-│   ├── bootstrap.nix         # HM activation scripts (cleanup, path record, task bootstrap)
-│   ├── launchd.nix           # macOS LaunchAgents (Library/LaunchAgents/*.plist)
+│   ├── bootstrap.nix         # HM activation scripts (cleanup, task bootstrap)
+│   ├── launchd-goto.nix      # Typed launchd agent for goto-api (darwin)
 │   ├── files.nix             # Plain-symlink dotfiles (bat, fzf, fish, helix, kitty, ssh, …)
 │   ├── lib/                  # Reusable Nix helpers (merge-dirs, concat-files, concat-toml-files, …)
 │   ├── hosts/                # Per-host identity (darwin.nix, linux.nix)
@@ -47,6 +47,8 @@ dotfiles/
 └── config/                   # Dotfile sources, grouped by tool
     ├── opencode/
     │   ├── opencode.*.json   # Per-section partials (meta, watcher, permission.{bash,fs,web}, experimental.quotaToast); deep-merged at build time
+    │   ├── tui.json          # OpenCode TUI config (separate $schema; symlinked verbatim, not deep-merged)
+    │   ├── package.json      # Plugin dependency manifest (deep-merged with private overlay)
     │   ├── rules/            # Public AGENTS.md fragments (sorted with private rules)
     │   ├── commands/         # OpenCode slash commands as markdown files
     │   └── skills/           # OpenCode skills, one subdirectory per skill
@@ -321,16 +323,18 @@ skills need no registration — drop a `<skill-name>/SKILL.md` directory into
 Private commands also need no registration — drop a `<name>.md` file into
 `opencode/commands/` and rerun `setup.sh`.
 
-The setup tool also supports an optional `~/.config/dotfiles/opencode/opencode.json` file.
-When present, it is deep-merged on top of the public partials under `config/opencode/`
-(plus any `opencode.*.json` fragments in the same private directory) to generate the
-merged `opencode.json` linked at `~/.config/opencode/opencode.json`.
+The OpenCode merge in `home/opencode.nix` also supports an optional
+`~/.config/dotfiles/opencode/opencode.json` file. When present, it is deep-merged on top
+of the public partials under `config/opencode/` (plus any `opencode.*.json` fragments
+in the same private directory) to generate the merged `opencode.json` linked at
+`~/.config/opencode/opencode.json`.
 
 ## OpenCode config
 
 | File | Purpose |
 |---|---|
 | `config/opencode/opencode.*.json` | Per-section partials (meta, watcher, permission.{bash,fs,web}, experimental.quotaToast); deep-merged at build time |
+| `config/opencode/tui.json` | OpenCode TUI config (separate `$schema`; symlinked verbatim, not deep-merged) |
 | `config/opencode/rules/<name>.md` | Public AGENTS.md fragments (merged with private rules sorted by filename) |
 | `config/opencode/commands/<name>.md` | Custom slash commands |
 | `config/opencode/skills/<name>/SKILL.md` | Loadable skill workflows |
@@ -347,13 +351,15 @@ To add a new slash command that does not need a skill file, add it directly to t
 ## Tests
 
 Run all tests with `nix flake check --all-systems` (or the per-arch
-`nix flake check`). Three flake checks back the merge pipeline:
+`nix flake check`). The flake exposes:
 
 | Check | What it covers |
 |---|---|
-| `lib-runTests` | Pure unit tests of `home/lib/deep-merge-json.nix` and `home/lib/concat-files.nix` via `lib.runTests` |
+| `lib-runTests` | Pure unit tests via `lib.runTests`: `deep-merge-json`, `concat-files`, `list-files-in`, `home/default.nix` import resolution, `bootstrap.nix` activation-hook regression guard |
 | `merge-dirs-test` | Integration test for `home/lib/merge-dirs.nix` (builds a derivation and asserts on its contents) |
 | `opencode-tests` | End-to-end tests of `home/lib/opencode-merge.nix` (4-tier JSON merge, filename sort, rules modes, missing-private fallback, public-base guardrail) |
+| `patch-string-field-test` | Integration test for `scripts/lib/patch-empty-string-field.sh` (empty/null/absent shapes, exit codes) |
+| `configure-gpg-pinentry-test` | Integration test for `scripts/lib/configure-gpg-pinentry.sh` (idempotent rewrite of gpg-agent.conf pinentry-program lines) |
 
 The OpenCode JSON merge and AGENTS.md composition live as pure
 functions in `home/lib/opencode-merge.nix`. `home/opencode.nix`

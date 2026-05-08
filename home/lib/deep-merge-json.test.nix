@@ -101,8 +101,8 @@ in
   };
 
   testArrayReplaced = {
-    # Arrays are replaced wholesale, not concatenated, matching the
-    # Rust deep_merge_json semantics referenced in deep-merge-json.nix.
+    # Arrays are replaced wholesale, not concatenated, per the
+    # deep-merge contract documented in deep-merge-json.nix.
     expr =
       deepMerge
         {

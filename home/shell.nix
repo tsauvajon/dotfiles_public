@@ -1,5 +1,4 @@
-# Shell and terminal workflow tools.
-# Mirrors config/nix/flakes/shell/flake.nix, including nixGL wrapping for
+# Shell and terminal workflow tools, including nixGL wrapping for
 # graphical terminals on Linux.
 {
   pkgs,

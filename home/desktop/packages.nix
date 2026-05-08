@@ -1,5 +1,4 @@
-# Desktop session tools (Linux-only).
-# Mirrors config/nix/flakes/desktop/flake.nix; on non-Linux this module
+# Desktop session tools (Linux-only). On non-Linux this module
 # contributes nothing.
 { pkgs, lib, ... }:
 

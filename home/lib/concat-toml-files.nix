@@ -1,7 +1,6 @@
 # Concatenate a base file with overlay fragments to produce a single
-# output file, matching the Rust setup tool's `merge_overlay` semantics
-# byte-for-byte (base verbatim, then for each overlay: a `\n` then the
-# overlay content).
+# output file. Output layout: the base file verbatim, then for each
+# overlay a `\n` separator followed by the overlay content.
 #
 # Used for cargo / aerospace / alacritty where the base config plus
 # platform/private fragments are stitched together. Attribute-level

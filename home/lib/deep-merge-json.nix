@@ -1,18 +1,15 @@
-# Deep-merge a list of JSON-like attrsets, preserving key order.
+# Deep-merge a list of JSON-like attrsets.
 #
-# Matches the Rust `deep_merge_json` semantics from src/merge.rs:
-# - For object/object: recursively merge. Base keys come first
-#   (preserving base order); overlay-only keys are appended at the end.
-#   On a key collision, recurse if both sides are objects, else overlay
-#   wins.
-# - For everything else: overlay wins.
+# Semantics:
+# - For object/object: recursively merge. On a key collision, recurse
+#   if both sides are objects, else overlay wins.
+# - For everything else (arrays, primitives): overlay wins; arrays are
+#   replaced wholesale, never concatenated.
 #
-# Note: Nix attrsets are intrinsically sorted by attribute name, so the
-# "key order" only matters when the result is serialized via
-# `builtins.toJSON`. `builtins.toJSON` itself emits attrs in sorted
-# order — so byte-equivalence with the Rust tool's pretty-printed
-# `serde_json` output is approximate; structural equivalence (same
-# keys, same values) is exact.
+# Nix attrsets are intrinsically sorted by attribute name, and
+# `builtins.toJSON` emits them in that sorted order, so the resulting
+# JSON has stable byte-level output regardless of how the inputs were
+# constructed.
 { lib }:
 
 let
