@@ -73,10 +73,13 @@
     lt = "eza -aT --color=always --group-directories-first --git --icons --no-user --no-time --no-permissions";
 
     # Other shorthands
+    a = "aerospace";
+    b = "bat";
     gt = "goto";
     h = "hx";
     md = "mdterm";
     oc = "opencode";
+    tabiew = "tw";
 
     # Task
     t = "task";
