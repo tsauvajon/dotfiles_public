@@ -4,6 +4,7 @@
 {
   home.packages = with pkgs; [
     cargo-watch
+    cmake
     docker-credential-helpers
     mdterm
     sqlx-cli

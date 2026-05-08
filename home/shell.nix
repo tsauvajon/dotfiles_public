@@ -23,7 +23,6 @@ in
   home.packages = [
     (wrapWithNixGL pkgs.alacritty "alacritty")
     pkgs.bash
-    pkgs.cmake
     pkgs.coreutils
     pkgs.curl
     pkgs.fish
