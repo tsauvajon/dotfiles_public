@@ -181,7 +181,6 @@ let
     publicPackage
     privatePackage
   ];
-  hasAnyPackage = publicPackage != { } || privatePackage != { };
 in
 {
   options.programs.opencode = {
@@ -217,9 +216,12 @@ in
       (lib.mkIf (cfg.rulesMode != "disabled") {
         "opencode/AGENTS.md".text = agentsContent;
       })
-      (lib.mkIf hasAnyPackage {
+      {
+        # The public package.json is committed and non-empty, so
+        # mergedPackage always has content. Always emit the file and
+        # always run the bun-install activation.
         "opencode/package.json".source = prettyJson "opencode-package.json" mergedPackage;
-      })
+      }
     ];
 
     # Auto-install plugin dependencies when the merged package.json
@@ -232,7 +234,7 @@ in
     # symlink target — that works fine. We invoke bun via its store path
     # because HM activation runs with a minimal PATH that does not yet
     # include the user profile's bin dir.
-    home.activation = lib.mkIf hasAnyPackage {
+    home.activation = {
       opencodeBunInstall = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
         pkg="${config.xdg.configHome}/opencode/package.json"
         marker="${config.xdg.cacheHome}/dotfiles/opencode-package.sha256"
