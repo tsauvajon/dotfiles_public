@@ -2,29 +2,69 @@
 # Bootstrap per-machine GPG and SSH keys used by the dotfiles.
 #
 # This script is intentionally idempotent. It creates missing personal keys,
-# fills git.signingKey in the private flake when it can do so safely, and prints
-# upload instructions only when useful. First-run GPG generation is
-# interactive and requires a working pinentry prompt.
+# fills git.{name,email,signingKey} in the private flake when it can do so
+# safely, and prints upload instructions only when useful. First-run GPG
+# generation is interactive and requires a working pinentry prompt.
 set -euo pipefail
 umask 077
 
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
+patch_helper="$script_dir/lib/patch-empty-string-field.sh"
+
 show_keys=0
-case "${1:-}" in
-  "") ;;
-  --show) show_keys=1 ;;
-  -h|--help)
-    printf 'usage: %s [--show]\n' "$(basename "$0")"
-    printf '\n'
-    printf 'Generates missing GPG/SSH keys and patches git.signingKey in ~/.config/dotfiles/flake.nix.\n'
-    printf 'Pass --show to print upload commands and public keys even when nothing changed.\n'
-    exit 0
-    ;;
-  *)
-    printf 'error: unknown argument: %s\n' "$1" >&2
-    printf 'usage: %s [--show]\n' "$(basename "$0")" >&2
-    exit 2
-    ;;
-esac
+name_arg="${DOTFILES_GIT_NAME:-}"
+email_arg="${DOTFILES_GIT_EMAIL:-}"
+
+usage() {
+  cat <<USAGE
+usage: $(basename "$0") [--show] [--name "Full Name"] [--email "you@example.com"]
+
+Generates missing GPG/SSH keys and patches git.{name,email,signingKey}
+in ~/.config/dotfiles/flake.nix when those fields are empty literals.
+
+Flags:
+  --name   Seed git.name when empty in the flake.
+  --email  Seed git.email when empty in the flake.
+  --show   Print upload commands and public keys even when nothing changed.
+  -h, --help  Show this help.
+
+Env vars (overridden by flags):
+  DOTFILES_GIT_NAME           Same as --name.
+  DOTFILES_GIT_EMAIL          Same as --email.
+  DOTFILES_BOOTSTRAP_KEYS_SHOW=1   Same as --show.
+
+Conflicts (already-set field, different value provided) are warned and
+skipped, never silently overwritten.
+USAGE
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --show) show_keys=1; shift ;;
+    --name)
+      [ "$#" -ge 2 ] || { printf 'error: --name requires a value\n' >&2; exit 2; }
+      name_arg="$2"; shift 2
+      ;;
+    --name=*) name_arg="${1#--name=}"; shift ;;
+    --email)
+      [ "$#" -ge 2 ] || { printf 'error: --email requires a value\n' >&2; exit 2; }
+      email_arg="$2"; shift 2
+      ;;
+    --email=*) email_arg="${1#--email=}"; shift ;;
+    -h|--help) usage; exit 0 ;;
+    --) shift; break ;;
+    -*)
+      printf 'error: unknown argument: %s\n' "$1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      printf 'error: unexpected positional argument: %s\n' "$1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
 
 if [ "${DOTFILES_BOOTSTRAP_KEYS_SHOW:-}" = "1" ]; then
   show_keys=1
@@ -127,29 +167,31 @@ secret_key_exists() {
   } | grep -q '^sec:'
 }
 
+# Patch a `<field> = "";` literal in the private flake using the
+# scripts/lib/patch-empty-string-field.sh helper. Returns 0 on success
+# (patched, or already idempotent), non-zero with a warning otherwise.
+patch_field() {
+  local field="$1"
+  local value="$2"
+  local rc=0
+
+  [ -x "$patch_helper" ] || die "patch helper missing or not executable: $patch_helper"
+
+  if "$patch_helper" "$private_flake" "$field" "$value"; then
+    return 0
+  fi
+  rc=$?
+  case "$rc" in
+    2) warn "$field already set to a different value in $private_flake; not overwriting" ;;
+    3) warn "$field is not in the empty-literal form in $private_flake; set it manually to \"$value\"" ;;
+    4) warn "private flake missing while trying to patch $field: $private_flake" ;;
+    *) warn "failed to patch $field in $private_flake (helper exit $rc)" ;;
+  esac
+  return "$rc"
+}
+
 patch_signing_key() {
-  local key_id="$1"
-  local backup_file="$private_flake.bak"
-
-  if [ ! -f "$private_flake" ]; then
-    warn "generated GPG key $key_id, but private flake is missing: $private_flake"
-    return 1
-  fi
-
-  if ! grep -Eq '^[[:space:]]*signingKey[[:space:]]*=[[:space:]]*""[[:space:]]*;' "$private_flake"; then
-    warn "generated GPG key $key_id, but git.signingKey is not an empty literal in $private_flake"
-    warn "set git.signingKey = \"$key_id\"; manually"
-    return 1
-  fi
-
-  if ! sed -i.bak -E \
-    "s/^([[:space:]]*signingKey[[:space:]]*=[[:space:]]*)\"\"([[:space:]]*;.*)$/\\1\"$key_id\"\\2/" \
-    "$private_flake"; then
-    rm -f "$backup_file"
-    warn "failed to update git.signingKey in $private_flake"
-    return 1
-  fi
-  rm -f "$backup_file"
+  patch_field signingKey "$1" || return 1
   log "filled git.signingKey in $private_flake"
 }
 
@@ -270,12 +312,23 @@ main() {
   require_nix
   [ -f "$private_flake" ] || die "private flake missing: $private_flake"
 
+  # Seed name/email from --name / --email or DOTFILES_GIT_{NAME,EMAIL}
+  # before we read them back. The helper is a no-op when the field is
+  # already set to the same value, and warns (but does not fail) on
+  # conflicts so an idempotent re-run keeps working.
+  if [ -n "$name_arg" ]; then
+    patch_field name "$name_arg" || true
+  fi
+  if [ -n "$email_arg" ]; then
+    patch_field email "$email_arg" || true
+  fi
+
   git_name=$(eval_private_attr git.name) || exit 1
   git_email=$(eval_private_attr git.email) || exit 1
   signing_key=$(eval_private_attr git.signingKey) || exit 1
 
-  [ -n "$git_name" ] || die "git.name is empty in $private_flake"
-  [ -n "$git_email" ] || die "git.email is empty in $private_flake"
+  [ -n "$git_name" ] || die "git.name is empty in $private_flake (seed it via --name or DOTFILES_GIT_NAME)"
+  [ -n "$git_email" ] || die "git.email is empty in $private_flake (seed it via --email or DOTFILES_GIT_EMAIL)"
 
   ensure_gpg_key "$git_name" "$git_email" "$signing_key"
   ensure_ssh_key "$git_email"

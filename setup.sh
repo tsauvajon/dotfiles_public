@@ -70,19 +70,34 @@ if [ ! -f "$private_ref/flake.nix" ]; then
   printf '==> Bootstrapping from %s\n' "$example_ref"
   mkdir -p "$private_ref"
   cp "$example_ref" "$private_ref/flake.nix"
-  cat <<EOF
+
+  # Fully scripted first-run path: when both DOTFILES_GIT_NAME and
+  # DOTFILES_GIT_EMAIL are set, scripts/bootstrap-keys.sh below will
+  # patch them into the freshly-copied flake (along with signingKey
+  # after generating the key). Skip the "edit and rerun" exit and
+  # continue straight into the build.
+  if [ -n "${DOTFILES_GIT_NAME:-}" ] && [ -n "${DOTFILES_GIT_EMAIL:-}" ]; then
+    printf '==> Seeding git.name / git.email from env vars; continuing to build\n'
+  else
+    cat <<EOF
 
 Next steps:
   1. \$EDITOR $private_ref/flake.nix
   2. fill in git.{name,email}; leave git.signingKey empty if you need a new key
   3. rerun ./setup.sh
 
+Or run a fully scripted first install:
+  DOTFILES_GIT_NAME="Your Full Name" \\
+  DOTFILES_GIT_EMAIL="you@example.com" \\
+  ./setup.sh
+
 Anything optional (goto, opencode overlays, homeModules) can stay null.
 
 On the next run, setup.sh will generate missing GPG/SSH keys, fill
 git.signingKey when safe, and print public-key upload commands.
 EOF
-  exit 0
+    exit 0
+  fi
 fi
 
 # Sync external OpenCode imports declared in the private flake's

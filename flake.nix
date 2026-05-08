@@ -218,6 +218,7 @@
 
           mergeDirsCheck = import ./home/lib/merge-dirs.test.nix { inherit pkgs lib; };
           opencodeTestsCheck = import ./home/opencode.test { inherit pkgs lib; };
+          patchStringFieldCheck = import ./scripts/lib/patch-empty-string-field.test.nix { inherit pkgs lib; };
         in
         {
           formatter = pkgs.nixfmt-rfc-style;
@@ -232,6 +233,7 @@
               lib-runTests = libRunTestsCheck;
               merge-dirs-test = mergeDirsCheck;
               opencode-tests = opencodeTestsCheck;
+              patch-string-field-test = patchStringFieldCheck;
             };
         }
       )

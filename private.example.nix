@@ -27,9 +27,14 @@
       # REQUIRED — git identity. Fill name/email, then rerun setup.sh.
       # When signingKey is empty, setup.sh generates or detects a GPG
       # key for this email and patches the key id into this file.
+      #
+      # First-run shortcut: instead of hand-editing this file, you can
+      # seed all three fields by exporting DOTFILES_GIT_NAME and
+      # DOTFILES_GIT_EMAIL before running setup.sh; the bootstrap
+      # script patches the empty literals below in place.
       git = {
-        name = ""; # e.g. "Your Full Name"
-        email = ""; # e.g. "you@example.com"
+        name = ""; # e.g. "Your Full Name" (or set DOTFILES_GIT_NAME)
+        email = ""; # e.g. "you@example.com" (or set DOTFILES_GIT_EMAIL)
         signingKey = ""; # auto-filled by scripts/bootstrap-keys.sh
 
         # Optional: extra gitconfig include for per-machine tweaks.

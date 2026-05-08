@@ -113,6 +113,7 @@
       "make *": "allow",
       "mint *": "allow",
       "mkdir *": "allow",
+      "mktemp *": "allow",
       "mv *": "allow",
       "nix develop *": "allow",
       "nix-daemon *": "allow",

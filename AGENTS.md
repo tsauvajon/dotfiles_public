@@ -106,6 +106,21 @@ field except `git.{name,email,signingKey}` is optional — HM modules use
 `~/.config/dotfiles/flake.nix` on first run when the file is missing,
 then exits so the user can edit the placeholders before rebuilding.
 
+For a fully scripted first-run install, export `DOTFILES_GIT_NAME` and
+`DOTFILES_GIT_EMAIL` before running `setup.sh`. `scripts/bootstrap-keys.sh`
+patches both fields into the freshly-copied flake (along with `signingKey`
+after generating a GPG key) and `setup.sh` skips the "edit and rerun"
+exit:
+
+```sh
+DOTFILES_GIT_NAME="Your Full Name" \
+DOTFILES_GIT_EMAIL="you@example.com" \
+bash setup.sh
+```
+
+`scripts/bootstrap-keys.sh` also accepts `--name` and `--email` flags
+when invoked directly.
+
 When you change anything under `~/.config/dotfiles/`, just rerun `setup.sh`.
 The build uses `--override-input private "path:$HOME/.config/dotfiles"`, so the
 working tree is read directly with no flake.lock churn:
@@ -211,37 +226,57 @@ private overlay (`~/.config/dotfiles/opencode/package.json`). After changes, run
 The imports mechanism lets you pull partial OpenCode config (skills, commands,
 plugins, opencode.*.json fragments, AGENTS rules) from other repos that do not
 expose Nix flakes. Declare them in `~/.config/dotfiles/flake.nix` under
-`opencode.imports`:
+`opencode.imports`. Each entry's `source` is auto-walked: every child of
+`commands/`, `skills/`, `agents/`, `plugins/`, `rules/`, plus any top-level
+`opencode.*.json` (excluding the bare `opencode.json`) and `package.json`, is
+staged verbatim under `~/.config/dotfiles/opencode-imports/<name>/`. Drop a new
+file in one of those subdirs and the next `setup.sh` picks it up — no manifest
+edit required.
 
 ```nix
 opencode = {
-  # ... existing fields
   imports = [
+    # Auto-discovery only: stages every standard child of source.
+    {
+      name = "thomas-ai";
+      source = "~/dev/repo/ai";
+    }
+
+    # Auto + tweaks. `rename` renames auto-discovered items AND imports
+    # non-standard files (mcp.fragment.json doesn't match opencode.*.json
+    # auto-discovery, so the rename pulls it in under the new name).
+    # `exclude` skips listed source-rel paths during the auto walk.
     {
       name = "second-brain";
       source = "~/dev/repo/second-brain/opencode";
-      files = [
-        # `dest` defaults to `src` when omitted.
-        { src = "mcp.fragment.json"; dest = "opencode.sbs.mcp.json"; }
-        { src = "commands/sbs-save.md"; }
-        { src = "plugins/sbs-plugin.ts"; }
-      ];
-      dirs = [
-        { src = "skills/second-brain"; }
-      ];
+      rename  = { "mcp.fragment.json" = "opencode.sbs.mcp.json"; };
+      exclude = [ "skills/wip-skill" ];
+    }
+
+    # Cherry-pick mode: when `paths` is set, auto-discovery is OFF and
+    # ONLY these mappings are imported. Mutually exclusive with
+    # rename/exclude. Use this for sources where you only want a handful
+    # of items, possibly under different names.
+    {
+      name = "philip-claude";
+      source = "~/dev/repo/claude";
+      paths = {
+        "skills/logs"      = "skills/splunk-logs";
+        "skills/gitlab-mr" = "skills/query-mr";
+      };
     }
   ];
 };
 ```
 
 `setup.sh` reads the manifest, resolves each `source` (including `~`), and
-copies the requested files/directories into
+stages the resulting files/directories under
 `~/.config/dotfiles/opencode-imports/<name>/`. The staging tree mirrors the
 standard opencode/ layout: subpaths starting with `commands/`, `skills/`,
 `agents/`, `plugins/`, or `rules/` feed into the corresponding merge; top-level
 `opencode.*.json` files feed into the JSON merge. The staging tree is gitignored
 in the private repo and rewritten from scratch on every `setup.sh` run, so
-removed manifest entries do not linger.
+removed manifest entries (and removed source files) do not linger.
 
 #### Picking up private changes
 
