@@ -64,18 +64,11 @@ printf 'building %s for %s\n' "$flake_ref" "$host" >&2
 # `--no-link` keeps the working tree clean; `--print-out-paths` gives
 # us the store path of the activation package so we can walk its
 # `home-files` subtree (which mirrors the layout HM would link into
-# $HOME) without ever invoking `activate`. `SMOKE_TEST_IMPURE=1`
-# turns on `--impure`, useful when the private flake references
-# `~/...` paths that pure mode cannot resolve.
-impure_flag=()
-if [ "${SMOKE_TEST_IMPURE:-0}" = "1" ]; then
-  impure_flag=(--impure)
-fi
+# $HOME) without ever invoking `activate`.
 
 result=$(nix \
   --extra-experimental-features 'nix-command flakes' \
   build --no-link --no-write-lock-file --print-out-paths \
-  "${impure_flag[@]}" \
   --override-input private "path:$private_ref" \
   "$flake_ref")
 
