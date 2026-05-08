@@ -133,9 +133,9 @@ alt-y = 'exec-and-forget open -a "yazi"'
 # m1ddc on Apple Silicon / ddcctl on Intel under the hood. The wrapper
 # binary is referenced through ~/.nix-profile/bin so that AeroSpace's
 # bash-with-no-shell exec context does not depend on PATH inheritance.
-ctrl-alt-1 = 'exec-and-forget $HOME/.nix-profile/bin/monitor-input thunderbolt'
-ctrl-alt-2 = 'exec-and-forget $HOME/.nix-profile/bin/monitor-input dp'
-ctrl-alt-3 = 'exec-and-forget $HOME/.nix-profile/bin/monitor-input hdmi'
+ctrl-cmd-1 = 'exec-and-forget $HOME/.nix-profile/bin/monitor-input thunderbolt'
+ctrl-cmd-2 = 'exec-and-forget $HOME/.nix-profile/bin/monitor-input dp'
+ctrl-cmd-3 = 'exec-and-forget $HOME/.nix-profile/bin/monitor-input hdmi'
 
 # Workspace back and forth
 alt-tab = 'workspace-back-and-forth'
