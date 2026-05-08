@@ -11,6 +11,7 @@
 let
   inherit (import ./deep-merge-json.nix { inherit lib; }) deepMergeAll;
   concatFiles = import ./concat-files.nix { inherit lib; };
+  listFilesIn = import ./list-files-in.nix { inherit lib; };
   readJsonOr = import ./read-json-or.nix;
 
   # List `opencode.*.json` fragment files in `dir`, sorted by filename
@@ -19,22 +20,15 @@ let
   # an empty list if `dir` does not exist.
   jsonFragmentsIn =
     dir:
-    if !builtins.pathExists dir then
-      [ ]
-    else
-      let
-        entries = builtins.readDir dir;
-        accepted = lib.filterAttrs (
-          name: type:
-          (type == "regular" || type == "symlink")
-          && lib.hasPrefix "opencode." name
-          && lib.hasSuffix ".json" name
-          && name != "opencode.json"
-        ) entries;
-        # `builtins.attrNames` already returns names in byte-sorted order.
-        names = builtins.attrNames accepted;
-      in
-      map (name: dir + "/${name}") names;
+    map (name: dir + "/${name}") (listFilesIn {
+      inherit dir;
+      predicate =
+        name: type:
+        (type == "regular" || type == "symlink")
+        && lib.hasPrefix "opencode." name
+        && lib.hasSuffix ".json" name
+        && name != "opencode.json";
+    });
 
   # Compute the merged `opencode.json` value by combining the four
   # tiers in order, with later tiers winning on key collision:

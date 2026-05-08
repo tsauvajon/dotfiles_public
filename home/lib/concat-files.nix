@@ -20,25 +20,18 @@
 }:
 
 let
+  listFilesIn = import ./list-files-in.nix { inherit lib; };
+
   # Sort regular files (including symlinks to files) in `dir` by
   # filename bytes — LC_ALL=C order. Returns `[ { name; path; } ]` or
   # `[]` if `dir` does not exist. Symlinks are accepted so private
   # overlays may chain (e.g. an overlay that symlinks to a sibling).
   regularFilesIn =
     dir:
-    if !builtins.pathExists dir then
-      [ ]
-    else
-      let
-        entries = builtins.readDir dir;
-        accepted = lib.filterAttrs (_: type: type == "regular" || type == "symlink") entries;
-        # `builtins.attrNames` already returns names in byte-sorted order.
-        names = builtins.attrNames accepted;
-      in
-      map (name: {
-        inherit name;
-        path = dir + "/${name}";
-      }) names;
+    map (name: {
+      inherit name;
+      path = dir + "/${name}";
+    }) (listFilesIn { inherit dir; });
 
   # Collect entries from every dir, then collapse to a name-keyed
   # attrset where later dirs override earlier ones on filename

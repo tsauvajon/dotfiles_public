@@ -17,6 +17,8 @@
 }:
 
 let
+  listFilesIn = import ../lib/list-files-in.nix { inherit lib; };
+
   publicConfig = builtins.fromTOML (builtins.readFile ../../config/task/config.toml);
 
   # The public `config.toml` is restricted to the keys consumed below;
@@ -33,29 +35,17 @@ let
   ];
   unknownPublicKeys = lib.subtractLists recognizedPublicKeys (builtins.attrNames publicConfig);
 
-  # Read all `task.*.toml` overlays from the private flake's working tree.
-  # Using `inputs.private.outPath` keeps the build pure: every flake input
-  # exposes its source as a store path automatically, so we do not need
-  # `--impure`. `getEnv "HOME"` is intentionally avoided — it returns ""
-  # under pure eval, which setup.sh now uses on every host, and would
-  # silently drop every private overlay.
+  # Read all `task.*.toml` overlays from the private flake's working
+  # tree. `inputs.private.outPath` keeps the build pure.
   privateOverlayDir = inputs.private.outPath;
-  overlayFiles =
-    if builtins.pathExists privateOverlayDir then
-      let
-        entries = builtins.readDir privateOverlayDir;
-        accepted = lib.filterAttrs (
-          name: type:
-          (type == "regular" || type == "symlink")
-          && lib.hasPrefix "task." name
-          && lib.hasSuffix ".toml" name
-        ) entries;
-        # `builtins.attrNames` already returns names in byte-sorted order.
-        names = builtins.attrNames accepted;
-      in
-      map (name: privateOverlayDir + "/${name}") names
-    else
-      [ ];
+  overlayFiles = map (name: privateOverlayDir + "/${name}") (listFilesIn {
+    dir = privateOverlayDir;
+    predicate =
+      name: type:
+      (type == "regular" || type == "symlink")
+      && lib.hasPrefix "task." name
+      && lib.hasSuffix ".toml" name;
+  });
 
   overlayContents = map (p: builtins.fromTOML (builtins.readFile p)) overlayFiles;
   mergedExtra = lib.foldl' lib.recursiveUpdate { } overlayContents;

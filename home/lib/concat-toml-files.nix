@@ -19,26 +19,21 @@
 }:
 
 let
+  listFilesIn = import ./list-files-in.nix { inherit lib; };
+
   baseName = baseNameOf base;
 
   fragmentsIn =
     dir:
-    if !builtins.pathExists dir then
-      [ ]
-    else
-      let
-        entries = builtins.readDir dir;
-        accepted = lib.filterAttrs (
-          name: type:
-          (type == "regular" || type == "symlink")
-          && lib.hasPrefix prefix name
-          && lib.hasSuffix extension name
-          && name != baseName
-        ) entries;
-        # `builtins.attrNames` already returns names in byte-sorted order.
-        names = builtins.attrNames accepted;
-      in
-      map (n: dir + "/${n}") names;
+    map (n: dir + "/${n}") (listFilesIn {
+      inherit dir;
+      predicate =
+        name: type:
+        (type == "regular" || type == "symlink")
+        && lib.hasPrefix prefix name
+        && lib.hasSuffix extension name
+        && name != baseName;
+    });
 
   fragments = lib.concatLists (map fragmentsIn fragmentDirs);
 in
