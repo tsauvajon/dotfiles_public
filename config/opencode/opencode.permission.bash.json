@@ -140,6 +140,7 @@
       "python *": "allow",
       "python3 *": "allow",
       "readlink *": "allow",
+      "realpath *": "allow",
       "rg *": "allow",
       "rm *": "allow",
       "rustc *": "allow",
