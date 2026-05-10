@@ -1,4 +1,24 @@
 [[mgr.prepend_keymap]]
+on = "s"
+run = "plugin live-search files"
+desc = "Fuzzy find files"
+
+[[mgr.prepend_keymap]]
+on = "S"
+run = "plugin live-search content"
+desc = "Live search file contents"
+
+[[mgr.prepend_keymap]]
 on = "<C-p>"
 run = "shell -- qlmanage -p %s"
 for = "macos"
+
+[[mgr.prepend_keymap]]
+on = "="
+run = "plugin zoom 1"
+desc = "Zoom in image preview"
+
+[[mgr.prepend_keymap]]
+on = "-"
+run = "plugin zoom -1"
+desc = "Zoom out image preview"

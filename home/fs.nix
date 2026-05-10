@@ -11,6 +11,7 @@
     fd
     fzf
     htop
+    imagemagick
     jiq
     jq
     ouch

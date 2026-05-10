@@ -428,7 +428,8 @@
         "scooter-hx": "scooter-hx",
         "smooth-scroll-hx": "smooth-scroll-hx",
         "steel": "steel",
-        "task": "task"
+        "task": "task",
+        "yazi-plugins": "yazi-plugins"
       }
     },
     "rust-overlay": {
@@ -599,6 +600,22 @@
       "original": {
         "owner": "numtide",
         "repo": "treefmt-nix",
+        "type": "github"
+      }
+    },
+    "yazi-plugins": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1778346976,
+        "narHash": "sha256-kcZGQB8Dfon8OipuAcNnCeRgTp/S0mQokADkuvEG4Lc=",
+        "owner": "yazi-rs",
+        "repo": "plugins",
+        "rev": "1db18bb5a1c962f95873654a7af1202abb98da60",
+        "type": "github"
+      },
+      "original": {
+        "owner": "yazi-rs",
+        "repo": "plugins",
         "type": "github"
       }
     }

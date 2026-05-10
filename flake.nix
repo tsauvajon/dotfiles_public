@@ -97,6 +97,10 @@
       url = "github:catppuccin/yazi";
       flake = false;
     };
+    yazi-plugins = {
+      url = "github:yazi-rs/plugins";
+      flake = false;
+    };
     catppuccin-bat = {
       url = "github:catppuccin/bat";
       flake = false;
@@ -237,6 +241,7 @@
             inherit pkgs lib;
           };
           gpgPinentryCheck = import ./scripts/lib/configure-gpg-pinentry.test.nix { inherit pkgs lib; };
+          yaziLiveSearchCheck = import ./config/yazi/live-search.test.nix { inherit pkgs; };
         in
         {
           formatter = pkgs.nixfmt-rfc-style;
@@ -257,6 +262,7 @@
               opencode-tests = opencodeTestsCheck;
               patch-string-field-test = patchStringFieldCheck;
               configure-gpg-pinentry-test = gpgPinentryCheck;
+              yazi-live-search-test = yaziLiveSearchCheck;
             };
         }
       )

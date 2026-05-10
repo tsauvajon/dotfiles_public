@@ -160,6 +160,8 @@ in
       "yazi/yazi.toml".source = ../config/yazi/yazi.toml;
       "yazi/keymap.toml".source = ../config/yazi/keymap.toml;
       "yazi/init.lua".source = ../config/yazi/init.lua;
+      "yazi/plugins/live-search.yazi".source = ../config/yazi/plugins/live-search.yazi;
+      "yazi/plugins/zoom.yazi".source = "${inputs.yazi-plugins}/zoom.yazi";
       "yazi/theme.toml".source = "${inputs.catppuccin-yazi}/themes/mocha/catppuccin-mocha-blue.toml";
       "yazi/Catppuccin-mocha.tmTheme".source = "${inputs.catppuccin-bat}/themes/Catppuccin Mocha.tmTheme";
       "zellij/config.kdl".source = ../config/zellij/config.kdl;
