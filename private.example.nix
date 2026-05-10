@@ -60,12 +60,14 @@
       #   syncthing  HM service (systemd user / launchd agent).
       #   tailscale  Linux: pkgs.tailscale. macOS: Homebrew-managed cask.
       #   gurk       pkgs.gurk-rs on personal hosts only.
+      #   naps2      Linux: pkgs.naps2. macOS: Homebrew-managed cask.
       personal = {
         enable = false;
         signal.enable = true;
         syncthing.enable = true;
         chromium.enable = true;
         gurk.enable = true;
+        naps2.enable = true;
         tailscale.enable = true;
       };
 
