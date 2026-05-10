@@ -6,7 +6,7 @@
 #   - ~/.config/dotfiles-managed/Brewfile.personal       (Home Manager-generated
 #                                                         from `home/personal.nix`,
 #                                                         present only when at
-#                                                         least one personal cask
+#                                                         least one personal package
 #                                                         toggle is on)
 #
 # A cask is "extra" if it is currently installed and absent from both files.
@@ -59,7 +59,7 @@ while [ "$#" -gt 0 ]; do
 done
 
 if [ "$(uname -s)" != "Darwin" ]; then
-  printf 'Homebrew cask cleanup is only supported on macOS.\n'
+  printf 'Homebrew cleanup is only supported on macOS.\n'
   exit 0
 fi
 
@@ -88,7 +88,7 @@ installed="$tmpdir/installed-casks"
 extras="$tmpdir/extra-casks"
 
 sed -nE 's/^[[:space:]]*cask[[:space:]]+"([^"]+)".*/\1/p' "${brewfiles[@]}" | sort -u > "$wanted"
-brew list --cask -1 | sort -u > "$installed"
+brew bundle list --cask 2>/dev/null | sort -u > "$installed"
 comm -23 "$installed" "$wanted" > "$extras"
 
 if [ ! -s "$extras" ]; then

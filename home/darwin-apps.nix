@@ -1,7 +1,7 @@
 # macOS-only Home Manager packages.
 #
 # `gimp` and `vlc` are not built for aarch64-darwin in current nixpkgs
-# (`meta.platforms` excludes Darwin), so they stay as Homebrew casks
+# (`meta.platforms` excludes Darwin), so they stay as Homebrew-managed casks
 # (declared in `config/Brewfile`). `keepassxc` is cross-platform and
 # lives in `home/apps.nix`.
 #
@@ -41,7 +41,7 @@ let
     else
       [ ];
 
-  # Finder aliases for Nix-installed app bundles. Homebrew casks already
+  # Finder aliases for Nix-installed app bundles. Homebrew-managed casks already
   # install into /Applications and surface in Spotlight/Launchpad without
   # help, so cask-managed apps are intentionally absent here. Keep personal
   # app aliases conditional below so disabled toggles do not force package
@@ -85,6 +85,17 @@ let
   '') darwinAppAliases;
 in
 lib.mkIf pkgs.stdenv.isDarwin {
+  home.activation.installHomebrew = lib.hm.dag.entryBefore [ "linkDarwinFonts" ] ''
+    if command -v brew >/dev/null 2>&1; then
+      exit 0
+    fi
+
+    printf '\n'
+    printf 'warning: Homebrew not found. To install manually, run:\n'
+    printf '  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"\n'
+    printf '\n'
+  '';
+
   home.packages =
     with pkgs;
     [

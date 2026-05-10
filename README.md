@@ -74,17 +74,16 @@ this flake on macOS leaves them as no-ops automatically.
 
 ## macOS workflow
 
-`setup.sh` is intentionally passwordless: every step runs as the user. We do
-not use `nix-darwin` — the same effect is achieved with three sudo-less
-mechanisms:
+`setup.sh` runs as the user. We do not use `nix-darwin` — the same effect is
+achieved with these mechanisms:
 
 - **GUI casks via Homebrew** — `config/Brewfile` declares public casks that
   cannot (or should not) be Nix-managed (e.g. `gimp` and `vlc` lack
   aarch64-darwin nixpkgs builds). Personal Darwin casks are generated into
   `~/.config/dotfiles-managed/Brewfile.personal` from `home/personal.nix`.
-  After Home Manager activation, `setup.sh` runs `brew bundle install
-  --no-upgrade` for each managed Brewfile, then removes any installed cask not
-  declared in either file. Formulae and taps are not reconciled.
+  After Home Manager activation, `setup.sh` runs `brew bundle install` for
+  each managed Brewfile, then removes any Homebrew cask not declared in either
+  file.
 
   To inspect extra casks without removing them, run `scripts/brew-cleanup.sh`
   without `--apply`.
@@ -106,8 +105,8 @@ mechanisms:
 Occasional manual steps (one-offs that need sudo and are kept out of
 `setup.sh`):
 
-- `sudo rm -rf /opt/homebrew/Cellar/<name>` to clean a stuck keg that
-  Brew refused to remove (rare).
+- Homebrew casks are managed directly via `brew bundle`; no separate reset
+  step needed.
 
 ## Bumping dependencies
 
