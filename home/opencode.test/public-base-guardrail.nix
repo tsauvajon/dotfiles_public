@@ -41,10 +41,11 @@ in
     expected = true;
   };
 
-  testBunGeneratedEntriesAllowed = {
+  testPackageManagerGeneratedEntriesAllowed = {
     expr =
       (lib.hasInfix ''"bun.lock"'' opencodeModuleSource)
-      && (lib.hasInfix ''"node_modules"'' opencodeModuleSource);
+      && (lib.hasInfix ''"node_modules"'' opencodeModuleSource)
+      && (lib.hasInfix ''"package-lock.json"'' opencodeModuleSource);
     expected = true;
   };
 

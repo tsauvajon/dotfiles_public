@@ -191,6 +191,7 @@ let
     "commands"
     "node_modules"
     "opencode.json"
+    "package-lock.json"
     "package.json"
     "plugins"
     "skills"
