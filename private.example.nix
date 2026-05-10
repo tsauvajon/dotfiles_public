@@ -58,12 +58,14 @@
       # Per-app install paths:
       #   signal     pkgs.signal-desktop on both Linux and macOS.
       #   syncthing  HM service (systemd user / launchd agent).
-      #   tailscale  Linux: pkgs.tailscale. macOS: Homebrew cask.
+      #   tailscale  Linux: pkgs.tailscale. macOS: Homebrew-managed cask.
+      #   gurk       pkgs.gurk-rs on personal hosts only.
       personal = {
         enable = false;
         signal.enable = true;
         syncthing.enable = true;
         chromium.enable = true;
+        gurk.enable = true;
         tailscale.enable = true;
       };
 

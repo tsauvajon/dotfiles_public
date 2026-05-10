@@ -5,8 +5,14 @@
   home.packages = with pkgs; [
     cargo-watch
     cmake
+    cyme
     docker-credential-helpers
+    glim
+    gpg-tui
     mdterm
+    mqttui
+    rainfrog
     sqlx-cli
+    tsql
   ];
 }

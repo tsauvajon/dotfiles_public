@@ -38,6 +38,7 @@ in
   # buildEnv collision; without a competing definition it is used as
   # the only `cargo-nextest` on PATH.
   home.packages = [
+    pkgs.cargo-coupling
     rustWithNightlyFmt
     (lib.lowPrio pkgs.cargo-nextest)
   ];

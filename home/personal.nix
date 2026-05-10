@@ -15,9 +15,10 @@
 #   - Syncthing: Home Manager service (`services.syncthing`) — systemd
 #     user unit on Linux, launchd agent on macOS.
 #   - Tailscale: Nix CLI on Linux. macOS uses the official Tailscale
-#     app installed via Homebrew cask, because `pkgs.tailscale` ships
+#     app installed via a Homebrew-managed cask, because `pkgs.tailscale` ships
 #     only `tailscale`/`tailscaled` and the user-facing GUI lives in
 #     the App Store / Brew cask.
+#   - Gurk: `pkgs.gurk-rs` on personal hosts only.
 #
 # Cask lines for Darwin-only apps (Tailscale, Chromium today) are appended to a
 # generated `Brewfile.personal`; `setup.sh` reconciles it alongside
@@ -35,11 +36,12 @@ let
   privateSignal = privatePersonal.signal or { };
   privateSyncthing = privatePersonal.syncthing or { };
   privateChromium = privatePersonal.chromium or { };
+  privateGurk = privatePersonal.gurk or { };
   privateTailscale = privatePersonal.tailscale or { };
 
   cfg = config.dotfiles.personal;
 
-  # Personal Homebrew casks. Add new entries as `cask "name"` lines
+  # Personal Homebrew-managed casks. Add new entries as `cask "name"` lines
   # gated by their respective per-app toggle. Empty when no personal
   # cask applies to this host — `setup.sh` skips a missing file.
   personalBrewfileLines =
@@ -86,7 +88,7 @@ in
       description = ''
         Install Tailscale. On Linux this installs the `tailscale` CLI
         (the privileged `tailscaled` daemon still needs host setup).
-        On macOS this declares a Homebrew cask for the official
+        On macOS this declares a Homebrew-managed cask for the official
         Tailscale app — the host-level system extension still has to
         be approved manually.
       '';
@@ -97,14 +99,21 @@ in
       default = privateChromium.enable or true;
       description = ''
         Install Chromium. On Linux this uses `pkgs.chromium`. On macOS
-        this declares a Homebrew cask for the official Chromium app.
+        this declares a Homebrew-managed cask for the official Chromium app.
       '';
+    };
+
+    gurk.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = privateGurk.enable or true;
+      description = "Install Gurk, the Signal Messenger TUI, on personal hosts.";
     };
   };
 
   config = lib.mkIf cfg.enable {
     home.packages =
       lib.optionals cfg.signal.enable [ pkgs.signal-desktop ]
+      ++ lib.optionals cfg.gurk.enable [ pkgs.gurk-rs ]
       ++ lib.optionals (cfg.chromium.enable && pkgs.stdenv.isLinux) [ pkgs.chromium ]
       ++ lib.optionals (cfg.tailscale.enable && pkgs.stdenv.isLinux) [ pkgs.tailscale ];
 

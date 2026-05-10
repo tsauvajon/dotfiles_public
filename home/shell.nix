@@ -40,6 +40,12 @@ in
     pkgs.zsh-syntax-highlighting
   ];
 
+  programs.atuin = {
+    enable = true;
+    enableFishIntegration = true;
+    enableZshIntegration = true;
+  };
+
   # Changing login shells mutates system state; standalone Home Manager
   # only warns with the exact commands to run when fish is not active.
   home.activation.warnFishLoginShell = lib.hm.dag.entryAfter [ "linkGeneration" ] ''

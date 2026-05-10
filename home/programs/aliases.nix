@@ -107,6 +107,7 @@ in
     du = "dust";
     find = "fd";
     lf = "y"; # delegate to the yazi `y` wrapper (cd-on-exit)
+    lsusb = "cyme --lsusb";
     nano = "hx";
     ranger = "y";
     top = "htop";
