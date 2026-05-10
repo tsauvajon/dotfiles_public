@@ -28,8 +28,7 @@ Small inventory of extra command-line tools installed by these dotfiles.
 | `rainfrog` | `home/devtools.nix` | PostgreSQL terminal client | `rainfrog postgres://user:pass@host/db`, `rainfrog --help` |
 | `rd` | `home/programs/scripts.nix` | `rg` plus `delta` with default context | `rd pattern`, `rd -C5 pattern` |
 | `sqlx` | `home/devtools.nix` | SQLx database/migration CLI | `sqlx migrate run`, `sqlx database create` |
-| `tw` | `home/fs.nix` | TUI for viewing tabular data | `tw data.csv`, `tabiew data.csv` |
-| `tabiew` | `home/fs.nix` | TUI for viewing tabular data | `tabiew data.csv`, `tw data.csv` |
+| `tw` | `home/fs.nix` | TUI for viewing tabular data | `tw data.csv` |
 | `tdf` | `home/fs.nix` | Terminal PDF viewer | `tdf file.pdf`, `/` searches, `q` quits |
 | `tsql` | `home/devtools.nix`, local package | Keyboard-first PostgreSQL CLI | `tsql postgres://user:pass@host/db`, `tsql --help` |
 | `yazi` | `home/fs.nix` | Terminal file manager | `yazi` |

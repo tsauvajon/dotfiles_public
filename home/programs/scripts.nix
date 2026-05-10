@@ -41,7 +41,7 @@
           echo "usage: backup <file>" >&2
           exit 2
         fi
-        cp -- "$1" "$1.bak"
+        cp -r -- "$1" "$1.bak"
       '';
     })
 
