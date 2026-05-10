@@ -380,9 +380,9 @@ printf '==> Activating %s/activate\n' "$out"
 "$out/activate"
 
 if [ -x "/opt/homebrew/bin/brew" ]; then
-  export PATH="/opt/homebrew/bin:$PATH"
+  eval "$(/opt/homebrew/bin/brew shellenv)"
 elif [ -x "/usr/local/bin/brew" ]; then
-  export PATH="/usr/local/bin:$PATH"
+  eval "$(/usr/local/bin/brew shellenv)"
 fi
 
 if command -v brew >/dev/null 2>&1; then

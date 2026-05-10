@@ -79,6 +79,20 @@ in
     ls = "eza -al ${ezaFlags}";
     lt = "eza -aT ${ezaFlags}";
 
+    # Tool aliases
+    alcompress = "ouch";
+    alglabci = "glim";
+    aljq = "jiq";
+    almqtt = "mqttui";
+    alpsql1 = "tsql";
+    alpsql2 = "rainfrog";
+    alsignal = "gurk";
+    csv = "tw";
+    docx = "doxx";
+    gpg = "gpg-tui";
+    json = "jiq";
+    pdf = "tdf";
+
     # Other shorthands
     a = "aerospace";
     b = "bat";

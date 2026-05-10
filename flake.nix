@@ -130,16 +130,23 @@
       ...
     }:
     let
+      localOverlay = final: prev: {
+        cargo-coupling = final.callPackage ./pkgs/cargo-coupling { };
+        glim = final.callPackage ./pkgs/glim { };
+        tsql = final.callPackage ./pkgs/tsql { };
+      };
+
       mkPkgs =
         system:
         import nixpkgs {
           inherit system;
           config.allowUnfree = true;
-          overlays = [ rust-overlay.overlays.default ];
+          overlays = [
+            rust-overlay.overlays.default
+            localOverlay
+          ];
         };
 
-      # The dotfiles repo root is the directory containing this flake.
-      # Pure: no env-var lookups, so --impure is not required.
       dotfilesRoot = ./.;
 
       mkHome =
@@ -150,17 +157,13 @@
         home-manager.lib.homeManagerConfiguration {
           pkgs = mkPkgs system;
           extraSpecialArgs = { inherit inputs system dotfilesRoot; };
-          # The trailing list lets the private overlay contribute
-          # extra HM modules without committing their content here.
-          # Defaults to [] when the overlay is the placeholder.
           modules = [
             ./home
             hostModule
           ]
           ++ (inputs.private.homeModules or [ ]);
         };
-    in
-    let
+
       homeConfigurations = {
         thomas-darwin = mkHome {
           system = "aarch64-darwin";
@@ -185,7 +188,7 @@
       (
         system:
         let
-          pkgs = import nixpkgs { inherit system; };
+          pkgs = mkPkgs system;
           inherit (pkgs) lib;
           # Map each host to the system it targets so `nix flake check
           # --all-systems` exercises every homeConfiguration. Pure
@@ -230,11 +233,16 @@
 
           mergeDirsCheck = import ./home/lib/merge-dirs.test.nix { inherit pkgs lib; };
           opencodeTestsCheck = import ./home/opencode.test { inherit pkgs lib; };
-          patchStringFieldCheck = import ./scripts/lib/patch-empty-string-field.test.nix { inherit pkgs lib; };
+          patchStringFieldCheck = import ./scripts/lib/patch-empty-string-field.test.nix {
+            inherit pkgs lib;
+          };
           gpgPinentryCheck = import ./scripts/lib/configure-gpg-pinentry.test.nix { inherit pkgs lib; };
         in
         {
           formatter = pkgs.nixfmt-rfc-style;
+          packages = {
+            inherit (pkgs) cargo-coupling glim tsql;
+          };
           checks =
             builtins.listToAttrs (
               map (h: {
@@ -243,6 +251,7 @@
               }) hosts
             )
             // {
+              inherit (pkgs) cargo-coupling glim tsql;
               lib-runTests = libRunTestsCheck;
               merge-dirs-test = mergeDirsCheck;
               opencode-tests = opencodeTestsCheck;

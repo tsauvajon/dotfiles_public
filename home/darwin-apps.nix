@@ -86,7 +86,7 @@ let
 in
 lib.mkIf pkgs.stdenv.isDarwin {
   home.activation.installHomebrew = lib.hm.dag.entryBefore [ "linkDarwinFonts" ] ''
-    if command -v brew >/dev/null 2>&1; then
+    if [ -x /opt/homebrew/bin/brew ] || [ -x /usr/local/bin/brew ]; then
       exit 0
     fi
 
