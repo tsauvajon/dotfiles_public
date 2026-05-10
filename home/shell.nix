@@ -1,6 +1,7 @@
 # Shell and terminal workflow tools, including nixGL wrapping for
 # graphical terminals on Linux.
 {
+  config,
   pkgs,
   lib,
   inputs,
@@ -10,6 +11,8 @@
 }:
 
 let
+  fishPath = "${config.home.profileDirectory}/bin/fish";
+
   wrapWithNixGL = import ./lib/wrap-with-nixgl.nix {
     inherit pkgs;
     inherit (inputs) nixgl nixgl-nixpkgs;
@@ -36,4 +39,46 @@ in
     pkgs.zsh-powerlevel10k
     pkgs.zsh-syntax-highlighting
   ];
+
+  # Changing login shells mutates system state; standalone Home Manager
+  # only warns with the exact commands to run when fish is not active.
+  home.activation.warnFishLoginShell = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+        fish_path="${fishPath}"
+        current_shell="''${SHELL:-}"
+
+        if command -v getent >/dev/null 2>&1; then
+          passwd_entry="$(getent passwd "$(id -un)" 2>/dev/null || true)"
+          if [ -n "$passwd_entry" ]; then
+            current_shell="''${passwd_entry##*:}"
+          fi
+        elif command -v dscl >/dev/null 2>&1; then
+          dscl_shell="$(dscl . -read "$HOME" UserShell 2>/dev/null || true)"
+          case "$dscl_shell" in
+            "UserShell: "*) current_shell="''${dscl_shell#UserShell: }" ;;
+          esac
+        fi
+
+    if [ "''${current_shell##*/}" != fish ]; then
+      printf '%s\n' \
+        'warning: fish is installed by Home Manager, but your login shell is not fish.' \
+        "" \
+        "Current login shell: ''${current_shell:-unknown}" \
+        "Fish installed at:    $fish_path" \
+        ""
+
+      if [ ! -r /etc/shells ] || ! grep -qxF "$fish_path" /etc/shells; then
+        printf '%s\n' \
+          'Before chsh can use this fish path, add it to /etc/shells:' \
+          "" \
+          "  sudo sh -c 'grep -qxF \"$fish_path\" /etc/shells || echo \"$fish_path\" >> /etc/shells'" \
+          ""
+      fi
+
+      printf '%s\n' \
+        'Then set fish as your default login shell:' \
+        "" \
+        "  chsh -s \"$fish_path\"" \
+        ""
+    fi
+  '';
 }

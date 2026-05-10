@@ -22,6 +22,7 @@ in
     cdt = "cd-task";
 
     # Cargo / Rust
+    c = "cargo";
     cov = "cargo llvm-cov nextest --lcov --all --output-path lcov.info && rm -rf target/debug/coverage && grcov lcov.info -s . --binary-path ./target/debug/ -t html --excl-line='^\\s*(\\.await).*' --excl-start='mod test' -o ./target/debug/coverage/ && open ./target/debug/coverage/index.html";
     fmt = "cargo fmt";
 
@@ -105,7 +106,7 @@ in
     less = "bat";
     du = "dust";
     find = "fd";
-    lf = "y";            # delegate to the yazi `y` wrapper (cd-on-exit)
+    lf = "y"; # delegate to the yazi `y` wrapper (cd-on-exit)
     nano = "hx";
     ranger = "y";
     top = "htop";
@@ -115,4 +116,6 @@ in
     # Zoxide
     j = "z";
   };
+
+  programs.crossShellAliases.fishAbbreviations = [ "c" ];
 }
