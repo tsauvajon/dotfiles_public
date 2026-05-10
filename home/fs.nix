@@ -6,6 +6,7 @@
     bat
     dust
     eza
+    fastfetch
     fd
     fzf
     htop

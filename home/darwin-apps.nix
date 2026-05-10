@@ -63,6 +63,10 @@ let
       name = "Obsidian.app";
       target = "${pkgs.obsidian}/Applications/Obsidian.app";
     }
+    {
+      name = "KeePassXC.app";
+      target = "${pkgs.keepassxc}/Applications/KeePassXC.app";
+    }
   ]
   # Signal Desktop is Nix-managed on Darwin; the install phase puts
   # the app bundle at `$out/Applications/Signal.app` (see nixpkgs
@@ -85,6 +89,7 @@ lib.mkIf pkgs.stdenv.isDarwin {
     with pkgs;
     [
       aerospace
+      keepassxc
     ]
     ++ fontPackages
     ++ ddcPackages;

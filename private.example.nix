@@ -63,6 +63,7 @@
         enable = false;
         signal.enable = true;
         syncthing.enable = true;
+        chromium.enable = true;
         tailscale.enable = true;
       };
 

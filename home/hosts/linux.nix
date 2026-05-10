@@ -1,7 +1,10 @@
 # Per-host config for Thomas's Linux machine(s).
-{ ... }:
+{ pkgs, ... }:
 
 {
+  programs.fish.enable = true;
+  users.users.thomas.shell = pkgs.fish;
+
   _module.args.nixglNvidiaVersion = "595.71.05";
   # sha256 of NVIDIA-Linux-x86_64-595.71.05.run, lets nixGL build the driver
   # via `fetchurl` (pure) instead of `builtins.fetchurl` (impure). Update

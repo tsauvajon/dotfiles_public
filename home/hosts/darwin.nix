@@ -1,7 +1,15 @@
 # Per-host config for Thomas's macOS machine.
-{ ... }:
+{ lib, pkgs, ... }:
 
 {
+  programs.fish.enable = true;
+
+  home.activation = {
+    setFishAsDefaultShell = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+      chsh -s "${pkgs.fish}/bin/fish"
+    '';
+  };
+
   home.username = "thomas";
   home.homeDirectory = "/Users/thomas";
 
