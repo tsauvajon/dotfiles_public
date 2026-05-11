@@ -39,6 +39,7 @@ in
   # the only `cargo-nextest` on PATH.
   home.packages = [
     pkgs.cargo-coupling
+    pkgs.protobuf
     rustWithNightlyFmt
     (lib.lowPrio pkgs.cargo-nextest)
   ];
