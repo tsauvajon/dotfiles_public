@@ -57,7 +57,8 @@
         host="''${OPENCODE_SHARED_HOST:-127.0.0.1}"
         port="''${OPENCODE_SHARED_PORT:-4096}"
         url="''${OPENCODE_SHARED_URL:-http://$host:$port}"
-        log="''${OPENCODE_SHARED_LOG:-$HOME/.local/share/opencode/shared-server.log}"
+        launchd_label="''${OPENCODE_SHARED_LAUNCHD_LABEL:-dev.opencode.server}"
+        systemd_service="''${OPENCODE_SHARED_SYSTEMD_SERVICE:-opencode-server.service}"
 
         health() {
           curl --fail --silent --max-time 1 "$url/global/health" >/dev/null 2>&1
@@ -68,8 +69,22 @@
             return 0
           fi
 
-          mkdir -p "$(dirname "$log")"
-          nohup opencode serve --hostname "$host" --port "$port" >>"$log" 2>&1 &
+          case "$(uname -s)" in
+            Darwin)
+              uid="$(id -u)"
+              domain="gui/$uid"
+              plist="$HOME/Library/LaunchAgents/$launchd_label.plist"
+              if ! launchctl print "$domain/$launchd_label" >/dev/null 2>&1 && [ -e "$plist" ]; then
+                launchctl bootstrap "$domain" "$plist" >/dev/null 2>&1 || true
+              fi
+              launchctl kickstart "$domain/$launchd_label" >/dev/null 2>&1 || true
+              ;;
+            Linux)
+              if command -v systemctl >/dev/null 2>&1; then
+                systemctl --user start "$systemd_service" >/dev/null 2>&1 || true
+              fi
+              ;;
+          esac
 
           for _ in $(seq 1 50); do
             if health; then
@@ -78,7 +93,7 @@
             sleep 0.1
           done
 
-          echo "opencode: shared server did not start at $url; see $log" >&2
+          echo "opencode: shared server did not start at $url; check the managed user service logs" >&2
           return 1
         }
 

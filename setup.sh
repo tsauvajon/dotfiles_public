@@ -191,6 +191,9 @@ sync_opencode_imports() {
 
   # Eval succeeded — reset the staging root so removed manifest entries
   # do not linger.
+  if [ -d "$sync_root" ]; then
+    chmod -R u+w "$sync_root" 2>/dev/null || true
+  fi
   rm -rf "$sync_root"
 
   if [ -z "$manifest" ]; then
@@ -245,9 +248,11 @@ stage_one() {
     rm -rf "$dst"
     mkdir -p "$(dirname "$dst")"
     cp -RL "$src" "$dst"
+    chmod -R u+w "$dst" 2>/dev/null || true
   elif [ -f "$src" ]; then
     mkdir -p "$(dirname "$dst")"
     cp -L "$src" "$dst"
+    chmod u+w "$dst" 2>/dev/null || true
   else
     printf 'warning: opencode-import "%s" missing path: %s\n' "$name" "$src" >&2
   fi
