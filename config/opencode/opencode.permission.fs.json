@@ -14,6 +14,7 @@
       "~/.config/**": "allow",
       "~/.local/share/**": "allow",
       "~/dev/**": "allow",
+      "~/Documents/Obsidian/**": "allow",
       "/mnt/linux/dotfiles/**": "allow",
       "/mnt/linux/dev/**": "allow",
       "/tmp/**": "allow"
