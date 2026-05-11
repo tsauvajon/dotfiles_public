@@ -24,6 +24,6 @@ lib.mkIf pkgs.stdenv.isDarwin {
   home.file.".aerospace.toml".source = aerospaceConfig;
 
   home.activation.reloadAerospace = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
-    aerospace reload-config
+    ${pkgs.aerospace}/bin/aerospace reload-config
   '';
 }

@@ -25,6 +25,7 @@ Small inventory of extra command-line tools installed by these dotfiles.
 | `mqttui` | `home/devtools.nix` | MQTT broker TUI | `mqttui --broker localhost`, `mqttui --help` |
 | `opencode-shared` | `home/programs/scripts.nix` | OpenCode wrapper that reuses a shared local server | `opencode-shared`, `opencode-shared run ...` |
 | `ouch` | `home/fs.nix` | Archive compress/extract CLI | `ouch d archive.zip`, `ouch c archive.tar.gz dir/` |
+| `qpdf` | `home/fs.nix` | PDF structure and page manipulation CLI | `qpdf in.pdf out.pdf`, `qpdf in.pdf --pages . 1-3 -- out.pdf` |
 | `rainfrog` | `home/devtools.nix` | PostgreSQL terminal client | `rainfrog postgres://user:pass@host/db`, `rainfrog --help` |
 | `rd` | `home/programs/scripts.nix` | `rg` plus `delta` with default context | `rd pattern`, `rd -C5 pattern` |
 | `sqlx` | `home/devtools.nix` | SQLx database/migration CLI | `sqlx migrate run`, `sqlx database create` |

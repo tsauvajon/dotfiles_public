@@ -190,6 +190,8 @@ let
     "bun.lockb"
     "commands"
     "node_modules"
+    "opencode*.db"
+    "opencode*.db-*"
     "opencode.json"
     "package-lock.json"
     "package.json"

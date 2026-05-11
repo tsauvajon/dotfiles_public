@@ -385,10 +385,6 @@ elif [ -x "/usr/local/bin/brew" ]; then
   eval "$(/usr/local/bin/brew shellenv)"
 fi
 
-if command -v brew >/dev/null 2>&1; then
-  brew update
-fi
-
 # Declarative casks (Darwin only). The reconciler below installs casks
 # declared in the listed Brewfiles with Homebrew. setup.sh never
 # invokes package installs with sudo itself.
@@ -419,16 +415,25 @@ if [ "$(uname -s)" = "Darwin" ]; then
   done
 
   if [ "$managed_casks" -eq 1 ]; then
-    for brewfile in "${brewfiles[@]}"; do
-      if [ -f "$brewfile" ]; then
-        printf '==> Installing managed casks from %s with Homebrew\n' "$brewfile"
-        brew bundle install --file="$brewfile"
-      fi
-    done
+    if command -v brew >/dev/null 2>&1; then
+      brew update
 
-    # Uninstall any Homebrew cask that is currently installed but absent
-    # from both Brewfiles. This keeps personal toggles reconciled when they
-    # are turned off.
-    "$DOTFILES/scripts/brew-cleanup.sh" --apply
+      for brewfile in "${brewfiles[@]}"; do
+        if [ -f "$brewfile" ]; then
+          printf '==> Installing managed casks from %s with Homebrew\n' "$brewfile"
+          brew bundle install --file="$brewfile"
+        fi
+      done
+
+      # Uninstall any Homebrew cask that is currently installed but absent
+      # from both Brewfiles. This keeps personal toggles reconciled when they
+      # are turned off.
+      "$DOTFILES/scripts/brew-cleanup.sh" --apply
+    else
+      printf '\n'
+      printf 'warning: Homebrew not found; skipping managed casks. To install manually, run:\n'
+      printf '  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"\n'
+      printf '\n'
+    fi
   fi
 fi

@@ -15,6 +15,7 @@
     jiq
     jq
     ouch
+    qpdf
     ripgrep
     tabiew
     tdf

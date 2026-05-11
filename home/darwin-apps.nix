@@ -85,17 +85,6 @@ let
   '') darwinAppAliases;
 in
 lib.mkIf pkgs.stdenv.isDarwin {
-  home.activation.installHomebrew = lib.hm.dag.entryBefore [ "linkDarwinFonts" ] ''
-    if [ -x /opt/homebrew/bin/brew ] || [ -x /usr/local/bin/brew ]; then
-      exit 0
-    fi
-
-    printf '\n'
-    printf 'warning: Homebrew not found. To install manually, run:\n'
-    printf '  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"\n'
-    printf '\n'
-  '';
-
   home.packages =
     with pkgs;
     [
