@@ -12,11 +12,14 @@
     "external_directory": {
       "~/.cargo/**": "allow",
       "~/.config/**": "allow",
+      "~/.local/cache/**": "allow",
       "~/.local/share/**": "allow",
+      "~/.profile/**": "allow",
       "~/dev/**": "allow",
       "~/Documents/Obsidian/**": "allow",
       "/mnt/linux/dotfiles/**": "allow",
       "/mnt/linux/dev/**": "allow",
+      "/nix/store/**": "allow",
       "/tmp/**": "allow"
     }
   }
