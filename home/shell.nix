@@ -51,16 +51,27 @@ in
   home.activation.warnFishLoginShell = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
         fish_path="${fishPath}"
         current_shell="''${SHELL:-}"
+        found_login_shell=0
 
         if command -v getent >/dev/null 2>&1; then
           passwd_entry="$(getent passwd "$(id -un)" 2>/dev/null || true)"
           if [ -n "$passwd_entry" ]; then
             current_shell="''${passwd_entry##*:}"
+            found_login_shell=1
           fi
-        elif command -v dscl >/dev/null 2>&1; then
-          dscl_shell="$(dscl . -read "$HOME" UserShell 2>/dev/null || true)"
+        fi
+
+        if [ "$found_login_shell" -eq 0 ]; then
+          if [ -x /usr/bin/dscl ]; then
+            dscl_shell="$(/usr/bin/dscl . -read "$HOME" UserShell 2>/dev/null || true)"
+          elif command -v dscl >/dev/null 2>&1; then
+            dscl_shell="$(dscl . -read "$HOME" UserShell 2>/dev/null || true)"
+          else
+            dscl_shell=""
+          fi
+
           case "$dscl_shell" in
-            "UserShell: "*) current_shell="''${dscl_shell#UserShell: }" ;;
+            "UserShell: "*) current_shell="''${dscl_shell#UserShell: }" ; found_login_shell=1 ;;
           esac
         fi
 
