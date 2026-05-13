@@ -334,6 +334,24 @@ fn send(args: SendArgs) { ... }
 send(SendArgs { from, to, amount, dry_run: true, retry: false });
 ```
 
+#### 13. `SomeType::from(x)` over `x.into()`
+
+Make the target type explicit at the call site. `.into()` hides what is being produced behind type inference, forcing the reader to look at the binding's annotation, the function signature, or the `?`'s error type to know what conversion runs. `T::from(x)` puts the answer where the conversion happens.
+
+Before:
+```rust
+let port: Port = config.port.into();
+let body: RequestBody = payload.into();
+return Err(err.into());
+```
+
+After:
+```rust
+let port = Port::from(config.port);
+let body = RequestBody::from(payload);
+return Err(ApiError::from(err));
+```
+
 ## Review checklist
 
 Run this pass against existing Rust. Cite rule numbers in review comments.
@@ -350,6 +368,7 @@ Run this pass against existing Rust. Cite rule numbers in review comments.
 - [ ] `Deserialize` struct carrying raw `String` for a validated domain -> rule 10
 - [ ] New direct dependency where a transitive re-export exists -> rule 11
 - [ ] `fn(bool, bool, ...)`, `fn(String, String, ...)`, or 3+ positional params -> rule 12
+- [ ] `x.into()` where the target type is not visible at the call site -> rule 13
 
 ## Application order
 
@@ -360,7 +379,8 @@ When refactoring an existing file, apply rules in this order so each step compil
 3. Drop explanatory comments, extract helpers, split big files into modules (rules 5, 6, 7, 8).
 4. Flatten control flow (rule 9).
 5. Swap positional calls for named / struct args last - this touches call sites (rule 12).
-6. Drop redundant dependencies last (rule 11), after the code compiles on the re-export.
+6. Replace `.into()` with `T::from(x)` at call sites where the target type is not obvious (rule 13).
+7. Drop redundant dependencies last (rule 11), after the code compiles on the re-export.
 
 ## Constraints
 
