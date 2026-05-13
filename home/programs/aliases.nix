@@ -17,120 +17,147 @@ let
   ezaFlags = "--color=always --group-directories-first --git --icons --no-user --no-time --no-permissions";
 in
 {
-  programs.crossShellAliases.aliases = {
-    # cd helpers
-    cdt = "cd-task";
+  programs.crossShellAliases = {
+    aliases = {
+      # cd helpers
+      cdt = "cd-task";
 
-    # Cargo / Rust
-    c = "cargo";
-    cov = "cargo llvm-cov nextest --lcov --all --output-path lcov.info && rm -rf target/debug/coverage && grcov lcov.info -s . --binary-path ./target/debug/ -t html --excl-line='^\\s*(\\.await).*' --excl-start='mod test' -o ./target/debug/coverage/ && open ./target/debug/coverage/index.html";
-    fmt = "cargo fmt";
+      # Cargo / Rust
+      c = "cargo";
+      cov = "cargo llvm-cov nextest --lcov --all --output-path lcov.info && rm -rf target/debug/coverage && grcov lcov.info -s . --binary-path ./target/debug/ -t html --excl-line='^\\s*(\\.await).*' --excl-start='mod test' -o ./target/debug/coverage/ && open ./target/debug/coverage/index.html";
+      fmt = "cargo fmt";
 
-    # Docker
-    dco = "docker-compose";
-    dk = "docker";
-    dkps = "docker ps";
-    dksr = "docker stop $(docker ps -qa) && docker rm $(docker ps -qa)";
-    dps = "docker ps";
+      # Docker
+      dco = "docker-compose";
+      dk = "docker";
+      dkps = "docker ps";
+      dksr = "docker stop $(docker ps -qa) && docker rm $(docker ps -qa)";
+      dps = "docker ps";
 
-    # Git — single-letter
-    g = "git";
+      # Git — single-letter
+      g = "git";
 
-    # Git — add / diff / fetch
-    ga = "git add";
-    gd = "git diff";
-    gf = "git fetch";
+      # Git — add / diff / fetch
+      ga = "git add";
+      gd = "git diff";
+      gf = "git fetch";
 
-    # Git — commit / amend
-    gam = "git commit -am";
-    gan = "git commit --all --amend --no-edit";
-    gc = "git commit";
-    gcb = "git checkout -b";
-    gcl = "git clone --recurse-submodules";
-    gcm = "git commit -m";
-    gcn = "git commit --amend --no-edit";
-    gco = "git checkout";
+      # Git — commit / amend
+      gam = "git commit -am";
+      gan = "git commit --all --amend --no-edit";
+      gc = "git commit";
+      gcb = "git checkout -b";
+      gcl = "git clone --recurse-submodules";
+      gcm = "git commit -m";
+      gcn = "git commit --amend --no-edit";
+      gco = "git checkout";
 
-    # Git — branch / merge / rebase
-    gbd = "git branch -d";
-    gbD = "git branch -D";
-    gm = "git merge";
-    gr = "git rebase";
-    grb = "git fetch && git rebase --interactive --autosquash";
+      # Git — branch / merge / rebase
+      gbd = "git branch -d";
+      gbD = "git branch -D";
+      gm = "git merge";
+      gr = "git rebase";
+      grb = "git fetch && git rebase --interactive --autosquash";
 
-    # Git — log / status
-    glog = "git log --oneline --decorate --graph";
-    gss = "git status --short";
+      # Git — log / status
+      glog = "git log --oneline --decorate --graph";
+      gss = "git status --short";
 
-    # Git — push / pull
-    gp = "git push";
-    gpl = "git pull --rebase --recurse-submodules";
-    gpu = "git push --set-upstream";
+      # Git — push / pull
+      gp = "git push";
+      gpl = "git pull --rebase --recurse-submodules";
+      gpu = "git push --set-upstream";
 
-    # Git — remote
-    gra = "git remote add";
-    grr = "git remote remove";
-    grv = "git remote --verbose";
+      # Git — remote
+      gra = "git remote add";
+      grr = "git remote remove";
+      grv = "git remote --verbose";
 
-    # ls replacements
-    l = "eza -lah ${ezaFlags}";
-    la = "eza -a ${ezaFlags}";
-    ll = "eza -l ${ezaFlags}";
-    ls = "eza -al ${ezaFlags}";
-    lt = "eza -aT ${ezaFlags}";
+      # ls replacements
+      l = "eza -lah ${ezaFlags}";
+      la = "eza -a ${ezaFlags}";
+      ll = "eza -l ${ezaFlags}";
+      ls = "eza -al ${ezaFlags}";
+      lt = "eza -aT ${ezaFlags}";
 
-    # Tool aliases
-    alcompress = "ouch";
-    alglabci = "glim";
-    aljq = "jiq";
-    almqtt = "mqttui";
-    alpsql1 = "tsql";
-    alpsql2 = "rainfrog";
-    alsignal = "gurk";
-    csv = "tw";
-    docx = "doxx";
-    gpg = "gpg-tui";
-    json = "jiq";
-    pdf = "tdf";
+      # Tool aliases
+      alcompress = "ouch";
+      alglabci = "glim";
+      aljq = "jiq";
+      almqtt = "mqttui";
+      alpsql1 = "tsql";
+      alpsql2 = "rainfrog";
+      alsignal = "gurk";
+      csv = "tw";
+      docx = "doxx";
+      gpg = "gpg-tui";
+      json = "jiq";
+      pdf = "tdf";
 
-    # Other shorthands
-    a = "aerospace";
-    b = "bat";
-    gt = "goto";
-    h = "hx";
-    md = "mdterm";
-    oc = "opencode";
-    tabiew = "tw";
+      # Other shorthands
+      a = "aerospace";
+      b = "bat";
+      gt = "goto";
+      h = "hx";
+      md = "mdterm";
+      oc = "opencode";
+      tabiew = "tw";
 
-    # Task
-    t = "task";
-    td = "task detach";
-    tf = "task finish";
-    tp = "task path";
-    ts = "task start";
+      # Task
+      t = "task";
+      td = "task detach";
+      tf = "task finish";
+      tp = "task path";
+      ts = "task start";
 
-    # Tar shortcuts
-    untar = "tar -zxvf";
+      # Tar shortcuts
+      untar = "tar -zxvf";
 
-    # Tool replacements: override a classic tool with a modern one.
-    # Every binary on the right MUST be on PATH on every machine
-    # (provided by Nix HM modules in this repo).
-    btop = "htop";
-    cat = "bat";
-    less = "bat";
-    du = "dust";
-    find = "fd";
-    lf = "y"; # delegate to the yazi `y` wrapper (cd-on-exit)
-    lsusb = "cyme --lsusb";
-    nano = "hx";
-    ranger = "y";
-    top = "htop";
-    vi = "nvim";
-    vim = "nvim";
+      # Tool replacements: override a classic tool with a modern one.
+      # Every binary on the right MUST be on PATH on every machine
+      # (provided by Nix HM modules in this repo).
+      btop = "htop";
+      cat = "bat";
+      less = "bat";
+      du = "dust";
+      find = "fd";
+      lf = "y"; # delegate to the yazi `y` wrapper (cd-on-exit)
+      lsusb = "cyme --lsusb";
+      nano = "hx";
+      ranger = "y";
+      top = "htop";
+      vi = "nvim";
+      vim = "nvim";
 
-    # Zoxide
-    j = "z";
+      # Zoxide
+      j = "z";
+    };
+
+    replacementNotices = {
+      btop = "htop";
+      cat = "bat";
+      du = "dust";
+      find = "fd";
+      gpg = "gpg-tui";
+      l = "eza";
+      la = "eza";
+      less = "bat";
+      lf = "yazi";
+      ll = "eza";
+      ls = "eza";
+      lsusb = "cyme";
+      lt = "eza";
+      nano = "hx";
+      ranger = "yazi";
+      top = "htop";
+      vi = "nvim";
+      vim = "nvim";
+    };
+
+    fishCompletionWraps = {
+      oc = "opencode";
+    };
+
+    fishAbbreviations = [ "c" ];
   };
-
-  programs.crossShellAliases.fishAbbreviations = [ "c" ];
 }

@@ -7,8 +7,8 @@
 #   ~/.config/fish/conf.d/common-aliases.fish (auto-loaded by fish)
 #
 # Per-shell-only aliases (e.g. Arch pacman shorthands in fish, docker
-# shortcuts in zsh) stay in the per-shell rc files. Functions also
-# stay per-shell because the syntax differs between shells.
+# shortcuts in zsh) stay in the per-shell rc files. Replacement notices
+# are generated as shell functions so arguments are forwarded explicitly.
 #
 # Fish can opt selected aliases into abbreviations with
 # `programs.crossShellAliases.fishAbbreviations`. Those expand only in
@@ -26,23 +26,75 @@ let
   names = lib.attrNames cfg.aliases;
 
   fishAbbreviationNames = cfg.fishAbbreviations;
-  fishAliasNames = lib.filter (name: !(builtins.elem name fishAbbreviationNames)) names;
+  fishCompletionWrapNames = lib.attrNames cfg.fishCompletionWraps;
+  replacementNoticeNames = lib.attrNames cfg.replacementNotices;
+  replacementNames = lib.filter (name: builtins.hasAttr name cfg.aliases) replacementNoticeNames;
+
+  missingFishCompletionWraps = lib.filter (
+    name: !(builtins.hasAttr name cfg.aliases)
+  ) fishCompletionWrapNames;
+  missingReplacementNotices = lib.filter (
+    name: !(builtins.hasAttr name cfg.aliases)
+  ) replacementNoticeNames;
+  replacementAbbreviations = lib.filter (
+    name: builtins.elem name fishAbbreviationNames
+  ) replacementNoticeNames;
   missingFishAbbreviations = lib.filter (
     name: !(builtins.hasAttr name cfg.aliases)
   ) fishAbbreviationNames;
 
+  noticeMessage = name: "dotfiles: ${name} is configured as ${cfg.replacementNotices.${name}}";
+
   zshLine = name: "alias ${name}=${lib.escapeShellArg cfg.aliases.${name}}";
+  zshReplacementLine =
+    name:
+    lib.concatStringsSep "\n" [
+      "unalias ${name} 2>/dev/null || true"
+      "${name}() {"
+      "  printf '%s\\n' ${lib.escapeShellArg (noticeMessage name)} >&2"
+      "  ${cfg.aliases.${name}} \"$@\""
+      "}"
+    ];
+
   fishAliasLine = name: "alias ${name} ${lib.escapeShellArg cfg.aliases.${name}}";
   fishAbbreviationLine =
     name: "abbr --add -- ${lib.escapeShellArg name} ${lib.escapeShellArg cfg.aliases.${name}}";
+  fishReplacementLine =
+    name:
+    lib.concatStringsSep "\n" [
+      "function ${name} --description ${lib.escapeShellArg "${name} replacement via ${cfg.replacementNotices.${name}}"}"
+      "  printf '%s\\n' ${lib.escapeShellArg (noticeMessage name)} >&2"
+      "  ${cfg.aliases.${name}} $argv"
+      "end"
+    ];
+  fishCompletionWrapLine =
+    name:
+    lib.concatStringsSep "\n" [
+      "complete --erase --command ${lib.escapeShellArg name}"
+      "complete --command ${lib.escapeShellArg name} --wraps ${
+        lib.escapeShellArg cfg.fishCompletionWraps.${name}
+      }"
+    ];
 
-  zshBody = lib.concatMapStringsSep "\n" zshLine names;
-  fishAliasBody = lib.concatMapStringsSep "\n" fishAliasLine fishAliasNames;
-  fishAbbreviationBody = lib.concatMapStringsSep "\n" fishAbbreviationLine fishAbbreviationNames;
+  zshEntry =
+    name: if builtins.elem name replacementNames then zshReplacementLine name else zshLine name;
+  fishEntry =
+    name:
+    if builtins.elem name replacementNames then
+      fishReplacementLine name
+    else if builtins.elem name fishAbbreviationNames then
+      fishAbbreviationLine name
+    else
+      fishAliasLine name;
+
+  zshBody = lib.concatMapStringsSep "\n" zshEntry names;
+  fishCompletionWrapBody =
+    lib.concatMapStringsSep "\n" fishCompletionWrapLine
+      fishCompletionWrapNames;
   fishBody = lib.concatStringsSep "\n" (
     lib.filter (part: part != "") [
-      fishAliasBody
-      fishAbbreviationBody
+      (lib.concatMapStringsSep "\n" fishEntry names)
+      fishCompletionWrapBody
     ]
   );
 
@@ -65,8 +117,9 @@ in
         gpl = "git pull --rebase --recurse-submodules";
       };
       description = ''
-        Aliases shared between zsh and fish. Each entry produces one
-        `alias name=value` line in both shells' generated fragment.
+        Aliases shared between zsh and fish. Entries normally produce
+        aliases in both shells; entries listed in `replacementNotices`
+        produce wrapper functions that print a notice and forward args.
       '';
     };
 
@@ -79,6 +132,33 @@ in
         of fish aliases. Zsh always receives normal aliases.
       '';
     };
+
+    fishCompletionWraps = lib.mkOption {
+      type = lib.types.attrsOf lib.types.str;
+      default = { };
+      example = {
+        oc = "opencode";
+      };
+      description = ''
+        Fish completion overrides for aliases whose names collide with
+        built-in fish completions. The value is the command whose
+        completions should be wrapped.
+      '';
+    };
+
+    replacementNotices = lib.mkOption {
+      type = lib.types.attrsOf lib.types.str;
+      default = { };
+      example = {
+        ls = "eza";
+        cat = "bat";
+      };
+      description = ''
+        Aliases that should print a short notice before executing because
+        they replace another tool. The value is the replacement tool name
+        shown in the notice.
+      '';
+    };
   };
 
   config = lib.mkIf (cfg.aliases != { }) {
@@ -86,6 +166,18 @@ in
       {
         assertion = missingFishAbbreviations == [ ];
         message = "programs.crossShellAliases.fishAbbreviations contains unknown aliases: ${lib.concatStringsSep ", " missingFishAbbreviations}";
+      }
+      {
+        assertion = missingFishCompletionWraps == [ ];
+        message = "programs.crossShellAliases.fishCompletionWraps contains unknown aliases: ${lib.concatStringsSep ", " missingFishCompletionWraps}";
+      }
+      {
+        assertion = missingReplacementNotices == [ ];
+        message = "programs.crossShellAliases.replacementNotices contains unknown aliases: ${lib.concatStringsSep ", " missingReplacementNotices}";
+      }
+      {
+        assertion = replacementAbbreviations == [ ];
+        message = "programs.crossShellAliases aliases cannot be both replacement notices and fish abbreviations: ${lib.concatStringsSep ", " replacementAbbreviations}";
       }
     ];
 
