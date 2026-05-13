@@ -1,6 +1,6 @@
 ---
 name: task
-description: Use `task` for repo/worktree/detach workflows — creating feature tasks, exploring a repo's main branch via detached worktrees, and installing project binaries from detach configs.
+description: Use `task` for repo/worktree/detach workflows — creating feature tasks and exploring a repo's main branch via detached worktrees.
 compatibility: opencode
 ---
 
@@ -9,8 +9,8 @@ compatibility: opencode
 `task` is a Rust workflow helper (`github.com/tsauvajon/task`) that manages three things:
 
 1. **Bare clones** of repos, stored under `~/dev/repos/`.
-2. **Detached worktrees** pinned to each repo's default branch, stored under `~/dev/detached/`. Used for reading `main`/`master` and as the source for `cargo install`.
-3. **Task worktrees** (one per feature branch) stored under `~/dev/wt/`. Each task gets its own directory and tmux session.
+2. **Detached worktrees** pinned to each repo's default branch, stored under `~/dev/detached/`. Used for reading `main`/`master` without creating a feature task.
+3. **Task worktrees** (one per feature branch) stored under `~/dev/wt/`. Each task gets its own directory and zellij session.
 
 Run `task --help` for the full command list; this skill focuses on the flows you actually use day-to-day.
 
@@ -27,9 +27,9 @@ All paths use `~` (your `$HOME`).
 Config lives in two files:
 
 - `~/.config/task/config.toml` — base config (committed in dotfiles as `config/task/config.toml`).
-- `~/.config/dotfiles/task.*.toml` — private overlays (machine-local, not tracked). Appended onto the base by `setup.sh`.
+- `~/.config/dotfiles/task.*.toml` — private overlays (machine-local, not tracked). Merged into the generated config by Home Manager.
 
-The base config defines `repos_dir`, `wt_dir`, `detached_dir`, and a list of installable binaries.
+The base config defines `repos_dir`, `wt_dir`, `detached_dir`, and `editor`.
 
 ## Task worktrees (feature work)
 
@@ -41,7 +41,7 @@ task start <host>/<group>/<repo> <branch> [base_ref]
 
 - Clones the repo into `~/dev/repos/` if needed.
 - Creates a new worktree under `~/dev/wt/<host>/<group>/<repo>/<branch>/`.
-- Opens tmux, opencode, and vscodium in the new worktree.
+- Opens zellij, opencode, and vscodium in the new worktree.
 - Add `--no-open` to skip opening tools.
 
 Example (generic):
@@ -53,7 +53,7 @@ task start <host>/<group>/<repo> feat/<ticket>/<short-desc>
 ### Park, re-open, finish
 
 ```bash
-task park                            # stop the current task's tmux session (worktree stays)
+task park                            # stop the current task's zellij session (worktree stays)
 task open [repo] [branch]            # re-attach to a parked task
 task finish [repo] [branch] [--force]  # remove the worktree when done
 ```
@@ -96,64 +96,7 @@ Typical use:
 
 - Read unfamiliar upstream code before starting a task.
 - Feed a repo into grep/search tools without a feature-branch checkout.
-- Serve as the `cargo install --path` source for binary installs (below).
-
-## Installing binaries (detach + TOML)
-
-`task` installs Rust binaries directly from detached worktrees via `cargo install --path <path> --locked`. Entries are declared in TOML:
-
-### Public base: `~/.config/task/config.toml`
-
-```toml
-repos_dir    = "~/dev/repos"
-wt_dir       = "~/dev/wt"
-detached_dir = "~/dev/detached"
-
-[[install]]
-repo = "github.com/tsauvajon/goto"
-
-[[install]]
-repo = "github.com/tsauvajon/task"
-
-[[install]]
-repo = "github.com/bahdotsh/mdterm"
-
-[[install]]
-repo = "github.com/jrobhoward/dumap"
-```
-
-### Private overlay: `~/.config/dotfiles/task.install.toml`
-
-Holds machine-local `[[install]]` entries (not tracked in dotfiles). Same schema as the public base — `setup.sh` appends these onto the base.
-
-### Entry schema
-
-```toml
-[[install]]
-repo        = "<host>/<group>/<repo>"   # required; matches a detach target
-path        = "crates/<crate-name>"      # optional; pick a specific crate in a workspace
-extra_flags = ["--features", "foo,bar"]  # optional; forwarded to cargo install
-```
-
-- `repo` is the same identifier you pass to `task detach add`.
-- `path` is needed for virtual workspaces where the bin crate isn't at the root. If omitted, `task` inspects the root manifest and picks the sole bin member, or the bin member whose package name matches the repo short name.
-- `extra_flags` forwards arbitrary flags to `cargo install` (features, `--all-features`, etc.).
-
-### Install commands
-
-```bash
-task detach install              # install every configured entry
-task detach install <repo>       # install one entry
-```
-
-Each install runs `cargo install --path <detached-worktree>/<path> --locked`. To update a tool:
-
-```bash
-task detach update  <host>/<group>/<repo>
-task detach install <host>/<group>/<repo>
-```
-
-This is the canonical way to install and update internal or fork-only CLIs — detach first, install from the detached worktree, no crates.io hop.
+- Keep a stable checkout of a repo's default branch for comparison and reference.
 
 ## Repo management
 
@@ -195,11 +138,10 @@ task open <repo> <branch>          # attach to another
 task list                          # if unsure what's open
 ```
 
-Update and reinstall a tool managed via `[[install]]`:
+Refresh a detached worktree:
 
 ```bash
-task detach update  <host>/<group>/<repo>
-task detach install <host>/<group>/<repo>
+task detach update <host>/<group>/<repo>
 ```
 
 Jump into a task's directory from anywhere:
@@ -217,6 +159,6 @@ task finish <repo> <branch>
 ## References
 
 - Base config: `config/task/config.toml` (symlinked to `~/.config/task/config.toml`).
-- Private overlays: `~/.config/dotfiles/task.*.toml` (appended onto the base by `setup.sh`).
+- Private overlays: `~/.config/dotfiles/task.*.toml` (merged into the generated config by Home Manager).
 - Overlay-append mechanics: see the dotfiles repo `AGENTS.md` section "Overlay-append merges".
-- Companion skills: `rebase` (uses `task rebase` / `task check`), `create-merge-request`.
+- Companion skills: `rebase` (uses `task rebase` / `task check`).

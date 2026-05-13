@@ -1,10 +1,8 @@
 # Wire the upstream task Home Manager module into this flake.
 #
-# The public base config (repos_dir, wt_dir, detached_dir, editor,
-# shared [[install]] entries) lives in ../../config/task/config.toml
-# so it stays editable as plain TOML. Machine-local extras live under
-# ~/.config/dotfiles/task.*.toml. We hand-merge the install arrays
-# here because `lib.recursiveUpdate` would replace them wholesale.
+# The public base config (repos_dir, wt_dir, detached_dir, editor)
+# lives in ../../config/task/config.toml so it stays editable as plain
+# TOML. Machine-local extras live under ~/.config/dotfiles/task.*.toml.
 #
 # We also generate shell completion files at HM build time using
 # `task completions <shell>` so zsh/fish/bash all pick them up
@@ -22,16 +20,13 @@ let
   publicConfig = builtins.fromTOML (builtins.readFile ../../config/task/config.toml);
 
   # The public `config.toml` is restricted to the keys consumed below;
-  # arbitrary extras (e.g. a `[vscodium]` section) are silently dropped
-  # by `extraConfig`, which only includes private overlay content. Fail
-  # the build early instead, so the contributor moves the section into
-  # a private overlay (`~/.config/dotfiles/task.*.toml`).
+  # arbitrary extras (e.g. a `[vscodium]` section) are only supported in
+  # private overlays passed through `extraConfig`.
   recognizedPublicKeys = [
     "repos_dir"
     "wt_dir"
     "detached_dir"
     "editor"
-    "install"
   ];
   unknownPublicKeys = lib.subtractLists recognizedPublicKeys (builtins.attrNames publicConfig);
 
@@ -49,19 +44,7 @@ let
 
   overlayContents = map (p: builtins.fromTOML (builtins.readFile p)) overlayFiles;
   mergedExtra = lib.foldl' lib.recursiveUpdate { } overlayContents;
-
-  publicInstalls = publicConfig.install or [ ];
-  privateInstalls = lib.concatMap (c: c.install or [ ]) overlayContents;
-
-  # Convert TOML's snake_case `extra_flags` to the camelCase `extraFlags`
-  # the upstream HM module expects.
-  normalizeInstall =
-    entry:
-    { inherit (entry) repo; }
-    // lib.optionalAttrs (entry ? path) { inherit (entry) path; }
-    // lib.optionalAttrs (entry ? extra_flags) { extraFlags = entry.extra_flags; };
-
-  extraConfigWithoutInstalls = builtins.removeAttrs mergedExtra [ "install" ];
+  extraConfig = builtins.removeAttrs mergedExtra [ "install" ];
 
   # Build a derivation that captures `task completions <shell>` stdout.
   # We resolve the binary off the flake input directly to avoid bouncing
@@ -89,8 +72,7 @@ assert lib.assertMsg (unknownPublicKeys == [ ]) ''
     wtDir = publicConfig.wt_dir or "~/dev/wt";
     detachedDir = publicConfig.detached_dir or "~/dev/detached";
     editor = publicConfig.editor or "helix";
-    installs = map normalizeInstall (publicInstalls ++ privateInstalls);
-    extraConfig = extraConfigWithoutInstalls;
+    inherit extraConfig;
   };
 
   # Shell completions baked at HM build time. zsh autoload picks up

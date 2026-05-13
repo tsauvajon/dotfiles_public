@@ -2,5 +2,3 @@ repos_dir = "~/dev/repos"
 wt_dir = "~/dev/wt"
 detached_dir = "~/dev/detached"
 editor = "helix"
-
-# Add `[[install]]` entries here for tools that need a `cargo install` from source.
