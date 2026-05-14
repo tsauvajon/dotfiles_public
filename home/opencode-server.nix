@@ -74,10 +74,35 @@ let
       ${pkgs.curl}/bin/curl --fail --silent --max-time 1 "$url/global/health" >/dev/null 2>&1
     }
 
+    wait_for_health() {
+      for _ in $(${pkgs.coreutils}/bin/seq 1 50); do
+        if health; then
+          return 0
+        fi
+        ${pkgs.coreutils}/bin/sleep 0.1
+      done
+
+      return 1
+    }
+
+    running_under_opencode_agent() {
+      [ "''${AGENT:-}" = "1" ] || return 1
+      [ "''${OPENCODE:-}" = "1" ] || [ -n "''${OPENCODE_RUN_ID:-}" ]
+    }
+
     if [ "$new_hash" != "$old_hash" ]; then
-      echo "==> OpenCode shared server inputs changed; restarting service"
-      printf '%s\n' "$new_hash" > "$marker"
-      ${serviceRestartCommand}
+      if running_under_opencode_agent; then
+        echo "==> OpenCode shared server inputs changed; restart deferred because setup is running under an OpenCode agent"
+        echo "==> Run setup.sh from a normal shell to restart the shared server safely"
+      else
+        echo "==> OpenCode shared server inputs changed; restarting service"
+        ${serviceRestartCommand}
+        if wait_for_health; then
+          printf '%s\n' "$new_hash" > "$marker"
+        else
+          echo "warning: OpenCode shared server did not become healthy at $url after restart" >&2
+        fi
+      fi
     elif ! health; then
       echo "==> OpenCode shared server is not running; starting service"
       ${serviceStartCommand}
