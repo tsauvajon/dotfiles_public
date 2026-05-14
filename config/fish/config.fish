@@ -1,4 +1,5 @@
 # Format man pages
+set -gx SHELL (status fish-path)
 set -gx EDITOR hx
 set -gx VISUAL hx
 set -x MANROFFOPT -c
