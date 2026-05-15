@@ -164,6 +164,7 @@
       "task rebase *": "allow",
       "task start *": "allow",
       "task *": "allow",
+      "tee *": "allow",
       "terraform *": "allow",
       "test *": "allow",
       "time *": "allow",

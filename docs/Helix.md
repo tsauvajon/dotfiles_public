@@ -32,7 +32,13 @@ Keymap: https://docs.helix-editor.com/keymap.html
 # Delete till end of line
 t<ret>d
 v<End>d
+
 # Delete till beginning of line
 T<ret>d
 v<Home>d
+
+# Surround with brackets or other characters
+ms[
+ms(
+ms"
 ```

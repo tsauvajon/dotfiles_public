@@ -117,7 +117,7 @@ in
       # Every binary on the right MUST be on PATH on every machine
       # (provided by Nix HM modules in this repo).
       btop = "htop";
-      cat = "bat";
+      cat = "bat --paging=never --plain";
       less = "bat";
       du = "dust";
       find = "fd";
