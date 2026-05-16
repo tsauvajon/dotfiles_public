@@ -7,20 +7,22 @@
     "read": {
       ".env*": "deny",
       "*": "allow",
-      "/nix/store/**": "allow"
+      "/nix/store/*": "allow"
     },
     "external_directory": {
-      "~/.cargo/**": "allow",
-      "~/.config/**": "allow",
-      "~/.local/cache/**": "allow",
-      "~/.local/share/**": "allow",
-      "~/.profile/**": "allow",
-      "~/dev/**": "allow",
-      "~/Documents/Obsidian/**": "allow",
-      "/mnt/linux/dotfiles/**": "allow",
-      "/mnt/linux/dev/**": "allow",
-      "/nix/store/**": "allow",
-      "/tmp/**": "allow"
+      "~/.cargo/*": "allow",
+      "~/.config/*": "allow",
+      "~/.local/cache/*": "allow",
+      "~/.local/share/*": "allow",
+      "~/.profile/*": "allow",
+      "~/dev/*": "allow",
+      "~/Documents/Obsidian/*": "allow",
+      "/mnt/linux/dotfiles/*": "allow",
+      "/mnt/linux/dev/*": "allow",
+      "/private/var/*/opencode/*": "allow",
+      "/nix/store/*": "allow",
+      "/tmp/*": "allow",
+      "~/dev/dotfiles/*": "allow"
     }
   }
 }

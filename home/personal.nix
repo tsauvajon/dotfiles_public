@@ -40,6 +40,7 @@ let
   privateGurk = privatePersonal.gurk or { };
   privateNaps2 = privatePersonal.naps2 or { };
   privateTailscale = privatePersonal.tailscale or { };
+  privatePlezy = privatePersonal.plezy or { };
 
   cfg = config.dotfiles.personal;
 
@@ -120,6 +121,15 @@ in
         On macOS this declares a Homebrew-managed cask for the official app.
       '';
     };
+
+    plezy.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = privatePlezy.enable or true;
+      description = ''
+        Install Plezy, a modern Plex & Jellyfin client. Uses `pkgs.plezy`
+        from nixpkgs on all supported platforms.
+      '';
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -128,7 +138,8 @@ in
       ++ lib.optionals cfg.gurk.enable [ pkgs.gurk-rs ]
       ++ lib.optionals (cfg.chromium.enable && pkgs.stdenv.isLinux) [ pkgs.chromium ]
       ++ lib.optionals (cfg.naps2.enable && pkgs.stdenv.isLinux) [ pkgs.naps2 ]
-      ++ lib.optionals (cfg.tailscale.enable && pkgs.stdenv.isLinux) [ pkgs.tailscale ];
+      ++ lib.optionals (cfg.tailscale.enable && pkgs.stdenv.isLinux) [ pkgs.tailscale ]
+      ++ lib.optionals cfg.plezy.enable [ pkgs.plezy ];
 
     services.syncthing = lib.mkIf cfg.syncthing.enable {
       enable = true;

@@ -78,6 +78,12 @@ let
       name = "Signal.app";
       target = "${pkgs.signal-desktop}/Applications/Signal.app";
     }
+  ]
+  ++ lib.optionals (personal.enable && personal.plezy.enable) [
+    {
+      name = "Plezy.app";
+      target = "${pkgs.plezy}/Applications/Plezy.app";
+    }
   ];
 
   darwinAppAliasCommands = lib.concatMapStringsSep "\n" (app: ''
@@ -92,7 +98,8 @@ lib.mkIf pkgs.stdenv.isDarwin {
       keepassxc
     ]
     ++ fontPackages
-    ++ ddcPackages;
+    ++ ddcPackages
+    ++ lib.optionals (personal.enable && personal.plezy.enable) [ plezy ];
 
   # Symlink Nix-installed font files into ~/Library/Fonts/ on activation.
   # The marker file `dotfiles-managed` records every symlink we own so

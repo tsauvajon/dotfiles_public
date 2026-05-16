@@ -47,6 +47,8 @@ let
     marker="${config.xdg.cacheHome}/dotfiles/opencode-server.sha256"
     config_dir="${config.xdg.configHome}/opencode"
     url="${url}"
+    label="${label}"
+    systemdService="${systemdService}"
 
     ${pkgs.coreutils}/bin/mkdir -p "$(${pkgs.coreutils}/bin/dirname "$marker")"
 
@@ -85,6 +87,23 @@ let
       return 1
     }
 
+    verify_service() {
+      case "$(uname -s)" in
+        Darwin)
+          uid="$(id -u)"
+          domain="gui/$uid"
+          /bin/launchctl print "$domain/$label" 2>/dev/null | /usr/bin/grep -q "active count = [1-9]"
+          ;;
+        Linux)
+          if command -v systemctl >/dev/null 2>&1; then
+            systemctl --user is-active --quiet "$systemdService"
+            return $?
+          fi
+          return 1
+          ;;
+      esac
+    }
+
     running_under_opencode_agent() {
       [ "''${AGENT:-}" = "1" ] || return 1
       [ "''${OPENCODE:-}" = "1" ] || [ -n "''${OPENCODE_RUN_ID:-}" ]
@@ -97,13 +116,15 @@ let
       else
         echo "==> OpenCode shared server inputs changed; restarting service"
         ${serviceRestartCommand}
-        if wait_for_health; then
+        if wait_for_health && verify_service; then
           printf '%s\n' "$new_hash" > "$marker"
         else
-          echo "warning: OpenCode shared server did not become healthy at $url after restart" >&2
+          echo "warning: OpenCode shared server restart failed or did not become healthy at $url" >&2
+          echo "==> Check logs: ${cfg.errorLogFile}" >&2
+          echo "==> If port ${port} is occupied by an old server, kill it manually and rerun setup.sh" >&2
         fi
       fi
-    elif ! health; then
+    elif ! verify_service || ! health; then
       echo "==> OpenCode shared server is not running; starting service"
       ${serviceStartCommand}
     fi

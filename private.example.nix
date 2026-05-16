@@ -69,6 +69,7 @@
         gurk.enable = true;
         naps2.enable = true;
         tailscale.enable = true;
+        plezy.enable = true;
       };
 
       # Optional — OpenCode private overlays.
