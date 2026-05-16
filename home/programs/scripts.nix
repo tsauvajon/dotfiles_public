@@ -45,6 +45,39 @@
       '';
     })
 
+    # Force Chromium's macOS window surface to repaint after it gets stuck
+    # showing stale pixels while tab/browser state continues to update.
+    (pkgs.writeShellApplication {
+      name = "chromium-redraw";
+      text = ''
+        if [ "$(uname -s)" != "Darwin" ]; then
+          echo "chromium-redraw: only supported on macOS" >&2
+          exit 1
+        fi
+
+        /usr/bin/osascript <<'APPLESCRIPT'
+        tell application "Chromium" to activate
+        delay 0.2
+        tell application "System Events"
+          tell application process "Chromium"
+            set frontmost to true
+            if (count of windows) > 0 then
+              set oldSize to size of window 1
+              set newWidth to (item 1 of oldSize) - 1
+              if newWidth < 1 then set newWidth to item 1 of oldSize
+              set size of window 1 to {newWidth, item 2 of oldSize}
+              delay 0.2
+              set size of window 1 to oldSize
+            end if
+          end tell
+          keystroke "h" using command down
+        end tell
+        delay 0.5
+        tell application "Chromium" to activate
+        APPLESCRIPT
+      '';
+    })
+
     # Route normal OpenCode TUI launches through one shared local server
     # so permission requests are visible to external API clients.
     (pkgs.writeShellApplication {
