@@ -1,0 +1,82 @@
+{
+  "agent": {
+    "build": {
+      "model": "openai/gpt-5.5",
+      "variant": "high",
+      "permission": {
+        "task": {
+          "*": "deny",
+          "explore": "allow",
+          "verify": "allow",
+          "review": "allow",
+          "scout": "allow",
+          "general": "allow"
+        }
+      }
+    },
+    "explore": {
+      "mode": "subagent",
+      "model": "opencode/deepseek-v4-flash-free",
+      "description": "Read-only local code search. Return paths, line ranges, and concise evidence.",
+      "permission": {
+        "edit": "deny",
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "bash": "deny"
+      }
+    },
+    "verify": {
+      "mode": "subagent",
+      "model": "opencode/deepseek-v4-flash-free",
+      "description": "Runs bounded verification commands and summarizes only actionable output. No edits.",
+      "permission": {
+        "edit": "deny",
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "bash": {
+          "*": "deny",
+          "cargo *": "allow",
+          "nix flake check*": "allow",
+          "nix build*": "allow",
+          "npm test*": "allow",
+          "npm run test*": "allow",
+          "npm run lint*": "allow",
+          "pnpm test*": "allow",
+          "pnpm lint*": "allow",
+          "bun test*": "allow",
+          "bun run test*": "allow",
+          "bun run lint*": "allow",
+          "make test*": "allow",
+          "make check*": "allow",
+          "pytest*": "allow",
+          "go test*": "allow",
+          "zig build test*": "allow",
+          "task check*": "allow"
+        }
+      }
+    },
+    "review": {
+      "mode": "subagent",
+      "model": "opencode/qwen3.6-plus-free",
+      "description": "Read-only candidate review. Return findings with severity, file:line, evidence, and suggested fixes.",
+      "permission": {
+        "edit": "deny",
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "bash": {
+          "*": "deny",
+          "git diff*": "allow",
+          "git status*": "allow",
+          "git show*": "allow",
+          "git log*": "allow"
+        }
+      }
+    }
+  }
+}
