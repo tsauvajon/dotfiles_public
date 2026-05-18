@@ -1,1 +1,10 @@
-catppuccin/themes/catppuccin-mocha.rasi
+@import "catppuccin-mocha.rasi"
+
+* {
+  background:     @base;
+  background-alt: @surface0;
+  foreground:     @text;
+  selected:       @mauve;
+  active:         @blue;
+  urgent:         @red;
+}

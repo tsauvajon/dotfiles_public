@@ -19,6 +19,8 @@ lib.mkIf pkgs.stdenv.isLinux {
     nerd-fonts.jetbrains-mono
     libnotify
     mako
+    papirus-icon-theme
+    rofi
     swappy
     waybar
   ];

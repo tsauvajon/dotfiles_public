@@ -11,7 +11,7 @@
  **/
 
 /*****----- Global Properties -----*****/
-@import "~/.config/rofi/catppuccin.rasi"
+@import "catppuccin.rasi"
 
 * {
   font: "JetBrains Mono Nerd Font 9";
