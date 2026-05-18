@@ -133,6 +133,15 @@
         cargo-coupling = final.callPackage ./pkgs/cargo-coupling { };
         glim = final.callPackage ./pkgs/glim { };
         tsql = final.callPackage ./pkgs/tsql { };
+
+        # Apply a downstream patch to harper that suppresses the
+        # SentenceCapitalization lint inside markdown list items, since
+        # upstream issue #189 was closed as not planned.
+        harper = prev.harper.overrideAttrs (old: {
+          patches = (old.patches or [ ]) ++ [
+            ./pkgs/harper/skip-list-capitalization.patch
+          ];
+        });
       };
 
       mkPkgs =

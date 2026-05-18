@@ -2,6 +2,10 @@
 command = "harper-ls"
 args = ["--stdio"]
 
+[language-server.harper-ls.config.harper-ls.linters]
+UseTitleCase = false
+SpellCheck = false
+
 [[language]]
 name = "python"
 language-servers = ["ty", "ruff"]

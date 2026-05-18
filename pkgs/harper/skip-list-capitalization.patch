@@ -1,0 +1,67 @@
+--- a/harper-core/src/linting/sentence_capitalization.rs	2026-04-24 22:47:10
++++ b/harper-core/src/linting/sentence_capitalization.rs	2026-05-18 06:34:51
+@@ -47,6 +47,17 @@
+                         continue;
+                     }
+ 
++                    // Local downstream patch: suppress the lint for markdown
++                    // list items. Workaround for upstream issue #189
++                    // (`optionally enforce sentence_capitalization at start of
++                    // bullet`, closed 2026-01-11 as not planned).
++                    if begins_in_markdown_list_item(
++                        document.get_source(),
++                        first_word.span.start,
++                    ) {
++                        continue;
++                    }
++
+                     let word_chars = document.get_span_content(&first_word.span);
+ 
+                     if let Some(first_char) = word_chars.first()
+@@ -95,7 +106,46 @@
+ 
+     fn description(&self) -> &'static str {
+         "The opening word of a sentence should almost always be capitalized."
++    }
++}
++
++/// Returns true if `word_start` is the first word of a markdown list item:
++/// preceded on the same line only by whitespace and a list marker (`-`, `*`,
++/// `+`, or digits followed by `.` or `)`).
++fn begins_in_markdown_list_item(source: &[char], word_start: usize) -> bool {
++    if word_start == 0 || word_start > source.len() {
++        return false;
++    }
++
++    let mut line_start = word_start;
++    while line_start > 0 && source[line_start - 1] != '\n' {
++        line_start -= 1;
++    }
++
++    let mut i = line_start;
++    while i < word_start && source[i].is_whitespace() {
++        i += 1;
+     }
++    if i >= word_start {
++        return false;
++    }
++
++    if matches!(source[i], '-' | '*' | '+') {
++        return i + 1 < word_start && source[i + 1].is_whitespace();
++    }
++
++    if source[i].is_ascii_digit() {
++        let mut j = i + 1;
++        while j < word_start && source[j].is_ascii_digit() {
++            j += 1;
++        }
++        return j < word_start
++            && matches!(source[j], '.' | ')')
++            && j + 1 < word_start
++            && source[j + 1].is_whitespace();
++    }
++
++    false
+ }
+ 
+ fn is_full_sentence(toks: &[Token]) -> bool {
