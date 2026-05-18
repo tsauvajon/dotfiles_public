@@ -372,26 +372,6 @@
         "type": "github"
       }
     },
-    "opencode": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1779130649,
-        "narHash": "sha256-bdLrOR0HQkaKA1vb9uwGc8JK5nxGZbRJD4k4DDIi//o=",
-        "owner": "anomalyco",
-        "repo": "opencode",
-        "rev": "12ae22378f962270cb20c2283d98d0c9781520c4",
-        "type": "github"
-      },
-      "original": {
-        "owner": "anomalyco",
-        "repo": "opencode",
-        "type": "github"
-      }
-    },
     "private": {
       "locked": {
         "path": "./private-placeholder",
@@ -422,7 +402,6 @@
         "nixgl": "nixgl",
         "nixgl-nixpkgs": "nixgl-nixpkgs",
         "nixpkgs": "nixpkgs_2",
-        "opencode": "opencode",
         "private": "private",
         "rust-overlay": "rust-overlay",
         "scooter-hx": "scooter-hx",

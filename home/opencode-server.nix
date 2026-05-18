@@ -1,6 +1,5 @@
 {
   config,
-  inputs,
   lib,
   pkgs,
   ...
@@ -8,7 +7,7 @@
 
 let
   cfg = config.programs.opencode.sharedServer;
-  opencodePackage = inputs.opencode.packages.${pkgs.stdenv.system}.opencode;
+  opencodePackage = pkgs.opencode;
   opencodeBin = "${opencodePackage}/bin/opencode";
   port = toString cfg.port;
   url = "http://${cfg.host}:${port}";

@@ -110,11 +110,6 @@
       flake = false;
     };
 
-    opencode = {
-      url = "github:anomalyco/opencode";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     # ddcctl: macOS DDC/CI monitor control. Only used on x86_64-darwin
     # (Apple Silicon uses pkgs.m1ddc from nixpkgs). Pinned to a specific
     # commit because upstream is in self-described maintenance mode.
