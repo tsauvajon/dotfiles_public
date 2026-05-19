@@ -10,13 +10,29 @@
           "verify": "allow",
           "review": "allow",
           "scout": "allow",
+          "implement": "allow",
+          "rust-design": "allow",
+          "rust": "allow",
           "general": "allow"
+        }
+      }
+    },
+    "plan": {
+      "permission": {
+        "task": {
+          "*": "deny",
+          "explore": "allow",
+          "verify": "allow",
+          "review": "allow",
+          "scout": "allow",
+          "rust-design": "allow"
         }
       }
     },
     "explore": {
       "mode": "subagent",
       "model": "opencode/deepseek-v4-flash-free",
+      "variant": "max",
       "description": "Read-only local code search. Return paths, line ranges, and concise evidence.",
       "permission": {
         "edit": "deny",
@@ -30,6 +46,7 @@
     "verify": {
       "mode": "subagent",
       "model": "opencode/deepseek-v4-flash-free",
+      "variant": "max",
       "description": "Runs bounded verification commands and summarizes only actionable output. No edits.",
       "permission": {
         "edit": "deny",
@@ -39,6 +56,8 @@
         "list": "allow",
         "bash": {
           "*": "deny",
+          "SOPS_AGE_KEY_FILE=*": "allow",
+          "SOPS_AGE_KEY_FILE=* nix develop -c sops *": "allow",
           "cargo *": "allow",
           "nix flake check*": "allow",
           "nix build*": "allow",
@@ -46,6 +65,12 @@
           "nix eval*": "allow",
           "nixos-option*": "allow",
           "nix develop*": "allow",
+          "nix develop -c tofu -chdir=infra/opentofu fmt -check": "allow",
+          "nix develop -c tofu -chdir=infra/opentofu validate": "allow",
+          "SOPS_AGE_KEY_FILE=* nix develop -c sops --filename-override secrets/deployer.yaml -e /dev/stdin": "allow",
+          "echo * | SOPS_AGE_KEY_FILE=* nix develop -c sops --filename-override secrets/deployer.yaml -e /dev/stdin": "allow",
+          "echo * | SOPS_AGE_KEY_FILE=* nix develop -c sops --filename-override secrets/deployer.yaml -e /dev/stdin >/dev/null 2>&1": "allow",
+          "echo * | SOPS_AGE_KEY_FILE=* nix develop -c sops *": "allow",
           "nix run*": "allow",
           "nix flake update*": "allow",
           "tofu *": "allow",
@@ -93,6 +118,122 @@
           "git status*": "allow",
           "git show*": "allow",
           "git log*": "allow"
+        }
+      }
+    },
+    "scout": {
+      "mode": "subagent",
+      "model": "opencode/deepseek-v4-flash-free",
+      "variant": "max",
+      "description": "External research: web search, docs, dependency behavior, vendor APIs, ecosystem facts. Returns sources, verified facts, unknowns, and relevance to the local task.",
+      "permission": {
+        "edit": "deny",
+        "read": "allow",
+        "glob": "deny",
+        "grep": "deny",
+        "list": "allow",
+        "bash": "deny"
+      }
+    },
+    "implement": {
+      "mode": "subagent",
+      "model": "opencode/qwen3.6-plus-free",
+      "description": "Implementation subagent that reads code, makes edits, runs verification, and returns a structured report of changes made and their status.",
+      "permission": {
+        "edit": "allow",
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "bash": {
+          "*": "deny",
+          "SOPS_AGE_KEY_FILE=*": "allow",
+          "SOPS_AGE_KEY_FILE=* nix develop -c sops *": "allow",
+          "cargo *": "allow",
+          "nix flake check*": "allow",
+          "nix build*": "allow",
+          "nix fmt*": "allow",
+          "nix eval*": "allow",
+          "nixos-option*": "allow",
+          "nix develop*": "allow",
+          "nix develop -c tofu -chdir=infra/opentofu fmt -check": "allow",
+          "nix develop -c tofu -chdir=infra/opentofu validate": "allow",
+          "SOPS_AGE_KEY_FILE=* nix develop -c sops --filename-override secrets/deployer.yaml -e /dev/stdin": "allow",
+          "echo * | SOPS_AGE_KEY_FILE=* nix develop -c sops --filename-override secrets/deployer.yaml -e /dev/stdin": "allow",
+          "echo * | SOPS_AGE_KEY_FILE=* nix develop -c sops --filename-override secrets/deployer.yaml -e /dev/stdin >/dev/null 2>&1": "allow",
+          "echo * | SOPS_AGE_KEY_FILE=* nix develop -c sops *": "allow",
+          "nix run*": "allow",
+          "tofu *": "allow",
+          "sops -d*": "allow",
+          "npm test*": "allow",
+          "npm run test*": "allow",
+          "npm run lint*": "allow",
+          "pnpm test*": "allow",
+          "pnpm lint*": "allow",
+          "bun test*": "allow",
+          "bun run test*": "allow",
+          "bun run lint*": "allow",
+          "biome ci*": "allow",
+          "biome check*": "allow",
+          "prettier --check*": "allow",
+          "vitest run*": "allow",
+          "make test*": "allow",
+          "make check*": "allow",
+          "pytest*": "allow",
+          "go test*": "allow",
+          "zig build test*": "allow",
+          "task check*": "allow",
+          "git diff*": "allow",
+          "git status*": "allow",
+          "git log*": "allow",
+          "git show*": "allow"
+        }
+      }
+    },
+    "rust-design": {
+      "mode": "subagent",
+      "model": "opencode/qwen3.6-plus-free",
+      "description": "Read-only Rust architecture and design subagent. Analyzes codebase structure, dependencies, and patterns to return structured design recommendations for API, type, trait, error handling, async, and ownership decisions.",
+      "permission": {
+        "edit": "deny",
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "bash": "deny"
+      }
+    },
+    "rust": {
+      "mode": "subagent",
+      "model": "opencode/qwen3.6-plus-free",
+      "description": "Rust designer/coder subagent. Reads Cargo.toml and surrounding modules, applies idiomatic Rust conventions, makes edits, and runs cargo verification.",
+      "permission": {
+        "edit": "allow",
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "bash": {
+          "*": "deny",
+          "cargo fmt*": "allow",
+          "cargo check*": "allow",
+          "cargo clippy*": "allow",
+          "cargo test*": "allow",
+          "cargo build*": "allow",
+          "cargo tree*": "allow",
+          "cargo doc*": "allow",
+          "rustfmt*": "allow",
+          "rustc*": "allow",
+          "nix flake check*": "allow",
+          "nix build*": "allow",
+          "nix fmt*": "allow",
+          "nix eval*": "allow",
+          "nix develop*": "allow",
+          "nix run*": "allow",
+          "git diff*": "allow",
+          "git status*": "allow",
+          "git log*": "allow",
+          "git show*": "allow"
         }
       }
     }
