@@ -95,54 +95,17 @@ A newer local/dev binary can migrate the shared DB and make rollback to an older
 binary risky. Prefer keeping one stable channel on `PATH` before forcing all
 channels to one DB.
 
-## Align To 1.14.48
+## Current Version Pin
 
-Use this when `pkgs.opencode` is still `1.14.48`.
+These dotfiles currently pin OpenCode to `1.15.5` in `flake.nix` via
+`opencodePin`, which holds the OpenCode version, source hash, and fixed-output
+`nodeModulesHash`.
 
-Change `config/opencode/package.json`:
+The pin overrides `pkgs.opencode`, so both the installed CLI in
+`home/editors.nix` and the shared server in `home/opencode-server.nix` use the
+same Nix package.
 
-```json
-{
-  "dependencies": {
-    "@opencode-ai/plugin": "1.14.48"
-  }
-}
-```
-
-Then run:
-
-```sh
-bash setup.sh
-```
-
-Expected state:
-
-| Surface | Expected |
-|---|---|
-| `opencode --version` | `1.14.48` |
-| shared server health | `1.14.48` |
-| `~/.config/opencode/package.json` | `@opencode-ai/plugin` `1.14.48` |
-| `~/.config/opencode/bun.lock` | `@opencode-ai/plugin` `1.14.48` |
-| DB | `opencode-stable.db` if the Nix package is built with stable channel |
-
-Pros:
-
-- Lowest risk.
-- No local Nix package override.
-- Keeps the session DB on the current stable channel.
-- Avoids binary/plugin API skew.
-
-Cons:
-
-- Gives up newer plugin SDK fixes until nixpkgs updates `pkgs.opencode`.
-
-This is the preferred short-term alignment when stability matters.
-
-## Align To 1.15.5
-
-Use this only if we need OpenCode `1.15.5` before nixpkgs updates.
-
-Keep `config/opencode/package.json` at:
+Keep `config/opencode/package.json` aligned with the same version:
 
 ```json
 {
@@ -152,54 +115,36 @@ Keep `config/opencode/package.json` at:
 }
 ```
 
-Overlay `pkgs.opencode` in `flake.nix` so the binary and server also build
-`1.15.5`. The nixpkgs package currently fetches
-`github:anomalyco/opencode` and has both a source hash and fixed-output
-`node_modules` hash, so this takes two hash refreshes.
+The flake check `opencode-version-alignment` fails if `pkgs.opencode.version`,
+`opencodePin.version`, and `@opencode-ai/plugin` drift apart.
 
-Overlay shape:
+The override preserves `OPENCODE_CHANNEL = "stable"`. That should preserve use
+of `opencode-stable.db`. Building as `local`, `dev`, or another non-stable
+channel can move sessions to `opencode-local.db` or another channel-specific DB.
 
-```nix
-opencode = prev.opencode.overrideAttrs (finalAttrs: oldAttrs: rec {
-  version = "1.15.5";
+For `x86_64-darwin`, nixpkgs marks OpenCode as a bad platform because Bun can
+fail on Intel CPUs without AVX. The local overlay removes only OpenCode's
+`x86_64-darwin` bad-platform marker when evaluating the `x86_64-darwin` package
+set. It does not enable unsupported packages globally.
 
-  src = final.fetchFromGitHub {
-    owner = "anomalyco";
-    repo = "opencode";
-    tag = "v${version}";
-    hash = "sha256-...";
-  };
+## Updating OpenCode
 
-  node_modules = oldAttrs.node_modules.overrideAttrs (_: {
-    inherit version src;
-    outputHash = "sha256-...";
-  });
+When bumping OpenCode, update all versioned surfaces together:
 
-  env = oldAttrs.env // {
-    OPENCODE_VERSION = version;
-    OPENCODE_CHANNEL = "stable";
-  };
-});
-```
+1. Change `opencodePin.version` in `flake.nix`.
+2. Refresh `opencodePin.srcHash` for `github:anomalyco/opencode` tag `v<version>`.
+3. Refresh `opencodePin.nodeModulesHash` for the package's fixed-output `node_modules` derivation.
+4. Change `@opencode-ai/plugin` in `config/opencode/package.json` to the same version.
+5. Run `nix flake check` or at least the current system's `opencode-version-alignment` check.
+6. Run `bash setup.sh` so Home Manager links the new binary/config and Bun refreshes the plugin install.
 
-Keep `OPENCODE_CHANNEL = "stable"`. That should preserve use of
-`opencode-stable.db`. Building as `local`, `dev`, or another non-stable channel
-can move sessions to `opencode-local.db` or another channel-specific DB.
+If `~/.config/dotfiles/opencode/package.json` exists, keep its
+`@opencode-ai/plugin` override aligned too. Private package overlays win over
+the public package manifest during the Home Manager merge.
 
-Pros:
-
-- Binary/server and plugin SDK are aligned at latest.
-- Still declarative and Home Manager-managed.
-- Keeps DB continuity if the channel remains `stable`.
-
-Cons:
-
-- Local Nix override maintenance until nixpkgs catches up.
-- Hash churn for source and `node_modules` fixed-output derivations.
-- A newer binary may apply DB migrations. Rolling back to `1.14.48` can become
-  risky if migrations are not backward-compatible.
-- `x86_64-darwin` is already marked bad for `pkgs.opencode`; all-systems checks
-  may still fail there.
+A newer binary may apply DB migrations. Before and after a binary-channel
+change, count sessions in each DB and keep a backup of
+`~/.local/share/opencode/*.db*`.
 
 ## Shared Server Restarts
 
@@ -214,15 +159,13 @@ the new server inputs as applied.
 
 ## Recommendation
 
-Default to the conservative path:
+Keep the current pinned path boring:
 
-1. Align plugin SDK down to the current Nix binary version.
+1. Keep the Nix binary/server and plugin SDK on the same version.
 2. Keep one stable Nix `opencode` on `PATH`.
-3. Do not pin `OPENCODE_DB` unless channel drift keeps recurring.
-4. If upgrading ahead of nixpkgs, overlay the binary and preserve
-   `OPENCODE_CHANNEL = "stable"`.
-5. Before and after any binary-channel change, count sessions in each DB and keep
-   a backup of `~/.local/share/opencode/*.db*`.
+3. Preserve `OPENCODE_CHANNEL = "stable"` in the Nix override.
+4. Do not pin `OPENCODE_DB` unless channel drift keeps recurring.
+5. Before and after any binary-channel change, count sessions in each DB and keep a backup of `~/.local/share/opencode/*.db*`.
 
 Session-count check:
 

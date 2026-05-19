@@ -129,20 +129,68 @@
       ...
     }:
     let
-      localOverlay = final: prev: {
-        cargo-coupling = final.callPackage ./pkgs/cargo-coupling { };
-        glim = final.callPackage ./pkgs/glim { };
-        tsql = final.callPackage ./pkgs/tsql { };
-
-        # Apply a downstream patch to harper that suppresses the
-        # SentenceCapitalization lint inside markdown list items, since
-        # upstream issue #189 was closed as not planned.
-        harper = prev.harper.overrideAttrs (old: {
-          patches = (old.patches or [ ]) ++ [
-            ./pkgs/harper/skip-list-capitalization.patch
-          ];
-        });
+      opencodePin = {
+        version = "1.15.5";
+        srcHash = "sha256-HZiqia9QzkJMfRQ6bzFBsiGXNHv1WFLUdwhekE+rXM8=";
+        nodeModulesHash = "sha256-lxwxaFTgonMPIe2GweEVZhCMSUN/quBgV1wvV05U5wc=";
       };
+      opencodePackageJson = builtins.fromJSON (builtins.readFile ./config/opencode/package.json);
+
+      localOverlay =
+        system: final: prev:
+        let
+          opencodeSrc = final.fetchFromGitHub {
+            owner = "anomalyco";
+            repo = "opencode";
+            tag = "v${opencodePin.version}";
+            hash = opencodePin.srcHash;
+          };
+        in
+        {
+          cargo-coupling = final.callPackage ./pkgs/cargo-coupling { };
+          glim = final.callPackage ./pkgs/glim { };
+          tsql = final.callPackage ./pkgs/tsql { };
+
+          opencode = prev.opencode.overrideAttrs (
+            old:
+            assert final.lib.assertMsg (
+              old ? env && builtins.isAttrs old.env
+            ) "pkgs.opencode.env is not an attrset";
+            assert final.lib.assertMsg (old ? node_modules) "pkgs.opencode has no node_modules derivation";
+            {
+              version = opencodePin.version;
+              src = opencodeSrc;
+
+              node_modules = old.node_modules.overrideAttrs (_: {
+                version = opencodePin.version;
+                src = opencodeSrc;
+                outputHash = opencodePin.nodeModulesHash;
+              });
+
+              env = old.env // {
+                OPENCODE_VERSION = opencodePin.version;
+                OPENCODE_CHANNEL = "stable";
+              };
+
+              meta =
+                (old.meta or { })
+                // final.lib.optionalAttrs (system == "x86_64-darwin") {
+                  badPlatforms = builtins.filter (
+                    platform: !(final.lib.meta.platformMatch { system = "x86_64-darwin"; } platform)
+                  ) (old.meta.badPlatforms or [ ]);
+                };
+            }
+          );
+
+          # Apply a downstream patch to harper that suppresses the
+          # SentenceCapitalization lint inside markdown list items, since
+          # upstream issue #189 was closed as not planned.
+          harper = prev.harper.overrideAttrs (old: {
+            patches = (old.patches or [ ]) ++ [
+              ./pkgs/harper/skip-list-capitalization.patch
+            ];
+          });
+        };
 
       mkPkgs =
         system:
@@ -151,7 +199,7 @@
           config.allowUnfree = true;
           overlays = [
             rust-overlay.overlays.default
-            localOverlay
+            (localOverlay system)
           ];
         };
 
@@ -242,6 +290,26 @@
 
           mergeDirsCheck = import ./home/lib/merge-dirs.test.nix { inherit pkgs lib; };
           opencodeTestsCheck = import ./home/opencode.test { inherit pkgs lib; };
+          opencodeVersionAlignmentCheck =
+            pkgs.runCommand "opencode-version-alignment"
+              {
+                expectedVersion = opencodePin.version;
+                packageVersion = pkgs.opencode.version;
+                pluginVersion = opencodePackageJson.dependencies."@opencode-ai/plugin";
+              }
+              ''
+                if [ "$packageVersion" != "$expectedVersion" ]; then
+                  echo "pkgs.opencode is $packageVersion, expected $expectedVersion" >&2
+                  exit 1
+                fi
+
+                if [ "$pluginVersion" != "$expectedVersion" ]; then
+                  echo "@opencode-ai/plugin is $pluginVersion, expected $expectedVersion" >&2
+                  exit 1
+                fi
+
+                touch "$out"
+              '';
           patchStringFieldCheck = import ./scripts/lib/patch-empty-string-field.test.nix {
             inherit pkgs lib;
           };
@@ -264,6 +332,7 @@
               inherit (pkgs) cargo-coupling glim tsql;
               lib-runTests = libRunTestsCheck;
               merge-dirs-test = mergeDirsCheck;
+              opencode-version-alignment = opencodeVersionAlignmentCheck;
               opencode-tests = opencodeTestsCheck;
               patch-string-field-test = patchStringFieldCheck;
               configure-gpg-pinentry-test = gpgPinentryCheck;
