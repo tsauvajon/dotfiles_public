@@ -130,8 +130,8 @@ alt-enter = 'exec-and-forget open -na "$HOME/Applications/Home Manager Apps/kitt
 alt-o = 'exec-and-forget open -a "$HOME/Applications/Home Manager Apps/Obsidian.app"'
 alt-a = 'exec-and-forget open -a "$HOME/Applications/Home Manager Apps/AeroSpace.app"'
 alt-w = 'exec-and-forget $HOME/.nix-profile/bin/yazi'
-alt-c = 'exec-and-forget open -a "Chromium"'
-alt-shift-c = 'exec-and-forget $HOME/.nix-profile/bin/chromium-redraw'
+alt-z = 'exec-and-forget open -a "Chromium"'
+alt-shift-z = 'exec-and-forget $HOME/.nix-profile/bin/chromium-redraw'
 alt-x = 'exec-and-forget open -a "$HOME/Applications/Home Manager Apps/KeePassXC.app"'
 alt-b = 'exec-and-forget open -a "$HOME/Applications/Home Manager Apps/Firefox.app"'
 
