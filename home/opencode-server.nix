@@ -75,14 +75,17 @@ let
       ${pkgs.curl}/bin/curl --fail --silent --max-time 1 "$url/global/health" >/dev/null 2>&1
     }
 
-    wait_for_health() {
-      for _ in $(${pkgs.coreutils}/bin/seq 1 50); do
+    wait_with_dots() {
+      echo -n "==> Waiting for server at $url"
+      for _ in $(${pkgs.coreutils}/bin/seq 1 100); do
         if health; then
+          echo " ok"
           return 0
         fi
+        echo -n "."
         ${pkgs.coreutils}/bin/sleep 0.1
       done
-
+      echo " failed"
       return 1
     }
 
@@ -115,7 +118,7 @@ let
       else
         echo "==> OpenCode shared server inputs changed; restarting service"
         ${serviceRestartCommand}
-        if wait_for_health && verify_service; then
+        if wait_with_dots; then
           printf '%s\n' "$new_hash" > "$marker"
         else
           echo "warning: OpenCode shared server restart failed or did not become healthy at $url" >&2
@@ -126,6 +129,7 @@ let
     elif ! verify_service || ! health; then
       echo "==> OpenCode shared server is not running; starting service"
       ${serviceStartCommand}
+      wait_with_dots
     fi
   '';
 in
