@@ -43,7 +43,8 @@ dotfiles/
 │   ├── helix-langs.nix       # Helix LSPs, formatters, debuggers
 │   └── helix-plugins.nix     # Steel-enabled Helix with pinned plugins
 ├── docs/                     # Project documentation
-│   └── nodejs.md             # Bun-first JavaScript setup notes
+│   ├── Dependency Updates.md  # What `nix flake update` does and does not update
+│   └── Node.js.md             # Bun-first JavaScript setup notes
 └── config/                   # Dotfile sources, grouped by tool
     ├── opencode/
     │   ├── opencode.*.json   # Per-section partials (meta, watcher, permission.{bash,fs,web}, experimental.quotaToast); deep-merged at build time
@@ -383,4 +384,7 @@ co-located directory and rerun `nix flake check`.
   or the matching `home/<module>.nix`, then run `bash setup.sh`.
 - Setup must stay idempotent and work with a minimal private flake (only the
   required `git.{name,email,signingKey}` fields set; everything else null/omitted).
+- Before assuming `nix flake update` covers all dependencies, check
+  [`docs/Dependency Updates.md`](docs/Dependency%20Updates.md) for manual pins,
+  private overlays, Bun, mise, and Homebrew-managed dependencies.
 - New tools must not be introduced unless already present in the Nix flake or the project.
