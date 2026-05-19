@@ -48,7 +48,7 @@ let
   # gated by their respective per-app toggle. Empty when no personal
   # cask applies to this host — `setup.sh` skips a missing file.
   personalBrewfileLines =
-    lib.optionals (cfg.tailscale.enable && pkgs.stdenv.isDarwin) [ ''cask "tailscale"'' ]
+    lib.optionals (cfg.tailscale.enable && pkgs.stdenv.isDarwin) [ ''cask "tailscale-app"'' ]
     ++ lib.optionals (cfg.chromium.enable && pkgs.stdenv.isDarwin) [ ''cask "chromium"'' ]
     ++ lib.optionals (cfg.naps2.enable && pkgs.stdenv.isDarwin) [ ''cask "naps2"'' ];
 
