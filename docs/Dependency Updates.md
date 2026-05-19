@@ -35,7 +35,7 @@ These are intentionally outside normal flake updates:
 - `pkgs/cargo-coupling/default.nix`: fixed version, source hash, and `cargoHash`.
 - `pkgs/glim/default.nix`: fixed version, source hash, and `cargoHash`.
 - `pkgs/tsql/default.nix`: fixed release version and per-platform binary hashes.
-- `config/opencode/package.json`: OpenCode plugin dependencies are installed by Bun during activation, not by Nix flake updates.
+- `config/opencode/package.json`: OpenCode plugin dependencies are installed by Bun during activation, not by Nix flake updates. Keep plugin SDK versions aligned with the OpenCode binary; see [OpenCode Versioning](OpenCode%20Versioning.md).
 - `config/Brewfile` and generated personal casks from `home/personal.nix`: reconciled by Homebrew through `setup.sh`, not by Nix.
 
 ## Private Manual Pins

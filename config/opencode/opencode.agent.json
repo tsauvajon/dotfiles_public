@@ -18,6 +18,7 @@
       }
     },
     "plan": {
+      "color": "warning",
       "permission": {
         "task": {
           "*": "deny",
