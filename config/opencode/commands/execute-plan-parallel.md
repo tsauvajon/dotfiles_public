@@ -1,11 +1,11 @@
 ---
 description: Implement a plan with parallel subagents, review loops, deferred decisions, and focused commits
 ---
-Use this input as the plan when provided: $ARGUMENTS. If no input was provided, use the current conversation plan. If no clear plan exists, ask for the plan before implementation.
+Use the current conversation plan as the plan. Treat this input as additional context or constraints, not as a replacement plan: $ARGUMENTS. If no clear plan exists, ask for the plan before implementation.
 
 Use subagents aggressively where they add value.
 
-If the plan has independent implementation steps, spawn implementation subagents in parallel. Do not parallelize steps that touch the same files, depend on each other, or risk conflicting changes.
+If the plan has independent implementation steps, spawn the most specific relevant subagent for each step in parallel. For Rust code changes, use `rust` after `rust-design` when design input is needed. Use `implement` only when no narrower specialist fits. Do not parallelize steps that touch the same files, depend on each other, or risk conflicting changes.
 
 After each completed implementation step, dispatch two review subagents in parallel:
 - one to review the implementation for bugs, regressions, missing tests, and code quality
