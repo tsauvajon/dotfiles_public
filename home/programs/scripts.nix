@@ -210,7 +210,7 @@
 
         if [ "$#" -gt 0 ]; then
           case "$1" in
-            -h|--help|-v|--version|completion|acp|mcp|attach|debug|providers|auth|agent|upgrade|uninstall|serve|web|models|stats|export|import|github|pr|session|plugin|plug|db)
+            -h|--help|-v|--version|completion|acp|mcp|attach|debug|providers|auth|agent|upgrade|uninstall|serve|web|models|stats|export|import|github|pr|session|plugin|plug|db|start|stop|restart|status)
               exec opencode "$@"
               ;;
             run)
