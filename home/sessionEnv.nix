@@ -13,13 +13,11 @@
 # generates the sh-format file (sourced by bash/zsh) and not a fish
 # equivalent unless `programs.fish.enable = true`. Switching the fish
 # config to that HM module would be a much larger refactor.
-{ config, lib, pkgs, ... }:
+{ config, lib, ... }:
 
 let
   cfg = config.programs.crossShellEnv;
   sccacheDir = "${config.home.homeDirectory}/.cache/sccache";
-  sccacheClang = "${config.home.profileDirectory}/bin/sccache-clang";
-  sccacheClangxx = "${config.home.profileDirectory}/bin/sccache-clang++";
 
   names = lib.attrNames cfg.vars;
 
@@ -28,31 +26,6 @@ let
 
   zshBody = lib.concatMapStringsSep "\n" zshLine names;
   fishBody = lib.concatMapStringsSep "\n" fishLine names;
-
-  # Cargo reads environment variables before its config-level `[env]` fallback,
-  # so these wrappers take effect in managed shells without changing unmanaged
-  # cargo invocations.
-  nativeCacheZsh = lib.optionalString pkgs.stdenv.isDarwin ''
-    if [[ "''${OPENCODE_CARGO_NATIVE_CACHE:-}" != "0" ]]; then
-      if [[ -z "''${CC+x}" && -x ${lib.escapeShellArg sccacheClang} ]]; then
-        export CC=${lib.escapeShellArg sccacheClang}
-      fi
-      if [[ -z "''${CXX+x}" && -x ${lib.escapeShellArg sccacheClangxx} ]]; then
-        export CXX=${lib.escapeShellArg sccacheClangxx}
-      fi
-    fi
-  '';
-
-  nativeCacheFish = lib.optionalString pkgs.stdenv.isDarwin ''
-    if test "$OPENCODE_CARGO_NATIVE_CACHE" != 0
-        if not set -q CC; and test -x ${lib.escapeShellArg sccacheClang}
-            set -gx CC ${lib.escapeShellArg sccacheClang}
-        end
-        if not set -q CXX; and test -x ${lib.escapeShellArg sccacheClangxx}
-            set -gx CXX ${lib.escapeShellArg sccacheClangxx}
-        end
-    end
-  '';
 
   banner = ''
     # ============================================================
@@ -89,9 +62,8 @@ in
     };
 
     xdg.configFile = lib.mkIf (cfg.vars != { }) {
-      "zsh/common-env.zsh".text = banner + zshBody + "\n" + nativeCacheZsh;
-      "fish/conf.d/common-env.fish".text =
-        banner + fishBody + "\n" + nativeCacheFish;
+      "zsh/common-env.zsh".text = banner + zshBody + "\n";
+      "fish/conf.d/common-env.fish".text = banner + fishBody + "\n";
     };
   };
 }

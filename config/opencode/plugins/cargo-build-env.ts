@@ -3,7 +3,6 @@ import { delimiter, dirname, join, resolve } from "node:path";
 import type { Plugin } from "@opencode-ai/plugin";
 
 const WORKSPACE_HEADER = /^\s*\[\s*workspace\s*\]\s*(?:#.*)?$/m;
-const DISABLE_NATIVE_CACHE = "0";
 
 function findCargoRoot(cwd: string): string | undefined {
   let dir = resolve(cwd);
@@ -71,10 +70,6 @@ function isExecutable(path: string): boolean {
   }
 }
 
-function nativeCacheEnabled(): boolean {
-  return process.env.OPENCODE_CARGO_NATIVE_CACHE !== DISABLE_NATIVE_CACHE;
-}
-
 export default (async () => ({
   "shell.env": async (input, output) => {
     if (process.platform !== "darwin") {
@@ -109,12 +104,5 @@ export default (async () => ({
     }
 
     setIfUnset(output.env, "RUSTC_WRAPPER", sccache);
-
-    const sccacheClang = commandPath("sccache-clang");
-    const sccacheClangxx = commandPath("sccache-clang++");
-    if (nativeCacheEnabled() && sccacheClang && sccacheClangxx) {
-      setIfUnset(output.env, "CC", sccacheClang);
-      setIfUnset(output.env, "CXX", sccacheClangxx);
-    }
   },
 })) satisfies Plugin;

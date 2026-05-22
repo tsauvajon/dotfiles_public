@@ -7,7 +7,7 @@
 #
 # Functions that DO need shell-state access (cd-task, y, history) stay
 # as per-shell functions, generated via cross-shell-functions.nix.
-{ pkgs, lib, ... }:
+{ pkgs, ... }:
 
 {
   home.packages = [
@@ -240,35 +240,6 @@
 
         start_server
         exec opencode attach "$url" --dir "$project_dir" "''${attach_args[@]}"
-      '';
-    })
-  ]
-  ++ lib.optionals pkgs.stdenv.isDarwin [
-    # Single-executable wrappers keep CC/CXX compatible with tools that do not
-    # split multi-word compiler commands while still caching native Cargo deps.
-    (pkgs.writeShellApplication {
-      name = "sccache-clang";
-      runtimeInputs = [ pkgs.sccache ];
-      text = ''
-        clang_bin="$(/usr/bin/xcrun --find clang 2>/dev/null || true)"
-        if [ -z "$clang_bin" ]; then
-          echo "sccache-clang: could not resolve clang through xcrun" >&2
-          exit 127
-        fi
-        exec sccache "$clang_bin" "$@"
-      '';
-    })
-
-    (pkgs.writeShellApplication {
-      name = "sccache-clang++";
-      runtimeInputs = [ pkgs.sccache ];
-      text = ''
-        clang_bin="$(/usr/bin/xcrun --find clang++ 2>/dev/null || true)"
-        if [ -z "$clang_bin" ]; then
-          echo "sccache-clang++: could not resolve clang++ through xcrun" >&2
-          exit 127
-        fi
-        exec sccache "$clang_bin" "$@"
       '';
     })
   ];
