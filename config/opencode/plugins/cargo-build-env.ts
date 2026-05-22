@@ -51,11 +51,12 @@ function setIfUnset(env: Record<string, string>, name: string, value: string): v
   }
 }
 
-function hasCommand(name: string): boolean {
+function commandPath(name: string): string | undefined {
   return (process.env.PATH ?? "")
     .split(delimiter)
     .filter(Boolean)
-    .some((dir) => isExecutable(join(dir, name)));
+    .map((dir) => join(dir, name))
+    .find(isExecutable);
 }
 
 function isExecutable(path: string): boolean {
@@ -94,11 +95,6 @@ export default (async () => ({
       join(root, "target", "opencode", targetSessionId(input.sessionID)),
     );
 
-    if (!hasCommand("sccache")) {
-      return;
-    }
-
-    setIfUnset(output.env, "RUSTC_WRAPPER", "sccache");
     if (process.env.HOME) {
       setIfUnset(
         output.env,
@@ -107,13 +103,18 @@ export default (async () => ({
       );
     }
 
-    if (
-      nativeCacheEnabled() &&
-      hasCommand("opencode-sccache-clang") &&
-      hasCommand("opencode-sccache-clang++")
-    ) {
-      setIfUnset(output.env, "CC", "opencode-sccache-clang");
-      setIfUnset(output.env, "CXX", "opencode-sccache-clang++");
+    const sccache = commandPath("sccache");
+    if (!sccache) {
+      return;
+    }
+
+    setIfUnset(output.env, "RUSTC_WRAPPER", sccache);
+
+    const sccacheClang = commandPath("sccache-clang");
+    const sccacheClangxx = commandPath("sccache-clang++");
+    if (nativeCacheEnabled() && sccacheClang && sccacheClangxx) {
+      setIfUnset(output.env, "CC", sccacheClang);
+      setIfUnset(output.env, "CXX", sccacheClangxx);
     }
   },
 })) satisfies Plugin;

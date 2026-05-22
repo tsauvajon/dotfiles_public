@@ -247,12 +247,12 @@
     # Single-executable wrappers keep CC/CXX compatible with tools that do not
     # split multi-word compiler commands while still caching native Cargo deps.
     (pkgs.writeShellApplication {
-      name = "opencode-sccache-clang";
+      name = "sccache-clang";
       runtimeInputs = [ pkgs.sccache ];
       text = ''
         clang_bin="$(/usr/bin/xcrun --find clang 2>/dev/null || true)"
         if [ -z "$clang_bin" ]; then
-          echo "opencode-sccache-clang: could not resolve clang through xcrun" >&2
+          echo "sccache-clang: could not resolve clang through xcrun" >&2
           exit 127
         fi
         exec sccache "$clang_bin" "$@"
@@ -260,12 +260,12 @@
     })
 
     (pkgs.writeShellApplication {
-      name = "opencode-sccache-clang++";
+      name = "sccache-clang++";
       runtimeInputs = [ pkgs.sccache ];
       text = ''
         clang_bin="$(/usr/bin/xcrun --find clang++ 2>/dev/null || true)"
         if [ -z "$clang_bin" ]; then
-          echo "opencode-sccache-clang++: could not resolve clang++ through xcrun" >&2
+          echo "sccache-clang++: could not resolve clang++ through xcrun" >&2
           exit 127
         fi
         exec sccache "$clang_bin" "$@"
