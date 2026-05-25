@@ -1,8 +1,11 @@
 import { accessSync, constants, existsSync, readFileSync, statSync } from "node:fs";
 import { delimiter, dirname, join, resolve } from "node:path";
-import type { Plugin } from "@opencode-ai/plugin";
+import type { Plugin, PluginInput } from "@opencode-ai/plugin";
 
 const WORKSPACE_HEADER = /^\s*\[\s*workspace\s*\]\s*(?:#.*)?$/m;
+const SCCACHE_CACHE_SIZE = "100G";
+const SESSION_LOOKUP_TIMEOUT_MS = 1_000;
+const rootSessionIdCache = new Map<string, string>();
 
 function findCargoRoot(cwd: string): string | undefined {
   let dir = resolve(cwd);
@@ -40,8 +43,81 @@ function cacheSessionId(sessionID: string | undefined): string | undefined {
   return raw ? raw.replace(/[^A-Za-z0-9_.-]/g, "_").slice(0, 96) : undefined;
 }
 
-function targetSessionId(sessionID: string | undefined): string {
-  return cacheSessionId(sessionID) ?? `pid-${process.pid}`;
+async function targetSessionId(
+  client: PluginInput["client"],
+  sessionID: string | undefined,
+): Promise<string> {
+  const root = await rootSessionId(client, sessionID);
+  return cacheSessionId(root) ?? `pid-${process.pid}`;
+}
+
+async function rootSessionId(
+  client: PluginInput["client"],
+  sessionID: string | undefined,
+): Promise<string | undefined> {
+  if (!sessionID) {
+    return undefined;
+  }
+
+  const cached = rootSessionIdCache.get(sessionID);
+  if (cached) {
+    return cached;
+  }
+
+  const visited: string[] = [];
+  let current = sessionID;
+
+  for (let depth = 0; depth < 32; depth += 1) {
+    if (visited.includes(current)) {
+      return sessionID;
+    }
+
+    const cachedCurrent = rootSessionIdCache.get(current);
+    if (cachedCurrent) {
+      cacheVisitedSessions(visited, cachedCurrent);
+      return cachedCurrent;
+    }
+
+    visited.push(current);
+
+    const lookup = await getSession(client, current);
+    if (!lookup.ok) {
+      return sessionID;
+    }
+
+    if (!lookup.parentID) {
+      cacheVisitedSessions(visited, current);
+      return current;
+    }
+
+    current = lookup.parentID;
+  }
+
+  return sessionID;
+}
+
+async function getSession(client: PluginInput["client"], sessionID: string) {
+  const response = await withTimeout(
+    client.session.get({ path: { id: sessionID } }),
+    SESSION_LOOKUP_TIMEOUT_MS,
+  );
+  if (!response?.data) {
+    return { ok: false as const };
+  }
+  return { ok: true as const, parentID: response.data.parentID };
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T | undefined> {
+  return Promise.race([
+    promise.catch(() => undefined),
+    new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), timeoutMs)),
+  ]);
+}
+
+function cacheVisitedSessions(sessionIDs: string[], rootID: string): void {
+  for (const sessionID of sessionIDs) {
+    rootSessionIdCache.set(sessionID, rootID);
+  }
 }
 
 function setIfUnset(env: Record<string, string>, name: string, value: string): void {
@@ -70,7 +146,7 @@ function isExecutable(path: string): boolean {
   }
 }
 
-export default (async () => ({
+export default (async ({ client }) => ({
   "shell.env": async (input, output) => {
     if (process.platform !== "darwin") {
       return;
@@ -84,11 +160,14 @@ export default (async () => ({
       return;
     }
 
-    setIfUnset(
-      output.env,
-      "CARGO_TARGET_DIR",
-      join(root, "target", "opencode", targetSessionId(input.sessionID)),
-    );
+    if (output.env.CARGO_TARGET_DIR === undefined && process.env.CARGO_TARGET_DIR === undefined) {
+      output.env.CARGO_TARGET_DIR = join(
+        root,
+        "target",
+        "opencode",
+        await targetSessionId(client, input.sessionID),
+      );
+    }
 
     if (process.env.HOME) {
       setIfUnset(
@@ -97,6 +176,7 @@ export default (async () => ({
         join(process.env.HOME, ".cache", "sccache"),
       );
     }
+    setIfUnset(output.env, "SCCACHE_CACHE_SIZE", SCCACHE_CACHE_SIZE);
 
     const sccache = commandPath("sccache");
     if (!sccache) {
