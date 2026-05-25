@@ -134,12 +134,16 @@
           "realpath *": "allow",
           "rg": "allow",
           "rg *": "allow",
+          "sed": "allow",
+          "sed *": "allow",
           "sort": "allow",
           "sort *": "allow",
           "stat": "allow",
           "stat *": "allow",
           "tail": "allow",
           "tail *": "allow",
+          "timeout": "allow",
+          "timeout *": "allow",
           "tr": "allow",
           "tr *": "allow",
           "uname": "allow",
@@ -150,7 +154,11 @@
           "wc *": "allow",
           "whoami": "allow",
           "which": "allow",
-          "which *": "allow"
+          "which *": "allow",
+          "xargs": "allow",
+          "xargs *": "allow",
+          "yarn": "allow",
+          "yarn *": "allow"
         }
       }
     },
@@ -265,12 +273,16 @@
           "realpath *": "allow",
           "rg": "allow",
           "rg *": "allow",
+          "sed": "allow",
+          "sed *": "allow",
           "sort": "allow",
           "sort *": "allow",
           "stat": "allow",
           "stat *": "allow",
           "tail": "allow",
           "tail *": "allow",
+          "timeout": "allow",
+          "timeout *": "allow",
           "tr": "allow",
           "tr *": "allow",
           "uname": "allow",
@@ -281,7 +293,11 @@
           "wc *": "allow",
           "whoami": "allow",
           "which": "allow",
-          "which *": "allow"
+          "which *": "allow",
+          "xargs": "allow",
+          "xargs *": "allow",
+          "yarn": "allow",
+          "yarn *": "allow"
         }
       }
     },
@@ -420,12 +436,16 @@
           "realpath *": "allow",
           "rg": "allow",
           "rg *": "allow",
+          "sed": "allow",
+          "sed *": "allow",
           "sort": "allow",
           "sort *": "allow",
           "stat": "allow",
           "stat *": "allow",
           "tail": "allow",
           "tail *": "allow",
+          "timeout": "allow",
+          "timeout *": "allow",
           "npm test*": "allow",
           "npm run test*": "allow",
           "npm run lint*": "allow",
@@ -454,7 +474,11 @@
           "wc *": "allow",
           "whoami": "allow",
           "which": "allow",
-          "which *": "allow"
+          "which *": "allow",
+          "xargs": "allow",
+          "xargs *": "allow",
+          "yarn": "allow",
+          "yarn *": "allow"
         }
       }
     },
@@ -568,12 +592,16 @@
           "realpath *": "allow",
           "rg": "allow",
           "rg *": "allow",
+          "sed": "allow",
+          "sed *": "allow",
           "sort": "allow",
           "sort *": "allow",
           "stat": "allow",
           "stat *": "allow",
           "tail": "allow",
           "tail *": "allow",
+          "timeout": "allow",
+          "timeout *": "allow",
           "tr": "allow",
           "tr *": "allow",
           "uname": "allow",
@@ -584,7 +612,11 @@
           "wc *": "allow",
           "whoami": "allow",
           "which": "allow",
-          "which *": "allow"
+          "which *": "allow",
+          "xargs": "allow",
+          "xargs *": "allow",
+          "yarn": "allow",
+          "yarn *": "allow"
         }
       }
     },
@@ -699,12 +731,16 @@
           "realpath *": "allow",
           "rg": "allow",
           "rg *": "allow",
+          "sed": "allow",
+          "sed *": "allow",
           "sort": "allow",
           "sort *": "allow",
           "stat": "allow",
           "stat *": "allow",
           "tail": "allow",
           "tail *": "allow",
+          "timeout": "allow",
+          "timeout *": "allow",
           "tr": "allow",
           "tr *": "allow",
           "uname": "allow",
@@ -715,7 +751,11 @@
           "wc *": "allow",
           "whoami": "allow",
           "which": "allow",
-          "which *": "allow"
+          "which *": "allow",
+          "xargs": "allow",
+          "xargs *": "allow",
+          "yarn": "allow",
+          "yarn *": "allow"
         }
       }
     },
@@ -842,12 +882,16 @@
           "realpath *": "allow",
           "rg": "allow",
           "rg *": "allow",
+          "sed": "allow",
+          "sed *": "allow",
           "sort": "allow",
           "sort *": "allow",
           "stat": "allow",
           "stat *": "allow",
           "tail": "allow",
           "tail *": "allow",
+          "timeout": "allow",
+          "timeout *": "allow",
           "npm test*": "allow",
           "npm run test*": "allow",
           "npm run lint*": "allow",
@@ -880,7 +924,11 @@
           "wc *": "allow",
           "whoami": "allow",
           "which": "allow",
-          "which *": "allow"
+          "which *": "allow",
+          "xargs": "allow",
+          "xargs *": "allow",
+          "yarn": "allow",
+          "yarn *": "allow"
         }
       }
     },
@@ -994,12 +1042,16 @@
           "realpath *": "allow",
           "rg": "allow",
           "rg *": "allow",
+          "sed": "allow",
+          "sed *": "allow",
           "sort": "allow",
           "sort *": "allow",
           "stat": "allow",
           "stat *": "allow",
           "tail": "allow",
           "tail *": "allow",
+          "timeout": "allow",
+          "timeout *": "allow",
           "tr": "allow",
           "tr *": "allow",
           "uname": "allow",
@@ -1010,7 +1062,11 @@
           "wc *": "allow",
           "whoami": "allow",
           "which": "allow",
-          "which *": "allow"
+          "which *": "allow",
+          "xargs": "allow",
+          "xargs *": "allow",
+          "yarn": "allow",
+          "yarn *": "allow"
         }
       }
     },
@@ -1139,12 +1195,16 @@
           "realpath *": "allow",
           "rg": "allow",
           "rg *": "allow",
+          "sed": "allow",
+          "sed *": "allow",
           "sort": "allow",
           "sort *": "allow",
           "stat": "allow",
           "stat *": "allow",
           "tail": "allow",
           "tail *": "allow",
+          "timeout": "allow",
+          "timeout *": "allow",
           "tr": "allow",
           "tr *": "allow",
           "uname": "allow",
@@ -1155,7 +1215,11 @@
           "wc *": "allow",
           "whoami": "allow",
           "which": "allow",
-          "which *": "allow"
+          "which *": "allow",
+          "xargs": "allow",
+          "xargs *": "allow",
+          "yarn": "allow",
+          "yarn *": "allow"
         }
       }
     }
