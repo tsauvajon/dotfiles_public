@@ -85,15 +85,46 @@ directories backed by plain `sccache` against `kache` with
 and keeps all generated targets and caches under its output directory instead of
 using the repo-local `target/` directory.
 
-Example:
+The script preflights each `--repo` with `cargo locate-project --workspace`, so
+pass the actual Cargo workspace root or a child directory inside that workspace.
+Use separate runs for the command profiles you care about; these five reflect the
+Cargo commands Thomas runs most often in shell history:
 
 ```sh
 ./scripts/cargo-cache-benchmark.sh \
-  --repo wallet=/Users/thomas/dev/wt/hello.world/thomas.sauvajon/wallet/bootstrap \
-  --repo dummy=/Users/thomas/dev/wt/hello.world/thomas.sauvajon/funding/dummy/example-branch \
+  --repo wallet=/tmp/hello \
+  --repo other=/path/to/other/cargo/workspace \
+  --agent-count 4 \
+  -- cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+./scripts/cargo-cache-benchmark.sh \
+  --repo wallet=/tmp/hello \
+  --repo other=/path/to/other/cargo/workspace \
+  --agent-count 4 \
+  -- cargo run --release
+
+./scripts/cargo-cache-benchmark.sh \
+  --repo wallet=/tmp/hello \
+  --repo other=/path/to/other/cargo/workspace \
+  --agent-count 4 \
+  -- cargo test --workspace
+
+./scripts/cargo-cache-benchmark.sh \
+  --repo wallet=/tmp/hello \
+  --repo other=/path/to/other/cargo/workspace \
+  --agent-count 4 \
+  -- cargo clippy --workspace --all-targets
+
+./scripts/cargo-cache-benchmark.sh \
+  --repo wallet=/tmp/hello \
+  --repo other=/path/to/other/cargo/workspace \
   --agent-count 4 \
   -- cargo check --workspace
 ```
+
+Only use the `cargo run --release` profile when the workspace binary exits on its
+own or when you provide safe arguments after `--`; otherwise prefer `cargo build
+--release` for a compile-only comparison.
 
 Each repo and mode runs three phases: cold cache and cold target,
 warm cache with fresh per-agent targets, and warm cache with target reuse. Results
