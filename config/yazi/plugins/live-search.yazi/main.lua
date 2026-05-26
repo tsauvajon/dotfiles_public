@@ -13,8 +13,9 @@ end
 
 local function run(command, cwd)
 	local permit = ui.hide()
+	local command_with_path = [[PATH="$HOME/.nix-profile/bin:$PATH"; ]] .. command
 	local child, spawn_err = Command("sh")
-		:arg({ "-c", command })
+		:arg({ "-c", command_with_path })
 		:cwd(tostring(cwd))
 		:stdin(Command.INHERIT)
 		:stdout(Command.PIPED)
@@ -70,6 +71,7 @@ local function file_search(cwd)
 	return run([[
 fd --hidden --exclude .git --color=never . |
 fzf \
+  --with-shell='/bin/sh -c' \
   --height=90% \
   --layout=reverse \
   --border \
@@ -81,6 +83,7 @@ end
 local function content_search(cwd)
 	return run([[
 fzf \
+  --with-shell='/bin/sh -c' \
   --height=90% \
   --layout=reverse \
   --border \
@@ -89,7 +92,7 @@ fzf \
   --prompt='rg> ' \
   --preview='bat --color=always --style=numbers --highlight-line {2} {1} 2>/dev/null' \
   --preview-window='+{2}+3/2' \
-  --bind='change:reload:if [ -z {q} ]; then printf ""; else rg --no-heading --line-number --column --smart-case -- {q}; fi || true'
+  --bind='change:reload:if [ -z "$FZF_QUERY" ]; then printf ""; else rg --no-heading --line-number --column --smart-case -- "$FZF_QUERY"; fi || true'
 ]], cwd)
 end
 

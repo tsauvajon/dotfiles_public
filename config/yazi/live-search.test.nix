@@ -19,6 +19,12 @@ pkgs.runCommand "yazi-live-search-test"
     fail() { echo "FAIL: $*" >&2; exit 1; }
 
     lua -e 'assert(loadfile(os.getenv("plugin")))'
+    grep -Fq 'PATH="$HOME/.nix-profile/bin:$PATH";' "$plugin" \
+      || fail "live-search should keep Home Manager tools on PATH"
+    grep -Fq -- "--with-shell='/bin/sh -c'" "$plugin" \
+      || fail "fzf child commands should use POSIX sh, not the login shell"
+    grep -Fq '"$FZF_QUERY"' "$plugin" \
+      || fail "content search should quote the fzf query for rg reloads"
 
     lua <<'EOF'
     ya = {
