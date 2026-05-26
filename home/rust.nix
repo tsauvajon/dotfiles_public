@@ -1,5 +1,9 @@
 # Rust development tools.
-{ pkgs, lib, ... }:
+{
+  pkgs,
+  lib,
+  ...
+}:
 
 let
   stableRust = pkgs.rust-bin.stable.latest.default.override {
@@ -40,6 +44,7 @@ in
   home.packages = [
     pkgs.cargo-coupling
     pkgs.cargo-outdated
+    pkgs.kache
     pkgs.protobuf
     rustWithNightlyFmt
     (lib.lowPrio pkgs.cargo-nextest)

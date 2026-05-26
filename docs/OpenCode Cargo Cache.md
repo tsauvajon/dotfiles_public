@@ -33,6 +33,20 @@ disk budget. Rust compiler caching comes from the managed Cargo config at
 builds that use `cc-rs` also use that wrapper, so `CC` and `CXX` intentionally
 remain direct compiler values from Cargo config or the toolchain defaults.
 
+## Native Compiler Guardrails
+
+Do not set `CC` or `CXX` to `sccache clang`, `sccache cc`, `sccache c++`, or a
+custom `sccache-*` wrapper script. Keep them as direct compiler paths from the
+toolchain, Cargo config, or the repository's Nix shell. `cc-rs` can already use
+Cargo's `RUSTC_WRAPPER=sccache` for native C/C++ compilation; wrapping the native
+compiler as well can produce commands like `sccache sccache-clang ...` and fail.
+
+The OpenCode plugin warns once per process if the inherited OpenCode server
+environment has `CC` or `CXX` containing `sccache`, but it does not rewrite those
+variables. Rewriting them in the plugin could break repository-specific Nix or
+SDK compiler choices. If native compilation looks cache-related, diagnose with
+`SCCACHE_DISABLE=1` rather than changing `CC` or `CXX` to wrapper commands.
+
 When OpenCode is attached to the managed shared server, the session id usually
 comes from the server hook input and there is no `OPENCODE_RUN_ID` prefix. Direct
 OpenCode launches may include an additional run-id prefix. If OpenCode provides
@@ -62,3 +76,28 @@ much disk space. A typical cleanup command from a workspace root is:
 ```sh
 find target/opencode -mindepth 1 -maxdepth 1 -mtime +14 -exec rm -rf {} +
 ```
+
+## Benchmarking sccache and kache
+
+Use `scripts/cargo-cache-benchmark.sh` to compare fresh per-agent target
+directories backed by plain `sccache` against `kache` with
+`KACHE_FALLBACK=sccache`. The script is opt-in, works against one or more repos,
+and keeps all generated targets and caches under its output directory instead of
+using the repo-local `target/` directory.
+
+Example:
+
+```sh
+./scripts/cargo-cache-benchmark.sh \
+  --repo wallet=/Users/thomas/dev/wt/hello.world/thomas.sauvajon/wallet/bootstrap \
+  --repo dummy=/Users/thomas/dev/wt/hello.world/thomas.sauvajon/funding/dummy/example-branch \
+  --agent-count 4 \
+  -- cargo check --workspace
+```
+
+Each repo and mode runs three phases: cold cache and cold target,
+warm cache with fresh per-agent targets, and warm cache with target reuse. Results
+are written to `results.tsv` with wall time, `Compiling ...` line counts, file
+lock waits, target/cache sizes, and `sccache --show-stats` counters. The script
+sets `CARGO_INCREMENTAL=0` for both modes so the comparison focuses on target and
+compiler-cache behavior; it does not set, unset, or rewrite `CC` or `CXX`.

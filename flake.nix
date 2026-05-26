@@ -2,11 +2,11 @@
   description = "Thomas's dotfiles";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     flake-utils.url = "github:numtide/flake-utils";
 
     home-manager = {
-      url = "github:nix-community/home-manager";
+      url = "github:nix-community/home-manager/release-26.05";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -69,6 +69,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-utils.follows = "flake-utils";
       inputs.rust-overlay.follows = "rust-overlay";
+    };
+
+    kache = {
+      url = "github:kunobi-ninja/kache/v0.3.1";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     # Catppuccin theme content sourced from upstream flakes. The
@@ -149,6 +154,7 @@
         {
           cargo-coupling = final.callPackage ./pkgs/cargo-coupling { };
           glim = final.callPackage ./pkgs/glim { };
+          kache = final.callPackage ./pkgs/kache { };
           sem = final.callPackage ./pkgs/sem { };
           tsql = final.callPackage ./pkgs/tsql { };
           weave = final.callPackage ./pkgs/weave { };
@@ -324,6 +330,7 @@
             inherit (pkgs)
               cargo-coupling
               glim
+              kache
               sem
               tsql
               weave
@@ -340,6 +347,7 @@
               inherit (pkgs)
                 cargo-coupling
                 glim
+                kache
                 sem
                 tsql
                 weave
