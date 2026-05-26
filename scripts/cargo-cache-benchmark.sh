@@ -136,6 +136,14 @@ stop_sccache_server() {
   SCCACHE_DIR="$dir" SCCACHE_SERVER_PORT="$sccache_port" sccache --stop-server >/dev/null 2>&1 || true
 }
 
+workspace_manifest() {
+  local path=$1
+  (
+    cd "$path" || exit 1
+    cargo locate-project --workspace --message-format plain
+  ) 2>/dev/null
+}
+
 run_agent() {
   local repo_label=$1
   local repo_path=$2
@@ -330,6 +338,13 @@ for spec in "${repo_specs[@]}"; do
     printf 'error: repo path does not exist: %s\n' "$path" >&2
     exit 66
   fi
+
+  manifest=$(workspace_manifest "$path") || {
+    printf 'error: %s is not inside a Cargo workspace or package\n' "$path" >&2
+    printf '       pass the directory containing Cargo.toml, or any child inside that workspace\n' >&2
+    exit 66
+  }
+  printf 'repo=%s workspace=%s\n' "$label" "$manifest" >&2
 
   label_safe=$(sanitize "$label")
   repo_root=$out/repos/$label_safe

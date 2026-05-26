@@ -71,11 +71,6 @@
       inputs.rust-overlay.follows = "rust-overlay";
     };
 
-    kache = {
-      url = "github:kunobi-ninja/kache/v0.3.1";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     # Catppuccin theme content sourced from upstream flakes. The
     # catppuccin/nix metaflake covers most tools; fzf, zellij, and the
     # raw palette JSON are pinned as source repos directly.

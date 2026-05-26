@@ -316,6 +316,7 @@
           "*": "deny",
           "SOPS_AGE_KEY_FILE=*": "allow",
           "SOPS_AGE_KEY_FILE=* nix develop -c sops *": "allow",
+          "bash ./scripts/*.sh *": "allow",
           "cargo": "allow",
           "cargo *": "allow",
           "basename": "allow",
