@@ -6,6 +6,7 @@ const WORKSPACE_HEADER = /^\s*\[\s*workspace\s*\]\s*(?:#.*)?$/m;
 const SCCACHE_CACHE_SIZE = "100G";
 const SESSION_LOOKUP_TIMEOUT_MS = 1_000;
 const rootSessionIdCache = new Map<string, string>();
+const warnedNativeCompilerVars = new Set<string>();
 
 function findCargoRoot(cwd: string): string | undefined {
   let dir = resolve(cwd);
@@ -126,6 +127,21 @@ function setIfUnset(env: Record<string, string>, name: string, value: string): v
   }
 }
 
+function warnForSccacheNativeCompilerVars(): void {
+  for (const name of ["CC", "CXX"]) {
+    const value = process.env[name];
+    if (!value?.toLowerCase().includes("sccache") || warnedNativeCompilerVars.has(name)) {
+      continue;
+    }
+
+    warnedNativeCompilerVars.add(name);
+    console.warn(
+      `[cargo-build-env] ${name}=${value} appears to use sccache. `
+        + "Keep native compilers direct; cc-rs can already use RUSTC_WRAPPER=sccache and double-wrapping can fail.",
+    );
+  }
+}
+
 function commandPath(name: string): string | undefined {
   return (process.env.PATH ?? "")
     .split(delimiter)
@@ -159,6 +175,8 @@ export default (async ({ client }) => ({
     if (root === undefined) {
       return;
     }
+
+    warnForSccacheNativeCompilerVars();
 
     if (output.env.CARGO_TARGET_DIR === undefined && process.env.CARGO_TARGET_DIR === undefined) {
       output.env.CARGO_TARGET_DIR = join(

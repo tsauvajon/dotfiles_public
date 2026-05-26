@@ -175,8 +175,8 @@
         "list": "allow",
         "bash": {
           "*": "deny",
-          "cargo": "allow",
-          "cargo *": "allow",
+          "cargo": "deny",
+          "cargo *": "deny",
           "basename": "allow",
           "basename *": "allow",
           "bun": "allow",
@@ -494,8 +494,8 @@
         "list": "allow",
         "bash": {
           "*": "deny",
-          "cargo": "allow",
-          "cargo *": "allow",
+          "cargo": "deny",
+          "cargo *": "deny",
           "basename": "allow",
           "basename *": "allow",
           "bun": "allow",
