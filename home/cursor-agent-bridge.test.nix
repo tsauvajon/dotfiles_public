@@ -32,6 +32,14 @@ in
     expected = true;
   };
 
+  testCursorAgentBridgeUsesTrustedWorkingDirectory = {
+    expr =
+      (lib.hasInfix "serviceWorkingDirectory = config.home.homeDirectory;" bridgeModuleSource)
+      && (lib.hasInfix "cd ${lib.escapeShellArg serviceWorkingDirectory}" bridgeModuleSource)
+      && (lib.hasInfix "WorkingDirectory = serviceWorkingDirectory;" bridgeModuleSource);
+    expected = true;
+  };
+
   testCursorAgentBridgeSystemdLogsToConfiguredFiles = {
     expr =
       (lib.hasInfix ''StandardOutput = "append:'' bridgeModuleSource)

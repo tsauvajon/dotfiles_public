@@ -14,6 +14,7 @@ let
   systemdService = "opencode-cursor-agent-bridge.service";
   configDir = "${config.xdg.configHome}/opencode";
   bridgeScript = "${configDir}/plugins/cursor-agent-bridge.ts";
+  serviceWorkingDirectory = config.home.homeDirectory;
 
   defaultPath = lib.concatStringsSep ":" (
     [
@@ -45,7 +46,7 @@ let
 
   bridgeRunner = pkgs.writeShellScript "cursor-agent-bridge" ''
     set -eu
-    cd ${lib.escapeShellArg configDir}
+    cd ${lib.escapeShellArg serviceWorkingDirectory}
     exec ${pkgs.bun}/bin/bun ${lib.escapeShellArg bridgeScript}
   '';
 
@@ -55,6 +56,7 @@ let
       bridgeScript
       port
       serviceEnvironment
+      serviceWorkingDirectory
       ;
     bun = "${pkgs.bun}/bin/bun";
     inherit host;
@@ -214,7 +216,7 @@ in
             ProgramArguments = [ "${bridgeRunner}" ];
             RunAtLoad = true;
             KeepAlive = true;
-            WorkingDirectory = configDir;
+            WorkingDirectory = serviceWorkingDirectory;
             StandardOutPath = cfg.logFile;
             StandardErrorPath = cfg.errorLogFile;
             EnvironmentVariables = serviceEnvironment;
@@ -261,7 +263,7 @@ in
           };
           Service = {
             ExecStart = "${bridgeRunner}";
-            WorkingDirectory = configDir;
+            WorkingDirectory = serviceWorkingDirectory;
             Restart = "on-failure";
             RestartSec = 2;
             Environment = lib.mapAttrsToList (name: value: "${name}=${value}") serviceEnvironment;

@@ -34,6 +34,7 @@ These are intentionally outside normal flake updates:
 - `home/cargo-locks/helix-file-watcher.Cargo.lock`: Cargo git dependencies are locked separately from Nix flakes.
 - `pkgs/cargo-coupling/default.nix`: fixed version, source hash, and `cargoHash`.
 - `pkgs/glim/default.nix`: fixed version, source hash, and `cargoHash`.
+- `pkgs/kache/default.nix`: fixed release version and per-platform binary hashes.
 - `pkgs/tsql/default.nix`: fixed release version and per-platform binary hashes.
 - `flake.nix`: `opencodePin` overrides the Nix-managed OpenCode binary/server version, source hash, and fixed-output `node_modules` hash.
 - `config/opencode/package.json`: OpenCode plugin dependencies are installed by Bun during activation, not by Nix flake updates. Keep plugin SDK versions aligned with `opencodePin.version`; see [OpenCode Versioning](OpenCode%20Versioning.md).

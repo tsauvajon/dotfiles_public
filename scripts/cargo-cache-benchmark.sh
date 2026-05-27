@@ -82,10 +82,11 @@ fi
 command=("$@")
 sccache_port=$((32000 + ($$ % 20000)))
 
-if ! command -v sccache >/dev/null 2>&1; then
+if ! sccache_bin=$(command -v sccache); then
   printf 'error: sccache is required on PATH\n' >&2
   exit 69
 fi
+kache_bin=$(command -v kache || true)
 
 if [ -z "$out" ]; then
   out=$(mktemp -d "${TMPDIR:-/tmp}/cargo-cache-benchmark.XXXXXX")
@@ -122,18 +123,18 @@ stat_value() {
 
 zero_sccache_stats() {
   local dir=$1
-  SCCACHE_DIR="$dir" SCCACHE_SERVER_PORT="$sccache_port" sccache --zero-stats >/dev/null 2>&1 || true
+  SCCACHE_DIR="$dir" SCCACHE_SERVER_PORT="$sccache_port" "$sccache_bin" --zero-stats >/dev/null 2>&1 || true
 }
 
 write_sccache_stats() {
   local dir=$1
   local path=$2
-  SCCACHE_DIR="$dir" SCCACHE_SERVER_PORT="$sccache_port" sccache --show-stats > "$path" 2>&1 || true
+  SCCACHE_DIR="$dir" SCCACHE_SERVER_PORT="$sccache_port" "$sccache_bin" --show-stats > "$path" 2>&1 || true
 }
 
 stop_sccache_server() {
   local dir=$1
-  SCCACHE_DIR="$dir" SCCACHE_SERVER_PORT="$sccache_port" sccache --stop-server >/dev/null 2>&1 || true
+  SCCACHE_DIR="$dir" SCCACHE_SERVER_PORT="$sccache_port" "$sccache_bin" --stop-server >/dev/null 2>&1 || true
 }
 
 workspace_manifest() {
@@ -165,7 +166,7 @@ run_agent() {
     case "$mode" in
       sccache)
         CARGO_TARGET_DIR="$target_dir" \
-        RUSTC_WRAPPER=sccache \
+        RUSTC_WRAPPER="$sccache_bin" \
         SCCACHE_DIR="$sccache_dir" \
         SCCACHE_SERVER_PORT="$sccache_port" \
         SCCACHE_CACHE_SIZE=100G \
@@ -174,9 +175,9 @@ run_agent() {
         ;;
       kache-fallback-sccache)
         CARGO_TARGET_DIR="$target_dir" \
-        RUSTC_WRAPPER=kache \
+        RUSTC_WRAPPER="$kache_bin" \
         KACHE_CACHE_DIR="$kache_dir" \
-        KACHE_FALLBACK=sccache \
+        KACHE_FALLBACK="$sccache_bin" \
         SCCACHE_DIR="$sccache_dir" \
         SCCACHE_SERVER_PORT="$sccache_port" \
         SCCACHE_CACHE_SIZE=100G \
@@ -315,6 +316,11 @@ run_phase() {
   done
   append_phase_stats "$stats" "$phase_tmp"
 
+  if awk -F '\t' '$6 != "0" { found = 1 } END { exit found ? 0 : 1 }' "$phase_tmp"; then
+    printf 'warning: repo=%s mode=%s phase=%s had non-zero command exit codes; inspect results.tsv logs\n' "$repo_label" "$mode" "$phase" >&2
+    failed=1
+  fi
+
   return "$failed"
 }
 
@@ -350,7 +356,7 @@ for spec in "${repo_specs[@]}"; do
   repo_root=$out/repos/$label_safe
 
   for mode in sccache kache-fallback-sccache; do
-    if [ "$mode" = kache-fallback-sccache ] && ! command -v kache >/dev/null 2>&1; then
+    if [ "$mode" = kache-fallback-sccache ] && [ -z "$kache_bin" ]; then
       printf 'warning: kache is not on PATH; skipping mode=%s repo=%s\n' "$mode" "$label" >&2
       continue
     fi
