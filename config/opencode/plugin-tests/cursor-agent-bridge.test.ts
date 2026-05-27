@@ -7,6 +7,7 @@ describe("cursor-agent-bridge pure helpers", () => {
     expect(Object.isFrozen(_test)).toBe(true);
     expect(Object.keys(_test).sort()).toEqual([
       "contentToText",
+      "healthResponse",
       "modelsResponse",
       "normalizeModel",
       "openAiUsage",
@@ -120,6 +121,16 @@ describe("cursor-agent-bridge pure helpers", () => {
           name: "Composer 2.5",
         },
       ],
+    });
+  });
+
+  test("healthResponse returns safe bridge diagnostics", () => {
+    expect(_test.healthResponse()).toEqual({
+      ok: true,
+      pid: process.pid,
+      host: "127.0.0.1",
+      port: expect.any(Number),
+      started_at: expect.any(String),
     });
   });
 });

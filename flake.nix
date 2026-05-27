@@ -318,7 +318,27 @@
           };
           gpgPinentryCheck = import ./scripts/lib/configure-gpg-pinentry.test.nix { inherit pkgs lib; };
           yaziLiveSearchCheck = import ./config/yazi/live-search.test.nix { inherit pkgs; };
-          cursorAgentBridgeCheck = import ./config/opencode/plugin-tests/cursor-agent-bridge.test.nix { inherit pkgs; };
+          cursorAgentBridgeCheck = import ./config/opencode/plugin-tests/cursor-agent-bridge.test.nix {
+            inherit pkgs;
+          };
+          cursorAgentBridgeModuleTests = lib.runTests (
+            import ./home/cursor-agent-bridge.test.nix { inherit lib; }
+          );
+          cursorAgentBridgeModuleCheck = pkgs.runCommand "cursor-agent-bridge-module-test" { } (
+            if cursorAgentBridgeModuleTests == [ ] then
+              ''
+                echo "cursor-agent-bridge-module-test: all cases passed"
+                touch "$out"
+              ''
+            else
+              ''
+                echo "cursor-agent-bridge-module-test failures:" >&2
+                cat <<'EOF' >&2
+                ${builtins.toJSON cursorAgentBridgeModuleTests}
+                EOF
+                exit 1
+              ''
+          );
         in
         {
           formatter = pkgs.nixfmt-rfc-style;
@@ -356,6 +376,7 @@
               configure-gpg-pinentry-test = gpgPinentryCheck;
               yazi-live-search-test = yaziLiveSearchCheck;
               cursor-agent-bridge-test = cursorAgentBridgeCheck;
+              cursor-agent-bridge-module-test = cursorAgentBridgeModuleCheck;
             };
         }
       )

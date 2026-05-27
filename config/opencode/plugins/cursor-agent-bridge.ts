@@ -14,8 +14,12 @@ const MODELS = new Map([
 ]);
 const REQUEST_TIMEOUT_MS = parsePositiveInteger(process.env.OPENCODE_CURSOR_AGENT_TIMEOUT_MS, 300_000);
 const MAX_BODY_BYTES = parsePositiveInteger(process.env.OPENCODE_CURSOR_AGENT_MAX_BODY_BYTES, 16 * 1024 * 1024);
+const STARTED_AT = new Date().toISOString();
 
+// Only the standalone service calls startBridge; this guard is defensive for
+// tests or future entrypoints.
 let started = false;
+const activeChildren = new Set<ReturnType<typeof spawn>>();
 
 type ChatMessage = {
   role?: string;
@@ -98,20 +102,42 @@ function parseBody(request: IncomingMessage): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let size = 0;
+    let settled = false;
     request.setTimeout(60_000, () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
       reject(new BridgeHttpError(408, "request body timeout"));
       request.destroy();
     });
-    request.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
     request.on("data", (chunk) => {
-      size += Buffer.byteLength(chunk);
+      if (settled) {
+        return;
+      }
+      const buffer = Buffer.from(chunk);
+      size += buffer.length;
       if (size > MAX_BODY_BYTES) {
+        settled = true;
         reject(new BridgeHttpError(413, "request body too large"));
         request.destroy();
+        return;
       }
+      chunks.push(buffer);
     });
-    request.on("error", reject);
+    request.on("error", (err) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      reject(err);
+    });
     request.on("end", () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      request.setTimeout(0);
       try {
         const raw = Buffer.concat(chunks).toString("utf8");
         resolve(raw.trim() ? JSON.parse(raw) : {});
@@ -206,6 +232,8 @@ function spawnCursorAgent(model: string, prompt: string, stream: boolean) {
     stdio: ["pipe", "pipe", "pipe"],
     env: cursorEnvironment(),
   });
+  activeChildren.add(child);
+  child.once("close", () => activeChildren.delete(child));
 
   child.stdout.setEncoding("utf8");
   child.stderr.setEncoding("utf8");
@@ -234,6 +262,12 @@ function stopProcess(child: ReturnType<typeof spawn>): void {
       child.kill("SIGKILL");
     }
   }, 2_000).unref();
+}
+
+function stopActiveChildren(): void {
+  for (const child of activeChildren) {
+    stopProcess(child);
+  }
 }
 
 function completionChunk(id: string, model: string, content: string, finishReason: string | null) {
@@ -277,6 +311,7 @@ async function handleStreamingChat(response: ServerResponse, request: ChatReques
     "cache-control": "no-cache",
     connection: "keep-alive",
   });
+  response.on("error", () => undefined);
 
   sendSse(response, {
     ...completionChunk(id, model, "", null),
@@ -337,6 +372,7 @@ async function handleStreamingChat(response: ServerResponse, request: ChatReques
 }
 
 async function handleJsonChat(response: ServerResponse, request: ChatRequest, prompt: string) {
+  response.on("error", () => undefined);
   const model = normalizeModel(request.model);
   const id = `chatcmpl-${randomUUID()}`;
   const child = spawnCursorAgent(model, prompt, false);
@@ -439,6 +475,16 @@ function modelsResponse() {
   };
 }
 
+function healthResponse() {
+  return {
+    ok: true,
+    pid: process.pid,
+    host: HOST,
+    port: PORT,
+    started_at: STARTED_AT,
+  };
+}
+
 /** @internal Test seam for pure helpers; not used by OpenCode at runtime. */
 export const _test = Object.freeze({
   parsePositiveInteger,
@@ -448,18 +494,18 @@ export const _test = Object.freeze({
   normalizeModel,
   openAiUsage,
   modelsResponse,
+  healthResponse,
 });
 
-function startBridge(): void {
+function startBridge(options: { exitOnListenError?: boolean } = {}): ReturnType<typeof createServer> | undefined {
   if (started) {
-    return;
+    return undefined;
   }
-  started = true;
 
   const server = createServer((request, response) => {
     const url = request.url ?? "/";
     if (request.method === "GET" && (url === "/health" || url === "/v1/health")) {
-      json(response, 200, { ok: true });
+      json(response, 200, healthResponse());
       return;
     }
     if (request.method === "GET" && (url === "/models" || url === "/v1/models")) {
@@ -475,14 +521,51 @@ function startBridge(): void {
 
   server.on("error", (err: NodeJS.ErrnoException) => {
     if (err.code === "EADDRINUSE") {
+      console.error(`cursor-agent bridge port ${HOST}:${PORT} is already in use`);
+      if (options.exitOnListenError) {
+        process.exit(1);
+      }
       return;
     }
-    console.warn(`cursor-agent bridge failed to start: ${err.message}`);
+    console.error(`cursor-agent bridge failed to start: ${err.message}`);
+    if (options.exitOnListenError) {
+      process.exit(1);
+    }
+  });
+  server.on("listening", () => {
+    started = true;
   });
   server.listen(PORT, HOST);
+  return server;
+}
+
+function runStandalone(): void {
+  const server = startBridge({ exitOnListenError: true });
+  if (!server) {
+    process.exit(1);
+  }
+
+  const shutdown = () => {
+    stopActiveChildren();
+    const forcedExit = setTimeout(() => process.exit(0), 2_000);
+    forcedExit.unref();
+    server.close(() => {
+      clearTimeout(forcedExit);
+      process.exit(0);
+    });
+  };
+
+  process.once("SIGTERM", shutdown);
+  process.once("SIGINT", shutdown);
 }
 
 export default (async () => {
-  startBridge();
+  // The Home Manager service owns the singleton HTTP listener. OpenCode
+  // processes still load this file as a plugin, but they must not race to bind
+  // the fixed provider port.
   return {};
 }) satisfies Plugin;
+
+if (import.meta.main && process.env.OPENCODE_CURSOR_AGENT_BRIDGE_STANDALONE === "1") {
+  runStandalone();
+}

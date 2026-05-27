@@ -10,6 +10,7 @@
   imports = [
     ./apps.nix
     ./bootstrap.nix
+    ./cursor-agent-bridge.nix
     ./darwin-apps.nix
     ./desktop
     ./devtools.nix
