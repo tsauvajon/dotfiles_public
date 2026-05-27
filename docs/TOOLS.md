@@ -12,6 +12,7 @@ These tools add workflow-specific capabilities rather than replacing one classic
 | `backup`          | `home/programs/scripts.nix`        | Copy a file or folder to `<file>.bak`              | `backup config.toml`                                          |
 | `cargo-coupling`  | `home/rust.nix`, local package     | Rust coupling/dependency analysis                  | `cargo coupling --help`, `cargo coupling --format json`       |
 | `doxx`            | `home/fs.nix`                      | View/export `.docx` files in the terminal          | `doxx file.docx`, `doxx file.docx --export markdown`          |
+| `fastfetch`       | `home/fs.nix`                      | System information summary                         | `fastfetch`                                                   |
 | `fzf`             | `home/fs.nix`                      | Fuzzy finder                                       | `fzf`, `command \| fzf`                                      |
 | `gh`              | `home/programs/git.nix`            | GitHub CLI                                         | `gh pr view`, `gh issue list`                                 |
 | `glab`            | `home/programs/git.nix`            | GitLab CLI                                         | `glab mr list`, `glab ci status`                              |
@@ -47,5 +48,6 @@ These tools replace a classic CLI directly, either through aliases or by acting 
 | `eza`     | `ls`                  | `home/fs.nix`                        | Modern directory listing          | `eza -la`, `eza --tree`                            |
 | `fd`      | `find`                | `home/fs.nix`                        | Fast file finder                  | `fd pattern`, `fd -e nix`                          |
 | `gpg-tui` | `gpg` key workflows   | `home/devtools.nix`                  | GPG key management TUI            | `gpg-tui`, `gpg` alias                             |
+| `htop`    | `btop`, `top`         | `home/fs.nix`                        | Interactive process viewer        | `htop`, `top` alias                                |
 | `ouch`    | `tar`, `zip`, `unzip` | `home/fs.nix`                        | Archive compress/extract CLI      | `ouch d archive.zip`, `ouch c archive.tar.gz dir/` |
 | `yazi`    | `lf`, `ranger`        | `home/fs.nix`                        | Terminal file manager             | `yazi`, `y`                                        |

@@ -31,6 +31,7 @@ in
     pkgs.just
     (wrapWithNixGL pkgs.kitty "kitty")
     pkgs.socat
+    pkgs.tool-habit
     pkgs.websocat
     pkgs.zellij
     pkgs.zsh

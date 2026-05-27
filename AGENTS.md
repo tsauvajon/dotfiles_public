@@ -360,6 +360,7 @@ Run all tests with `nix flake check --all-systems` (or the per-arch
 | `lib-runTests` | Pure unit tests via `lib.runTests`: `deep-merge-json`, `concat-files`, `list-files-in`, `home/default.nix` import resolution, `bootstrap.nix` activation-hook regression guard |
 | `merge-dirs-test` | Integration test for `home/lib/merge-dirs.nix` (builds a derivation and asserts on its contents) |
 | `opencode-tests` | End-to-end tests of `home/lib/opencode-merge.nix` (4-tier JSON merge, filename sort, rules modes, missing-private fallback, public-base guardrail) |
+| `tool-habit-smoke` | Smoke test that validates tool habit source lines and checks `tool-habit` prints a reminder prefixed by a lowercase tool name |
 | `patch-string-field-test` | Integration test for `scripts/lib/patch-empty-string-field.sh` (empty/null/absent shapes, exit codes) |
 | `configure-gpg-pinentry-test` | Integration test for `scripts/lib/configure-gpg-pinentry.sh` (idempotent rewrite of gpg-agent.conf pinentry-program lines) |
 

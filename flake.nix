@@ -151,6 +151,7 @@
           glim = final.callPackage ./pkgs/glim { };
           kache = final.callPackage ./pkgs/kache { };
           sem = final.callPackage ./pkgs/sem { };
+          tool-habit = final.callPackage ./pkgs/tool-habit { };
           tsql = final.callPackage ./pkgs/tsql { };
           weave = final.callPackage ./pkgs/weave { };
 
@@ -313,6 +314,48 @@
 
                 touch "$out"
               '';
+          toolHabitSmokeCheck = pkgs.runCommand "tool-habit-smoke" { } ''
+            line_count=0
+            while IFS= read -r line; do
+              if [ "$line" = % ]; then
+                continue
+              fi
+
+              line_count=$((line_count + 1))
+              if ! expr "$line" : '[a-z][a-z0-9_-]*: ' > /dev/null; then
+                echo "invalid tool habit line: $line" >&2
+                exit 1
+              fi
+            done < ${pkgs.tool-habit}/share/fortune-habits/tool-habits
+
+            if [ "$line_count" -eq 0 ]; then
+              echo "tool-habit contains no reminders" >&2
+              exit 1
+            fi
+
+            set +e
+            output="$(${pkgs.tool-habit}/bin/tool-habit 2>&1)"
+            status=$?
+            set -e
+
+            if [ "$status" -ne 0 ]; then
+              echo "tool-habit exited with status $status" >&2
+              echo "$output" >&2
+              exit "$status"
+            fi
+
+            if [ -z "$output" ]; then
+              echo "tool-habit printed no output" >&2
+              exit 1
+            fi
+
+            if ! expr "$output" : '[a-z][a-z0-9_-]*: ' > /dev/null; then
+              echo "tool-habit output does not start with a lowercase tool prefix: $output" >&2
+              exit 1
+            fi
+
+            touch "$out"
+          '';
           patchStringFieldCheck = import ./scripts/lib/patch-empty-string-field.test.nix {
             inherit pkgs lib;
           };
@@ -351,6 +394,7 @@
               glim
               kache
               sem
+              tool-habit
               tsql
               weave
               ;
@@ -368,6 +412,7 @@
                 glim
                 kache
                 sem
+                tool-habit
                 tsql
                 weave
                 ;
@@ -375,6 +420,7 @@
               merge-dirs-test = mergeDirsCheck;
               opencode-version-alignment = opencodeVersionAlignmentCheck;
               opencode-tests = opencodeTestsCheck;
+              tool-habit-smoke = toolHabitSmokeCheck;
               patch-string-field-test = patchStringFieldCheck;
               configure-gpg-pinentry-test = gpgPinentryCheck;
               yazi-live-search-test = yaziLiveSearchCheck;
