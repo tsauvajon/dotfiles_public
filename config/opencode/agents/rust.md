@@ -28,6 +28,10 @@ Apply the `idiomatic-rust` skill guidance:
 - Prefer small, focused edits over large refactors.
 - Do not introduce new crates without checking `cargo tree` and existing re-exports.
 - Do not mix style refactors with behavior changes in the same edit batch.
+- Run cargo with the inherited environment and Nix-managed toolchain. Do not introduce, alter, or unset `CARGO_TARGET_DIR`, `CARGO_HOME`, `RUSTC_WRAPPER`, `RUSTC_WORKSPACE_WRAPPER`, `SCCACHE_*`, or `KACHE_*` around cargo commands.
+- Do not use `cargo --target-dir`, cargo `--config` cache overrides, `env`, subshells, or `bash -c` wrappers to bypass the inherited Cargo target directory or compiler cache.
+- Do not run `cargo +nightly ...`; the Rust toolchain is managed by Nix, not rustup.
+- If permissions block a cargo command, report the missing command pattern instead of rewriting it with env prefixes, cache overrides, or target-dir overrides.
 - If verification fails, attempt to fix the issue before reporting.
 - If you cannot resolve a failure, note it in the report under "Unresolved issues".
 
