@@ -247,7 +247,13 @@ function sanitizeInboundContent(content: string): string {
     .replace(/<opencode_previous_tool_calls/gi, "&lt;opencode_previous_tool_calls")
     .replace(/<\/opencode_previous_tool_calls>/gi, "&lt;/opencode_previous_tool_calls&gt;")
     .replace(/<opencode_previous_tool_result/gi, "&lt;opencode_previous_tool_result")
-    .replace(/<\/opencode_previous_tool_result>/gi, "&lt;/opencode_previous_tool_result&gt;");
+    .replace(/<\/opencode_previous_tool_result>/gi, "&lt;/opencode_previous_tool_result&gt;")
+    .replace(/<system-reminder([^>]*)>/gi, "&lt;system-reminder$1&gt;")
+    .replace(/<\/system-reminder>/gi, "&lt;/system-reminder&gt;")
+    .replace(/<system-prompt([^>]*)>/gi, "&lt;system-prompt$1&gt;")
+    .replace(/<\/system-prompt>/gi, "&lt;/system-prompt&gt;")
+    .replace(/<environment_info([^>]*)>/gi, "&lt;environment_info$1&gt;")
+    .replace(/<\/environment_info>/gi, "&lt;/environment_info&gt;");
 }
 
 function escapeAttribute(value: string): string {
@@ -362,6 +368,10 @@ function toolInstructions(context: ToolContext): string {
   return [
     "SYSTEM:",
     "You can call OpenAI-compatible function tools by emitting a single live tool-call marker.",
+    "These are OpenCode host tools, not Cursor Agent tools. Cursor Agent Ask-mode shell/file limitations do not apply to emitting this marker.",
+    "Do not invoke Cursor-internal shell, file, edit, or terminal tools. Route workspace actions through the listed OpenCode tools instead.",
+    "Never say shell access is blocked, ask the user to switch to Agent mode, or give the user commands to run when an available OpenCode tool can perform the requested action.",
+    "If the user asks to run commands, edit files, inspect the workspace, commit, test, or use a named tool capability, emit a tool-call marker for the matching OpenCode tool instead of explaining that you cannot do it.",
     "When calling a tool, emit no prose outside the marker unless the user explicitly asks for an explanation after tool execution.",
     `Live marker format (nonce is mandatory and case-sensitive): <opencode_tool_calls nonce=\"${context.nonce}\">{\"tool_calls\":[{\"id\":\"optional\",\"type\":\"function\",\"function\":{\"name\":\"tool_name\",\"arguments\":\"{}\"}}]}</opencode_tool_calls>`,
     "The marker body must be valid JSON. function.arguments must be a JSON string; object arguments are also accepted and will be stringified by the bridge.",
@@ -565,9 +575,6 @@ function spawnCursorAgent(model: string, prompt: string, stream: boolean) {
   if (stream) {
     args.push("--stream-partial-output");
   }
-  if (process.env.OPENCODE_CURSOR_AGENT_TRUST === "1") {
-    args.push("--trust");
-  }
 
   const child = spawn(cursorCommand(), args, {
     cwd: process.cwd(),
@@ -585,7 +592,7 @@ function spawnCursorAgent(model: string, prompt: string, stream: boolean) {
 
 function cursorEnvironment(): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {};
-  for (const name of ["HOME", "PATH", "SHELL", "TMPDIR", "USER", "LOGNAME", "CURSOR_API_KEY"]) {
+  for (const name of ["HOME", "PATH", "TMPDIR", "USER", "LOGNAME", "CURSOR_API_KEY"]) {
     const value = process.env[name];
     if (value !== undefined) {
       env[name] = value;
@@ -976,6 +983,7 @@ function healthResponse() {
 export const _test = Object.freeze({
   parsePositiveInteger,
   contentToText,
+  cursorEnvironment,
   deterministicToolCallId,
   finishChunk,
   roleChunk,

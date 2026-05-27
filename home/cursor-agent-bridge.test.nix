@@ -40,6 +40,20 @@ in
     expected = true;
   };
 
+  testCursorAgentBridgeRoutesPermissionsThroughOpenCode = {
+    expr =
+      (lib.hasInfix "These are OpenCode host tools, not Cursor Agent tools" bridgePluginSource)
+      && (lib.hasInfix "Never say shell access is blocked" bridgePluginSource)
+      && (lib.hasInfix "Do not invoke Cursor-internal shell, file, edit, or terminal tools" bridgePluginSource)
+      && (lib.hasInfix ''"--mode",'' bridgePluginSource)
+      && (lib.hasInfix ''"ask",'' bridgePluginSource)
+      && (lib.hasInfix ''for (const name of ["HOME", "PATH", "TMPDIR", "USER", "LOGNAME", "CURSOR_API_KEY"])'' bridgePluginSource)
+      && !(lib.hasInfix "OPENCODE_CURSOR_AGENT_TRUST" bridgePluginSource)
+      && !(lib.hasInfix ''args.push("--trust")'' bridgePluginSource)
+      && !(lib.hasInfix ''"SHELL"'' bridgePluginSource);
+    expected = true;
+  };
+
   testCursorAgentBridgeSystemdLogsToConfiguredFiles = {
     expr =
       (lib.hasInfix ''StandardOutput = "append:'' bridgeModuleSource)
