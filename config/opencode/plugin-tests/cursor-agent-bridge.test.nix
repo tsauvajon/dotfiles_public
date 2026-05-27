@@ -22,12 +22,22 @@ pkgs.runCommand "cursor-agent-bridge-test"
       || fail "cursor-agent bridge should expose test helpers"
     for helper in \
       contentToText \
+      deterministicToolCallId \
+      finishChunk \
       healthResponse \
+      hasToolRequest \
       modelsResponse \
       normalizeModel \
       openAiUsage \
+      parseCursorOutput \
       parsePositiveInteger \
       promptFromMessages \
+      roleChunk \
+      sanitizeInboundContent \
+      toolAwarePromptFromMessages \
+      toolCallChunk \
+      toolContextFromRequest \
+      toolDefinitions \
       unsupportedMessage
     do
       grep -Fq "$helper" plugin-tests/cursor-agent-bridge.test.ts \

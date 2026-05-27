@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { Plugin } from "@opencode-ai/plugin";
 
 const HOST = "127.0.0.1";
@@ -14,6 +14,7 @@ const MODELS = new Map([
 ]);
 const REQUEST_TIMEOUT_MS = parsePositiveInteger(process.env.OPENCODE_CURSOR_AGENT_TIMEOUT_MS, 300_000);
 const MAX_BODY_BYTES = parsePositiveInteger(process.env.OPENCODE_CURSOR_AGENT_MAX_BODY_BYTES, 16 * 1024 * 1024);
+const MAX_TOOL_MARKER_BYTES = 1024 * 1024;
 const STARTED_AT = new Date().toISOString();
 
 // Only the standalone service calls startBridge; this guard is defensive for
@@ -24,13 +25,66 @@ const activeChildren = new Set<ReturnType<typeof spawn>>();
 type ChatMessage = {
   role?: string;
   content?: unknown;
+  tool_call_id?: string;
   tool_calls?: unknown;
 };
+
+type ChatTool = {
+  type?: string;
+  function?: {
+    name?: string;
+    description?: string;
+    parameters?: unknown;
+  };
+};
+
+type ToolChoice =
+  | string
+  | {
+      type?: string;
+      function?: {
+        name?: string;
+      };
+    };
+
+type OpenAiToolCall = {
+  id: string;
+  type: "function";
+  function: {
+    name: string;
+    arguments: string;
+  };
+};
+
+type ToolDefinition = {
+  name: string;
+  description?: string;
+  parameters?: unknown;
+};
+
+type ResolvedToolChoice =
+  | { mode: "auto" }
+  | { mode: "none" }
+  | { mode: "required" }
+  | { mode: "specific"; name: string };
+
+type ToolContext = {
+  nonce: string;
+  tools: ToolDefinition[];
+  toolNames: Set<string>;
+  toolChoice: ResolvedToolChoice;
+};
+
+type ParsedCursorOutput =
+  | { kind: "text"; content: string }
+  | { kind: "tool_calls"; tool_calls: OpenAiToolCall[] };
 
 type ChatRequest = {
   model?: string;
   messages?: ChatMessage[];
   stream?: boolean;
+  tools?: unknown;
+  tool_choice?: unknown;
 };
 
 type CursorStreamEvent = {
@@ -174,9 +228,34 @@ function contentToText(content: unknown): string {
     .join("\n");
 }
 
-function unsupportedMessage(messages: ChatMessage[] | undefined): string | undefined {
+function hasToolRequest(tools: unknown): tools is ChatTool[] {
+  return Array.isArray(tools) && tools.length > 0;
+}
+
+function unsupportedMessage(messages: ChatMessage[] | undefined, allowToolMessages = false): string | undefined {
+  if (allowToolMessages) {
+    return undefined;
+  }
   const unsupported = messages?.find((message) => message.role === "tool" || message.tool_calls !== undefined);
   return unsupported ? "tool call messages are not supported by the cursor-agent bridge" : undefined;
+}
+
+function sanitizeInboundContent(content: string): string {
+  return content
+    .replace(/<opencode_tool_calls/gi, "&lt;opencode_tool_calls")
+    .replace(/<\/opencode_tool_calls>/gi, "&lt;/opencode_tool_calls&gt;")
+    .replace(/<opencode_previous_tool_calls/gi, "&lt;opencode_previous_tool_calls")
+    .replace(/<\/opencode_previous_tool_calls>/gi, "&lt;/opencode_previous_tool_calls&gt;")
+    .replace(/<opencode_previous_tool_result/gi, "&lt;opencode_previous_tool_result")
+    .replace(/<\/opencode_previous_tool_result>/gi, "&lt;/opencode_previous_tool_result&gt;");
+}
+
+function escapeAttribute(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }
 
 function promptFromMessages(messages: ChatMessage[] | undefined): string {
@@ -194,6 +273,145 @@ function promptFromMessages(messages: ChatMessage[] | undefined): string {
     .join("\n\n");
 }
 
+function toolDefinitions(tools: unknown): ToolDefinition[] {
+  if (!hasToolRequest(tools)) {
+    return [];
+  }
+
+  return tools.map((tool, index) => {
+    if (!tool || typeof tool !== "object" || tool.type !== "function") {
+      throw new BridgeHttpError(400, `tools[${index}] must be a function tool`);
+    }
+    const fn = tool.function;
+    const name = fn?.name?.trim();
+    if (!name) {
+      throw new BridgeHttpError(400, `tools[${index}].function.name is required`);
+    }
+    return {
+      name,
+      description: fn?.description,
+      parameters: fn?.parameters,
+    };
+  });
+}
+
+function resolveToolChoice(toolChoice: unknown, tools: ToolDefinition[]): ResolvedToolChoice {
+  const names = new Set(tools.map((tool) => tool.name));
+  if (toolChoice === undefined || toolChoice === null || toolChoice === "auto") {
+    return { mode: "auto" };
+  }
+  if (toolChoice === "none") {
+    return { mode: "none" };
+  }
+  if (toolChoice === "required") {
+    return { mode: "required" };
+  }
+  if (typeof toolChoice === "object") {
+    const choice = toolChoice as ToolChoice;
+    const name = choice.type === "function" ? choice.function?.name?.trim() : undefined;
+    if (!name) {
+      throw new BridgeHttpError(400, "tool_choice function name is required");
+    }
+    if (!names.has(name)) {
+      throw new BridgeHttpError(400, `tool_choice function '${name}' is not in tools`);
+    }
+    return { mode: "specific", name };
+  }
+
+  throw new BridgeHttpError(400, "unsupported tool_choice");
+}
+
+function toolContextFromRequest(tools: unknown, toolChoice: unknown, nonce = randomUUID()): ToolContext | undefined {
+  if (!hasToolRequest(tools)) {
+    if (toolChoice !== undefined && toolChoice !== null && toolChoice !== "auto") {
+      throw new BridgeHttpError(400, "tool_choice requires at least one tool");
+    }
+    return undefined;
+  }
+  const definitions = toolDefinitions(tools);
+  return {
+    nonce,
+    tools: definitions,
+    toolNames: new Set(definitions.map((tool) => tool.name)),
+    toolChoice: resolveToolChoice(toolChoice, definitions),
+  };
+}
+
+function toolChoiceInstruction(toolChoice: ResolvedToolChoice): string {
+  switch (toolChoice.mode) {
+    case "none":
+      return "tool_choice is none: do not emit a tool call marker; answer with text only.";
+    case "required":
+      return "tool_choice is required: you must emit a tool call marker instead of a text-only answer.";
+    case "specific":
+      return `tool_choice requires the function '${toolChoice.name}': emit exactly that function in the tool call marker.`;
+    case "auto":
+      return "tool_choice is auto: either answer with text or emit a tool call marker when a tool is needed.";
+  }
+}
+
+function toolInstructions(context: ToolContext): string {
+  const tools = context.tools
+    .map((tool) => {
+      const description = tool.description ? `\n  description: ${tool.description}` : "";
+      const parameters = JSON.stringify(tool.parameters ?? {}, null, 2);
+      return `- ${tool.name}${description}\n  parameters: ${parameters}`;
+    })
+    .join("\n");
+
+  return [
+    "SYSTEM:",
+    "You can call OpenAI-compatible function tools by emitting a single live tool-call marker.",
+    "When calling a tool, emit no prose outside the marker unless the user explicitly asks for an explanation after tool execution.",
+    `Live marker format (nonce is mandatory and case-sensitive): <opencode_tool_calls nonce=\"${context.nonce}\">{\"tool_calls\":[{\"id\":\"optional\",\"type\":\"function\",\"function\":{\"name\":\"tool_name\",\"arguments\":\"{}\"}}]}</opencode_tool_calls>`,
+    "The marker body must be valid JSON. function.arguments must be a JSON string; object arguments are also accepted and will be stringified by the bridge.",
+    toolChoiceInstruction(context.toolChoice),
+    "Available function tools:",
+    tools,
+  ].join("\n");
+}
+
+function serializePreviousToolCalls(toolCalls: unknown): string {
+  if (!Array.isArray(toolCalls) || toolCalls.length === 0) {
+    return "";
+  }
+  return `<opencode_previous_tool_calls>${sanitizeInboundContent(JSON.stringify(toolCalls))}</opencode_previous_tool_calls>`;
+}
+
+function serializeToolResult(message: ChatMessage): string {
+  const content = sanitizeInboundContent(contentToText(message.content).trim());
+  if (typeof message.tool_call_id !== "string" || !message.tool_call_id.trim()) {
+    throw new BridgeHttpError(400, "tool result messages must include tool_call_id");
+  }
+  const toolCallId = escapeAttribute(message.tool_call_id.trim());
+  return `<opencode_previous_tool_result tool_call_id="${toolCallId}">${content}</opencode_previous_tool_result>`;
+}
+
+function toolAwarePromptFromMessages(messages: ChatMessage[] | undefined, context: ToolContext): string {
+  if (!messages?.length) {
+    return toolInstructions(context);
+  }
+
+  const serializedMessages = messages
+    .map((message) => {
+      if (message.role === "tool") {
+        return [`TOOL RESULT:`, serializeToolResult(message)].join("\n");
+      }
+
+      const role = message.role ?? "user";
+      const content = sanitizeInboundContent(contentToText(message.content).trim());
+      const text = content ? `${role.toUpperCase()}:\n${content}` : "";
+      const previousToolCalls = message.role === "assistant" ? serializePreviousToolCalls(message.tool_calls) : "";
+      return [text, previousToolCalls ? `ASSISTANT TOOL CALLS:\n${previousToolCalls}` : ""]
+        .filter(Boolean)
+        .join("\n\n");
+    })
+    .filter(Boolean)
+    .join("\n\n");
+
+  return [toolInstructions(context), serializedMessages].filter(Boolean).join("\n\n");
+}
+
 function normalizeModel(model: string | undefined): string {
   const requested = model?.trim() || DEFAULT_MODEL;
   return MODELS.has(requested) ? requested : DEFAULT_MODEL;
@@ -206,6 +424,130 @@ function openAiUsage(usage: CursorStreamEvent["usage"] | undefined) {
     prompt_tokens: promptTokens,
     completion_tokens: completionTokens,
     total_tokens: promptTokens + completionTokens,
+  };
+}
+
+function stripCodeFence(value: string): string {
+  const trimmed = value.trim();
+  const match = trimmed.match(/^```(?:json)?\s*\n([\s\S]*?)\n```$/i);
+  return match ? match[1].trim() : trimmed;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function deterministicToolCallId(name: string, args: string, index: number): string {
+  const digest = createHash("sha256")
+    .update(`${index}\0${name}\0${args}`)
+    .digest("hex")
+    .slice(0, 24);
+  return `call_${digest}`;
+}
+
+function ensureJsonStringArguments(value: unknown, toolName: string): string {
+  if (typeof value === "string") {
+    try {
+      JSON.parse(value);
+    } catch {
+      throw new BridgeHttpError(502, `tool call '${toolName}' arguments must be valid JSON`);
+    }
+    return value;
+  }
+  if (value && typeof value === "object") {
+    return JSON.stringify(value);
+  }
+  throw new BridgeHttpError(502, `tool call '${toolName}' arguments must be a JSON string or object`);
+}
+
+function validateToolCall(call: unknown, index: number, context: ToolContext): OpenAiToolCall {
+  if (!call || typeof call !== "object") {
+    throw new BridgeHttpError(502, `tool_calls[${index}] must be an object`);
+  }
+  const candidate = call as { id?: unknown; type?: unknown; function?: { name?: unknown; arguments?: unknown } };
+  if (candidate.type !== "function") {
+    throw new BridgeHttpError(502, `tool_calls[${index}].type must be 'function'`);
+  }
+  const name = typeof candidate.function?.name === "string" ? candidate.function.name.trim() : "";
+  if (!name) {
+    throw new BridgeHttpError(502, `tool_calls[${index}].function.name is required`);
+  }
+  if (!context.toolNames.has(name)) {
+    throw new BridgeHttpError(502, `tool call '${name}' is not available`);
+  }
+  if (context.toolChoice.mode === "none") {
+    throw new BridgeHttpError(502, "tool_choice none forbids tool calls");
+  }
+  if (context.toolChoice.mode === "specific" && context.toolChoice.name !== name) {
+    throw new BridgeHttpError(502, `tool_choice requires '${context.toolChoice.name}', not '${name}'`);
+  }
+  const args = ensureJsonStringArguments(candidate.function?.arguments, name);
+  const id = typeof candidate.id === "string" && candidate.id.trim()
+    ? candidate.id.trim()
+    : deterministicToolCallId(name, args, index);
+  return {
+    id,
+    type: "function",
+    function: {
+      name,
+      arguments: args,
+    },
+  };
+}
+
+function extractToolCalls(value: unknown): unknown[] {
+  if (value && typeof value === "object" && Array.isArray((value as { tool_calls?: unknown }).tool_calls)) {
+    return (value as { tool_calls: unknown[] }).tool_calls;
+  }
+  throw new BridgeHttpError(502, "tool call marker JSON must contain a tool_calls array");
+}
+
+function parseCursorOutput(output: string, context: ToolContext): ParsedCursorOutput {
+  const closeMarker = "</opencode_tool_calls>";
+  const openMarker = new RegExp(`<opencode_tool_calls\\s+nonce=["']${escapeRegExp(context.nonce)}["']\\s*>`);
+  const match = openMarker.exec(output);
+
+  if (!match) {
+    if (/<opencode_tool_calls/i.test(output)) {
+      throw new BridgeHttpError(502, "malformed tool call marker");
+    }
+    if (context.toolChoice.mode === "required") {
+      throw new BridgeHttpError(502, "tool_choice required but cursor agent returned text");
+    }
+    if (context.toolChoice.mode === "specific") {
+      throw new BridgeHttpError(502, `tool_choice requires '${context.toolChoice.name}' but cursor agent returned text`);
+    }
+    return { kind: "text", content: output };
+  }
+
+  const bodyStart = match.index + match[0].length;
+  const end = output.indexOf(closeMarker, bodyStart);
+  if (end === -1) {
+    throw new BridgeHttpError(502, "tool call marker is missing its closing tag");
+  }
+  if (output.indexOf("<opencode_tool_calls", end + closeMarker.length) !== -1) {
+    throw new BridgeHttpError(502, "multiple tool call markers are not supported");
+  }
+
+  const rawMarkerBody = output.slice(bodyStart, end);
+  if (Buffer.byteLength(rawMarkerBody, "utf8") > MAX_TOOL_MARKER_BYTES) {
+    throw new BridgeHttpError(502, "tool call marker is too large");
+  }
+  const markerBody = stripCodeFence(rawMarkerBody);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(markerBody);
+  } catch {
+    throw new BridgeHttpError(502, "tool call marker contains malformed JSON");
+  }
+  const rawToolCalls = extractToolCalls(parsed);
+  if (rawToolCalls.length === 0) {
+    throw new BridgeHttpError(502, "tool call marker must contain at least one tool call");
+  }
+
+  return {
+    kind: "tool_calls",
+    tool_calls: rawToolCalls.map((call, index) => validateToolCall(call, index, context)),
   };
 }
 
@@ -286,15 +628,71 @@ function completionChunk(id: string, model: string, content: string, finishReaso
   };
 }
 
+function roleChunk(id: string, model: string) {
+  return {
+    ...completionChunk(id, model, "", null),
+    choices: [{ index: 0, delta: { role: "assistant" }, finish_reason: null }],
+  };
+}
+
+function toolCallChunk(id: string, model: string, toolCall: OpenAiToolCall, index: number) {
+  const delta: {
+    role?: "assistant";
+    tool_calls: Array<{
+      index: number;
+      id: string;
+      type: "function";
+      function: { name: string; arguments: string };
+    }>;
+  } = {
+    tool_calls: [
+      {
+        index,
+        id: toolCall.id,
+        type: "function",
+        function: {
+          name: toolCall.function.name,
+          arguments: toolCall.function.arguments,
+        },
+      },
+    ],
+  };
+  if (index === 0) {
+    delta.role = "assistant";
+  }
+
+  return {
+    id,
+    object: "chat.completion.chunk",
+    created: Math.floor(Date.now() / 1000),
+    model,
+    choices: [
+      {
+        index: 0,
+        delta,
+        finish_reason: null,
+      },
+    ],
+  };
+}
+
+function finishChunk(id: string, model: string, finishReason: string) {
+  return {
+    ...completionChunk(id, model, "", finishReason),
+    choices: [{ index: 0, delta: {}, finish_reason: finishReason }],
+  };
+}
+
 function sendSse(response: ServerResponse, body: unknown): void {
   response.write(`data: ${JSON.stringify(body)}\n\n`);
 }
 
-async function handleStreamingChat(response: ServerResponse, request: ChatRequest, prompt: string) {
+async function handleStreamingChat(response: ServerResponse, request: ChatRequest, prompt: string, toolContext?: ToolContext) {
   const model = normalizeModel(request.model);
   const id = `chatcmpl-${randomUUID()}`;
   const child = spawnCursorAgent(model, prompt, true);
   let buffer = "";
+  let toolEnabledOutput = "";
   let failed = false;
 
   const fail = (message: string) => {
@@ -313,41 +711,56 @@ async function handleStreamingChat(response: ServerResponse, request: ChatReques
   });
   response.on("error", () => undefined);
 
-  sendSse(response, {
-    ...completionChunk(id, model, "", null),
-    choices: [{ index: 0, delta: { role: "assistant" }, finish_reason: null }],
-  });
+  if (!toolContext) {
+    sendSse(response, roleChunk(id, model));
+  }
 
   const timeout = setTimeout(() => stopProcess(child), REQUEST_TIMEOUT_MS);
   requestAbortCleanup(response, child);
 
   child.on("error", (err) => fail(`failed to start cursor agent: ${err.message}`));
+  const processStreamLine = (line: string) => {
+    if (!line.trim()) {
+      return;
+    }
+    let event: CursorStreamEvent;
+    try {
+      event = JSON.parse(line) as CursorStreamEvent;
+    } catch {
+      fail("cursor agent returned invalid stream json");
+      return;
+    }
+    if (event.is_error) {
+      fail(event.result ?? "cursor agent reported an error");
+      return;
+    }
+    if (event.type === "assistant") {
+      if (typeof event.timestamp_ms !== "number") {
+        return;
+      }
+      const text = event.message?.content
+        ?.map((part) => (part.type === "text" ? part.text ?? "" : ""))
+        .join("") ?? "";
+      if (text) {
+        if (toolContext) {
+          // Tool-aware streams are buffered until Cursor's full answer is known;
+          // the output may be either plain text or a tool-call marker.
+          toolEnabledOutput += text;
+        } else {
+          sendSse(response, completionChunk(id, model, text, null));
+        }
+      }
+    }
+  };
   child.stdout.on("data", (chunk: string) => {
     buffer += chunk;
     const lines = buffer.split("\n");
     buffer = lines.pop() ?? "";
 
     for (const line of lines) {
-      if (!line.trim()) {
-        continue;
-      }
-      let event: CursorStreamEvent;
-      try {
-        event = JSON.parse(line) as CursorStreamEvent;
-      } catch {
-        fail("cursor agent returned invalid stream json");
+      processStreamLine(line);
+      if (failed) {
         return;
-      }
-      if (event.type === "assistant") {
-        if (typeof event.timestamp_ms !== "number") {
-          continue;
-        }
-        const text = event.message?.content
-          ?.map((part) => (part.type === "text" ? part.text ?? "" : ""))
-          .join("") ?? "";
-        if (text) {
-          sendSse(response, completionChunk(id, model, text, null));
-        }
       }
     }
   });
@@ -364,14 +777,40 @@ async function handleStreamingChat(response: ServerResponse, request: ChatReques
       return;
     }
     if (!response.destroyed) {
-      sendSse(response, completionChunk(id, model, "", "stop"));
+      if (buffer.trim()) {
+        processStreamLine(buffer);
+        if (failed) {
+          return;
+        }
+      }
+      if (toolContext) {
+        let parsed: ParsedCursorOutput;
+        try {
+          parsed = parseCursorOutput(toolEnabledOutput, toolContext);
+        } catch (err) {
+          fail(err instanceof Error ? err.message : "failed to parse cursor agent output");
+          return;
+        }
+        if (parsed.kind === "tool_calls") {
+          parsed.tool_calls.forEach((toolCall, index) => sendSse(response, toolCallChunk(id, model, toolCall, index)));
+          sendSse(response, finishChunk(id, model, "tool_calls"));
+        } else {
+          sendSse(response, roleChunk(id, model));
+          if (parsed.content) {
+            sendSse(response, completionChunk(id, model, parsed.content, null));
+          }
+          sendSse(response, finishChunk(id, model, "stop"));
+        }
+      } else {
+        sendSse(response, completionChunk(id, model, "", "stop"));
+      }
       response.write("data: [DONE]\n\n");
       response.end();
     }
   });
 }
 
-async function handleJsonChat(response: ServerResponse, request: ChatRequest, prompt: string) {
+async function handleJsonChat(response: ServerResponse, request: ChatRequest, prompt: string, toolContext?: ToolContext) {
   response.on("error", () => undefined);
   const model = normalizeModel(request.model);
   const id = `chatcmpl-${randomUUID()}`;
@@ -406,6 +845,34 @@ async function handleJsonChat(response: ServerResponse, request: ChatRequest, pr
       error(response, 502, "cursor agent returned invalid json");
       return;
     }
+    if (event.is_error) {
+      error(response, 502, event.result ?? "cursor agent reported an error");
+      return;
+    }
+    const content = event.result ?? "";
+    let message: { role: "assistant"; content: string | null; tool_calls?: OpenAiToolCall[] } = {
+      role: "assistant",
+      content,
+    };
+    let finishReason = "stop";
+    if (toolContext) {
+      let parsed: ParsedCursorOutput;
+      try {
+        parsed = parseCursorOutput(content, toolContext);
+      } catch (err) {
+        const status = err instanceof BridgeHttpError ? err.status : 502;
+        const message = err instanceof Error ? err.message : "failed to parse cursor agent output";
+        error(response, status, message);
+        return;
+      }
+      if (parsed.kind === "tool_calls") {
+        message = { role: "assistant", content: null, tool_calls: parsed.tool_calls };
+        finishReason = "tool_calls";
+      } else {
+        message = { role: "assistant", content: parsed.content };
+      }
+    }
+
     json(response, 200, {
       id,
       object: "chat.completion",
@@ -414,8 +881,8 @@ async function handleJsonChat(response: ServerResponse, request: ChatRequest, pr
       choices: [
         {
           index: 0,
-          message: { role: "assistant", content: event.result ?? "" },
-          finish_reason: "stop",
+          message,
+          finish_reason: finishReason,
         },
       ],
       usage: openAiUsage(event.usage),
@@ -444,21 +911,41 @@ async function handleChat(request: IncomingMessage, response: ServerResponse): P
     error(response, 400, "invalid json request body");
     return;
   }
-  const unsupported = unsupportedMessage(body.messages);
+  let toolContext: ToolContext | undefined;
+  try {
+    toolContext = toolContextFromRequest(body.tools, body.tool_choice);
+  } catch (err) {
+    error(response, err instanceof BridgeHttpError ? err.status : 400, err instanceof Error ? err.message : "invalid tools request");
+    return;
+  }
+
+  const unsupported = unsupportedMessage(body.messages, toolContext !== undefined);
   if (unsupported) {
     error(response, 400, unsupported);
     return;
   }
-  const prompt = promptFromMessages(body.messages);
+  if (!body.messages?.length) {
+    error(response, 400, "missing chat messages");
+    return;
+  }
+  let prompt: string;
+  try {
+    prompt = toolContext ? toolAwarePromptFromMessages(body.messages, toolContext) : promptFromMessages(body.messages);
+  } catch (err) {
+    const status = err instanceof BridgeHttpError ? err.status : 500;
+    const message = err instanceof Error ? err.message : "failed to build cursor agent prompt";
+    error(response, status, message);
+    return;
+  }
   if (!prompt) {
     error(response, 400, "missing chat messages");
     return;
   }
 
   if (body.stream) {
-    await handleStreamingChat(response, body, prompt);
+    await handleStreamingChat(response, body, prompt, toolContext);
   } else {
-    await handleJsonChat(response, body, prompt);
+    await handleJsonChat(response, body, prompt, toolContext);
   }
 }
 
@@ -489,10 +976,20 @@ function healthResponse() {
 export const _test = Object.freeze({
   parsePositiveInteger,
   contentToText,
+  deterministicToolCallId,
+  finishChunk,
+  roleChunk,
   unsupportedMessage,
   promptFromMessages,
+  hasToolRequest,
+  parseCursorOutput,
   normalizeModel,
   openAiUsage,
+  sanitizeInboundContent,
+  toolAwarePromptFromMessages,
+  toolCallChunk,
+  toolContextFromRequest,
+  toolDefinitions,
   modelsResponse,
   healthResponse,
 });
