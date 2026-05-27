@@ -17,6 +17,8 @@ const MAX_BODY_BYTES = parsePositiveInteger(process.env.OPENCODE_CURSOR_AGENT_MA
 const MAX_TOOL_MARKER_BYTES = 1024 * 1024;
 const MAX_TOOL_AWARE_STREAM_BUFFER_BYTES = MAX_TOOL_MARKER_BYTES;
 const TOOL_MARKER_PREFIX = "<opencode_tool_calls";
+const REQUEST_ID_HEADER = "x-cursor-agent-bridge-request-id";
+const RECENT_METRICS_LIMIT = parsePositiveInteger(process.env.OPENCODE_CURSOR_AGENT_METRICS_RECENT_LIMIT, 50);
 const STARTED_AT = new Date().toISOString();
 
 // Only the standalone service calls startBridge; this guard is defensive for
@@ -119,6 +121,48 @@ type CursorStreamEvent = {
   timestamp_ms?: number;
 };
 
+type RequestContext = {
+  requestId: string;
+  startedAtMs: number;
+  startedAt: string;
+  model?: string;
+  stream?: boolean;
+  toolAware?: boolean;
+  promptBytes?: number;
+  finished: boolean;
+};
+
+type RecentRequest = {
+  request_id: string;
+  started_at: string;
+  duration_ms: number;
+  status: number;
+  error: string | null;
+  timed_out: boolean;
+  model?: string;
+  stream?: boolean;
+  tool_aware?: boolean;
+  prompt_bytes?: number;
+};
+
+type MetricsState = {
+  totalRequests: number;
+  completedRequests: number;
+  failedRequests: number;
+  timedOutRequests: number;
+  activeRequests: number;
+  recentRequests: RecentRequest[];
+};
+
+const metricsState: MetricsState = {
+  totalRequests: 0,
+  completedRequests: 0,
+  failedRequests: 0,
+  timedOutRequests: 0,
+  activeRequests: 0,
+  recentRequests: [],
+};
+
 class BridgeHttpError extends Error {
   constructor(
     readonly status: number,
@@ -149,12 +193,12 @@ function cursorCommand(): string {
   return "cursor";
 }
 
-function json(response: ServerResponse, status: number, body: unknown): void {
-  response.writeHead(status, { "content-type": "application/json" });
+function json(response: ServerResponse, status: number, body: unknown, headers: Record<string, string> = {}): void {
+  response.writeHead(status, { "content-type": "application/json", ...headers });
   response.end(JSON.stringify(body));
 }
 
-function error(response: ServerResponse, status: number, message: string): void {
+function error(response: ServerResponse, status: number, message: string, headers: Record<string, string> = {}): void {
   if (response.headersSent) {
     if (!response.destroyed) {
       sendSse(response, { error: { message, type: "cursor_agent_bridge_error" } });
@@ -163,7 +207,62 @@ function error(response: ServerResponse, status: number, message: string): void 
     }
     return;
   }
-  json(response, status, { error: { message, type: "cursor_agent_bridge_error" } });
+  json(response, status, { error: { message, type: "cursor_agent_bridge_error" } }, headers);
+}
+
+function requestHeaders(context: RequestContext): Record<string, string> {
+  return { [REQUEST_ID_HEADER]: context.requestId };
+}
+
+function createRequestContext(): RequestContext {
+  const now = Date.now();
+  metricsState.totalRequests += 1;
+  metricsState.activeRequests += 1;
+  return {
+    requestId: randomUUID(),
+    startedAtMs: now,
+    startedAt: new Date(now).toISOString(),
+    finished: false,
+  };
+}
+
+function finishRequest(
+  context: RequestContext,
+  status: number,
+  message?: string,
+  options: { timedOut?: boolean } = {},
+): void {
+  if (context.finished) {
+    return;
+  }
+  context.finished = true;
+  metricsState.activeRequests = Math.max(0, metricsState.activeRequests - 1);
+
+  const failed = status >= 400 || message !== undefined;
+  if (failed) {
+    metricsState.failedRequests += 1;
+  } else {
+    metricsState.completedRequests += 1;
+  }
+  if (options.timedOut) {
+    metricsState.timedOutRequests += 1;
+  }
+
+  metricsState.recentRequests.push({
+    request_id: context.requestId,
+    started_at: context.startedAt,
+    duration_ms: Math.max(0, Date.now() - context.startedAtMs),
+    status,
+    error: message ?? null,
+    timed_out: Boolean(options.timedOut),
+    model: context.model,
+    stream: context.stream,
+    tool_aware: context.toolAware,
+    prompt_bytes: context.promptBytes,
+  });
+  while (metricsState.recentRequests.length > RECENT_METRICS_LIMIT) {
+    metricsState.recentRequests.shift();
+  }
 }
 
 function parseBody(request: IncomingMessage): Promise<unknown> {
@@ -827,8 +926,17 @@ function flushPendingToolAwareText(state: ToolAwareStreamState): string {
   return content;
 }
 
-async function handleStreamingChat(response: ServerResponse, request: ChatRequest, prompt: string, toolContext?: ToolContext) {
+async function handleStreamingChat(
+  response: ServerResponse,
+  request: ChatRequest,
+  prompt: string,
+  requestContext: RequestContext,
+  toolContext?: ToolContext,
+) {
   const model = normalizeModel(request.model);
+  requestContext.model = model;
+  requestContext.stream = true;
+  requestContext.toolAware = toolContext !== undefined;
   const id = `chatcmpl-${randomUUID()}`;
   const child = spawnCursorAgent(model, prompt, true);
   let buffer = "";
@@ -836,19 +944,21 @@ async function handleStreamingChat(response: ServerResponse, request: ChatReques
   let failed = false;
   let timedOut = false;
 
-  const fail = (message: string) => {
+  const fail = (message: string, options: { timedOut?: boolean } = {}) => {
     if (failed) {
       return;
     }
     failed = true;
     stopProcess(child);
-    error(response, 502, message);
+    finishRequest(requestContext, 502, message, options);
+    error(response, 502, message, requestHeaders(requestContext));
   };
 
   response.writeHead(200, {
     "content-type": "text/event-stream",
     "cache-control": "no-cache",
     connection: "keep-alive",
+    ...requestHeaders(requestContext),
   });
   response.on("error", () => undefined);
 
@@ -937,8 +1047,12 @@ async function handleStreamingChat(response: ServerResponse, request: ChatReques
     if (failed) {
       return;
     }
+    if (response.destroyed) {
+      finishRequest(requestContext, 499, "client closed request");
+      return;
+    }
     if (timedOut) {
-      fail(`cursor agent timed out after ${REQUEST_TIMEOUT_MS}ms`);
+      fail(`cursor agent timed out after ${REQUEST_TIMEOUT_MS}ms`, { timedOut: true });
       return;
     }
     if (code !== 0) {
@@ -981,15 +1095,25 @@ async function handleStreamingChat(response: ServerResponse, request: ChatReques
       } else {
         sendSse(response, completionChunk(id, model, "", "stop"));
       }
+      finishRequest(requestContext, 200);
       response.write("data: [DONE]\n\n");
       response.end();
     }
   });
 }
 
-async function handleJsonChat(response: ServerResponse, request: ChatRequest, prompt: string, toolContext?: ToolContext) {
+async function handleJsonChat(
+  response: ServerResponse,
+  request: ChatRequest,
+  prompt: string,
+  requestContext: RequestContext,
+  toolContext?: ToolContext,
+) {
   response.on("error", () => undefined);
   const model = normalizeModel(request.model);
+  requestContext.model = model;
+  requestContext.stream = false;
+  requestContext.toolAware = toolContext !== undefined;
   const id = `chatcmpl-${randomUUID()}`;
   const child = spawnCursorAgent(model, prompt, false);
   const stdout: Buffer[] = [];
@@ -1005,7 +1129,9 @@ async function handleJsonChat(response: ServerResponse, request: ChatRequest, pr
   child.on("error", (err) => {
     responded = true;
     clearTimeout(timeout);
-    error(response, 502, `failed to start cursor agent: ${err.message}`);
+    const message = `failed to start cursor agent: ${err.message}`;
+    finishRequest(requestContext, 502, message);
+    error(response, 502, message, requestHeaders(requestContext));
   });
   child.on("close", (code) => {
     if (responded) {
@@ -1013,12 +1139,20 @@ async function handleJsonChat(response: ServerResponse, request: ChatRequest, pr
     }
     responded = true;
     clearTimeout(timeout);
+    if (response.destroyed) {
+      finishRequest(requestContext, 499, "client closed request");
+      return;
+    }
     if (timedOut) {
-      error(response, 502, `cursor agent timed out after ${REQUEST_TIMEOUT_MS}ms`);
+      const message = `cursor agent timed out after ${REQUEST_TIMEOUT_MS}ms`;
+      finishRequest(requestContext, 502, message, { timedOut: true });
+      error(response, 502, message, requestHeaders(requestContext));
       return;
     }
     if (code !== 0) {
-      error(response, 502, `cursor agent exited with code ${code}`);
+      const message = `cursor agent exited with code ${code}`;
+      finishRequest(requestContext, 502, message);
+      error(response, 502, message, requestHeaders(requestContext));
       return;
     }
 
@@ -1027,11 +1161,14 @@ async function handleJsonChat(response: ServerResponse, request: ChatRequest, pr
     try {
       event = JSON.parse(raw) as CursorStreamEvent;
     } catch {
-      error(response, 502, "cursor agent returned invalid json");
+      finishRequest(requestContext, 502, "cursor agent returned invalid json");
+      error(response, 502, "cursor agent returned invalid json", requestHeaders(requestContext));
       return;
     }
     if (event.is_error) {
-      error(response, 502, event.result ?? "cursor agent reported an error");
+      const message = event.result ?? "cursor agent reported an error";
+      finishRequest(requestContext, 502, message);
+      error(response, 502, message, requestHeaders(requestContext));
       return;
     }
     const content = event.result ?? "";
@@ -1047,7 +1184,8 @@ async function handleJsonChat(response: ServerResponse, request: ChatRequest, pr
       } catch (err) {
         const status = err instanceof BridgeHttpError ? err.status : 502;
         const message = err instanceof Error ? err.message : "failed to parse cursor agent output";
-        error(response, status, message);
+        finishRequest(requestContext, status, message);
+        error(response, status, message, requestHeaders(requestContext));
         return;
       }
       if (parsed.kind === "tool_calls") {
@@ -1058,6 +1196,7 @@ async function handleJsonChat(response: ServerResponse, request: ChatRequest, pr
       }
     }
 
+    finishRequest(requestContext, 200);
     json(response, 200, {
       id,
       object: "chat.completion",
@@ -1071,7 +1210,7 @@ async function handleJsonChat(response: ServerResponse, request: ChatRequest, pr
         },
       ],
       usage: openAiUsage(event.usage),
-    });
+    }, requestHeaders(requestContext));
   });
   requestAbortCleanup(response, child);
 }
@@ -1085,32 +1224,42 @@ function requestAbortCleanup(response: ServerResponse, child: ReturnType<typeof 
 }
 
 async function handleChat(request: IncomingMessage, response: ServerResponse): Promise<void> {
+  const requestContext = createRequestContext();
+  const fail = (status: number, message: string) => {
+    finishRequest(requestContext, status, message);
+    error(response, status, message, requestHeaders(requestContext));
+  };
+
   let body: ChatRequest;
   try {
     body = await parseBody(request) as ChatRequest;
   } catch (err) {
     if (err instanceof BridgeHttpError) {
-      error(response, err.status, err.message);
+      fail(err.status, err.message);
       return;
     }
-    error(response, 400, "invalid json request body");
+    fail(400, "invalid json request body");
     return;
   }
+  requestContext.model = normalizeModel(body.model);
+  requestContext.stream = Boolean(body.stream);
+
   let toolContext: ToolContext | undefined;
   try {
     toolContext = toolContextFromRequest(body.tools, body.tool_choice);
   } catch (err) {
-    error(response, err instanceof BridgeHttpError ? err.status : 400, err instanceof Error ? err.message : "invalid tools request");
+    fail(err instanceof BridgeHttpError ? err.status : 400, err instanceof Error ? err.message : "invalid tools request");
     return;
   }
+  requestContext.toolAware = toolContext !== undefined;
 
   const unsupported = unsupportedMessage(body.messages, toolContext !== undefined);
   if (unsupported) {
-    error(response, 400, unsupported);
+    fail(400, unsupported);
     return;
   }
   if (!body.messages?.length) {
-    error(response, 400, "missing chat messages");
+    fail(400, "missing chat messages");
     return;
   }
   let prompt: string;
@@ -1119,18 +1268,19 @@ async function handleChat(request: IncomingMessage, response: ServerResponse): P
   } catch (err) {
     const status = err instanceof BridgeHttpError ? err.status : 500;
     const message = err instanceof Error ? err.message : "failed to build cursor agent prompt";
-    error(response, status, message);
+    fail(status, message);
     return;
   }
+  requestContext.promptBytes = Buffer.byteLength(prompt, "utf8");
   if (!prompt) {
-    error(response, 400, "missing chat messages");
+    fail(400, "missing chat messages");
     return;
   }
 
   if (body.stream) {
-    await handleStreamingChat(response, body, prompt, toolContext);
+    await handleStreamingChat(response, body, prompt, requestContext, toolContext);
   } else {
-    await handleJsonChat(response, body, prompt, toolContext);
+    await handleJsonChat(response, body, prompt, requestContext, toolContext);
   }
 }
 
@@ -1154,6 +1304,23 @@ function healthResponse() {
     host: HOST,
     port: PORT,
     started_at: STARTED_AT,
+  };
+}
+
+function metricsResponse() {
+  return {
+    ok: true,
+    pid: process.pid,
+    started_at: STARTED_AT,
+    active_children: activeChildren.size,
+    active_requests: metricsState.activeRequests,
+    requests: {
+      total: metricsState.totalRequests,
+      completed: metricsState.completedRequests,
+      failed: metricsState.failedRequests,
+      timed_out: metricsState.timedOutRequests,
+    },
+    recent_requests: metricsState.recentRequests.map((request) => ({ ...request })),
   };
 }
 
@@ -1181,6 +1348,7 @@ export const _test = Object.freeze({
   updateToolAwareStreamState,
   modelsResponse,
   healthResponse,
+  metricsResponse,
 });
 
 function startBridge(options: { exitOnListenError?: boolean } = {}): ReturnType<typeof createServer> | undefined {
@@ -1196,6 +1364,10 @@ function startBridge(options: { exitOnListenError?: boolean } = {}): ReturnType<
     }
     if (request.method === "GET" && (url === "/models" || url === "/v1/models")) {
       json(response, 200, modelsResponse());
+      return;
+    }
+    if (request.method === "GET" && (url === "/metrics" || url === "/v1/metrics")) {
+      json(response, 200, metricsResponse());
       return;
     }
     if (request.method === "POST" && (url === "/chat/completions" || url === "/v1/chat/completions")) {

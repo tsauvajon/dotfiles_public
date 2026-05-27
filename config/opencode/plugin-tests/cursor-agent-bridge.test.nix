@@ -31,6 +31,7 @@ pkgs.runCommand "cursor-agent-bridge-test"
       flushPendingToolAwareText \
       healthResponse \
       hasToolRequest \
+      metricsResponse \
       modelsResponse \
       normalizeModel \
       openAiUsage \

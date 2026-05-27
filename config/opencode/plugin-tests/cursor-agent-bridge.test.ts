@@ -14,6 +14,7 @@ describe("cursor-agent-bridge pure helpers", () => {
       "flushPendingToolAwareText",
       "hasToolRequest",
       "healthResponse",
+      "metricsResponse",
       "modelsResponse",
       "normalizeModel",
       "openAiUsage",
@@ -749,5 +750,26 @@ describe("cursor-agent-bridge pure helpers", () => {
       port: expect.any(Number),
       started_at: expect.any(String),
     });
+  });
+
+  test("metricsResponse returns safe bridge counters", () => {
+    const metrics = _test.metricsResponse();
+
+    expect(metrics).toEqual({
+      ok: true,
+      pid: process.pid,
+      started_at: expect.any(String),
+      active_children: 0,
+      active_requests: 0,
+      requests: {
+        total: 0,
+        completed: 0,
+        failed: 0,
+        timed_out: 0,
+      },
+      recent_requests: [],
+    });
+    expect(JSON.stringify(metrics)).not.toContain("message");
+    expect(JSON.stringify(metrics)).not.toContain("prompt");
   });
 });

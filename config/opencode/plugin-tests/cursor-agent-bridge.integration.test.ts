@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HOST = "127.0.0.1";
+const REQUEST_ID_HEADER = "x-cursor-agent-bridge-request-id";
 const bridgePath = fileURLToPath(new URL("../plugins/cursor-agent-bridge.ts", import.meta.url));
 const CONTENT_TIMEOUT_MS = parseTestTimeout("OPENCODE_CURSOR_AGENT_BRIDGE_TEST_CONTENT_TIMEOUT_MS", 5_000);
 const HEALTH_TIMEOUT_MS = parseTestTimeout("OPENCODE_CURSOR_AGENT_BRIDGE_TEST_HEALTH_TIMEOUT_MS", 10_000);
@@ -150,6 +151,21 @@ setInterval(() => {}, 1_000);
           type: "cursor_agent_bridge_error",
         },
       });
+      const requestId = response.headers.get(REQUEST_ID_HEADER);
+      expect(requestId).toBeTruthy();
+      const metrics = await fetchMetrics(bridge.port);
+      const recent = metrics.recent_requests.find((entry: any) => entry.request_id === requestId);
+
+      expect(metrics.active_requests).toBe(0);
+      expect(metrics.requests).toMatchObject({ total: 1, completed: 0, failed: 1, timed_out: 1 });
+      expect(recent).toMatchObject({
+        request_id: requestId,
+        model: "composer-2.5-fast",
+        stream: true,
+        status: 502,
+        error: `cursor agent timed out after ${timeoutMs}ms`,
+        timed_out: true,
+      });
     } finally {
       await stopBridge(bridge.child);
     }
@@ -173,10 +189,30 @@ process.stdout.write(JSON.stringify({
       });
 
       expect(response.status).toBe(200);
+      const requestId = response.headers.get(REQUEST_ID_HEADER);
+      expect(requestId).toBeTruthy();
       expect(await response.json()).toMatchObject({
         choices: [{ message: { role: "assistant", content: "plain JSON answer" }, finish_reason: "stop" }],
         usage: { prompt_tokens: 2, completion_tokens: 3, total_tokens: 5 },
       });
+      const metrics = await fetchMetrics(bridge.port);
+      const recent = metrics.recent_requests.find((entry: any) => entry.request_id === requestId);
+
+      expect(metrics.active_requests).toBe(0);
+      expect(metrics.requests).toMatchObject({ total: 1, completed: 1, failed: 0, timed_out: 0 });
+      expect(recent).toMatchObject({
+        request_id: requestId,
+        model: "composer-2.5-fast",
+        stream: false,
+        tool_aware: false,
+        status: 200,
+        error: null,
+        timed_out: false,
+      });
+      expect(recent.prompt_bytes).toBeGreaterThan(0);
+      expect(recent.duration_ms).toBeGreaterThanOrEqual(0);
+      expect(JSON.stringify(metrics)).not.toContain("answer without streaming");
+      expect(JSON.stringify(metrics)).not.toContain("plain JSON answer");
     } finally {
       await stopBridge(bridge.child);
     }
@@ -653,6 +689,12 @@ function parseSseEvents(body: string): any[] {
     .map((line) => line.slice("data: ".length).trim())
     .filter((data) => data && data !== "[DONE]")
     .map((data) => JSON.parse(data));
+}
+
+async function fetchMetrics(port: number): Promise<any> {
+  const response = await fetch(`http://${HOST}:${port}/v1/metrics`);
+  expect(response.status).toBe(200);
+  return response.json();
 }
 
 function assertSingleToolCallResponse(events: any[], id: string, args: string): void {
