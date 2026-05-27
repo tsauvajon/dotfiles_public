@@ -27,7 +27,7 @@
       inputs.rust-overlay.follows = "rust-overlay";
     };
     steel = {
-      url = "github:mattwparas/steel/605d490c07ae6937d532d5a994920b4dab3016ad";
+      url = "github:mattwparas/steel/363768e23f58b7212b12b6e0e903887f9aa631cf";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     scooter-hx = {
@@ -43,7 +43,7 @@
       flake = false;
     };
     helix-file-watcher = {
-      url = "github:mattwparas/helix-file-watcher/e36434634b0a862280dc832921c9aa0d62198964";
+      url = "github:mattwparas/helix-file-watcher/e118b7552ec7697c560a24b48880c92d6aa4476e";
       flake = false;
     };
 
