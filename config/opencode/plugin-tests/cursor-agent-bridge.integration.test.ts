@@ -23,6 +23,10 @@ type BridgeProcess = {
 type StartBridgeOptions = {
   attempts?: number;
   timeoutMs?: number;
+  backend?: "sdk";
+  sdkModule?: string;
+  apiKey?: string | null;
+  sdkModel?: string;
 };
 
 describe("cursor-agent-bridge standalone HTTP streaming", () => {
@@ -158,8 +162,10 @@ setInterval(() => {}, 1_000);
 
       expect(metrics.active_requests).toBe(0);
       expect(metrics.requests).toMatchObject({ total: 1, completed: 0, failed: 1, timed_out: 1 });
+      expect(metrics.requests_by_backend.cli).toMatchObject({ total: 1, completed: 0, failed: 1, timed_out: 1, active: 0 });
       expect(recent).toMatchObject({
         request_id: requestId,
+        backend: "cli",
         model: "composer-2.5-fast",
         stream: true,
         status: 502,
@@ -200,8 +206,10 @@ process.stdout.write(JSON.stringify({
 
       expect(metrics.active_requests).toBe(0);
       expect(metrics.requests).toMatchObject({ total: 1, completed: 1, failed: 0, timed_out: 0 });
+      expect(metrics.requests_by_backend.cli).toMatchObject({ total: 1, completed: 1, failed: 0, timed_out: 0, active: 0 });
       expect(recent).toMatchObject({
         request_id: requestId,
+        backend: "cli",
         model: "composer-2.5-fast",
         stream: false,
         tool_aware: false,
@@ -213,6 +221,337 @@ process.stdout.write(JSON.stringify({
       expect(recent.duration_ms).toBeGreaterThanOrEqual(0);
       expect(JSON.stringify(metrics)).not.toContain("answer without streaming");
       expect(JSON.stringify(metrics)).not.toContain("plain JSON answer");
+    } finally {
+      await stopBridge(bridge.child);
+    }
+  });
+
+  test("sdk non-streaming returns an OpenAI JSON completion without cursor CLI", async () => {
+    const sdk = createFakeSdk();
+    const bridge = await startBridge("unused-cursor-bin", {
+      backend: "sdk",
+      sdkModule: sdk,
+      apiKey: "test-cursor-api-key",
+      sdkModel: "sdk-override-model",
+    });
+
+    try {
+      const response = await fetch(`http://${HOST}:${bridge.port}/v1/chat/completions`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(nonStreamingTextRequest("answer through sdk")),
+      });
+
+      expect(response.status).toBe(200);
+      const requestId = response.headers.get(REQUEST_ID_HEADER);
+      expect(requestId).toBeTruthy();
+      expect(await response.json()).toMatchObject({
+        model: "composer-2.5-fast",
+        choices: [{ message: { role: "assistant", content: "sdk json completion" }, finish_reason: "stop" }],
+        usage: { prompt_tokens: 4, completion_tokens: 5, total_tokens: 9 },
+      });
+      const metrics = await fetchMetrics(bridge.port);
+      const recent = metrics.recent_requests.find((entry: any) => entry.request_id === requestId);
+      expect(recent).toMatchObject({ backend: "sdk", model: "composer-2.5-fast", status: 200 });
+      expect(metrics.requests_by_backend.sdk).toMatchObject({ total: 1, completed: 1, failed: 0, timed_out: 0, active: 0 });
+    } finally {
+      await stopBridge(bridge.child);
+    }
+  });
+
+  test("sdk non-streaming timeout records timed_out metrics", async () => {
+    const timeoutMs = 100;
+    const sdk = createFakeSdk("hung-wait");
+    const bridge = await startBridge("unused-cursor-bin", {
+      backend: "sdk",
+      sdkModule: sdk,
+      apiKey: "test-cursor-api-key",
+      sdkModel: "sdk-override-model",
+      timeoutMs,
+    });
+
+    try {
+      const response = await fetch(`http://${HOST}:${bridge.port}/v1/chat/completions`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(nonStreamingTextRequest("answer through sdk")),
+      });
+
+      expect(response.status).toBe(502);
+      const requestId = response.headers.get(REQUEST_ID_HEADER);
+      expect(await response.json()).toEqual({
+        error: { message: `cursor agent timed out after ${timeoutMs}ms`, type: "cursor_agent_bridge_error" },
+      });
+      const metrics = await fetchMetrics(bridge.port);
+      const recent = metrics.recent_requests.find((entry: any) => entry.request_id === requestId);
+      expect(recent).toMatchObject({ backend: "sdk", stream: false, status: 502, timed_out: true });
+      expect(metrics.requests).toMatchObject({ timed_out: 1 });
+      expect(metrics.requests_by_backend.sdk).toMatchObject({ total: 1, completed: 0, failed: 1, timed_out: 1, active: 0 });
+    } finally {
+      await stopBridge(bridge.child);
+    }
+  });
+
+  test("sdk streaming returns SSE content without cursor CLI", async () => {
+    const sdk = createFakeSdk();
+    const bridge = await startBridge("unused-cursor-bin", {
+      backend: "sdk",
+      sdkModule: sdk,
+      apiKey: "test-cursor-api-key",
+    });
+
+    try {
+      const response = await fetch(`http://${HOST}:${bridge.port}/v1/chat/completions`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(streamingTextRequest("answer through sdk stream")),
+      });
+
+      expect(response.status).toBe(200);
+      const events = parseSseEvents(await response.text());
+      const content = events
+        .map((event) => event.choices?.[0]?.delta?.content)
+        .filter((text): text is string => typeof text === "string")
+        .join("");
+
+      expect(content).toBe("sdk stream completion");
+      expect(events.some((event) => event.choices?.[0]?.delta?.role === "assistant")).toBe(true);
+      expect(events.some((event) => event.choices?.[0]?.finish_reason === "stop")).toBe(true);
+      expect(events.some((event) => event.error)).toBe(false);
+    } finally {
+      await stopBridge(bridge.child);
+    }
+  });
+
+  test("sdk backend fails clearly when CURSOR_API_KEY is missing", async () => {
+    const bridge = await startBridge("unused-cursor-bin", {
+      backend: "sdk",
+      sdkModule: "/definitely/not/imported.mjs",
+      apiKey: null,
+    });
+
+    try {
+      const response = await fetch(`http://${HOST}:${bridge.port}/v1/chat/completions`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(nonStreamingTextRequest("answer through sdk")),
+      });
+
+      expect(response.status).toBe(500);
+      expect(await response.json()).toEqual({
+        error: {
+          message: "CURSOR_API_KEY is required when OPENCODE_CURSOR_AGENT_BACKEND=sdk",
+          type: "cursor_agent_bridge_error",
+        },
+      });
+    } finally {
+      await stopBridge(bridge.child);
+    }
+  });
+
+  test("sdk streaming fails clearly when CURSOR_API_KEY is missing", async () => {
+    const bridge = await startBridge("unused-cursor-bin", {
+      backend: "sdk",
+      sdkModule: "/definitely/not/imported.mjs",
+      apiKey: null,
+    });
+
+    try {
+      const response = await fetch(`http://${HOST}:${bridge.port}/v1/chat/completions`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(streamingTextRequest("answer through sdk stream")),
+      });
+
+      expect(response.status).toBe(500);
+      expect(await response.json()).toEqual({
+        error: {
+          message: "CURSOR_API_KEY is required when OPENCODE_CURSOR_AGENT_BACKEND=sdk",
+          type: "cursor_agent_bridge_error",
+        },
+      });
+    } finally {
+      await stopBridge(bridge.child);
+    }
+  });
+
+  test("sdk streaming reports incompatible SDK module exports", async () => {
+    for (const [mode, message] of [
+      ["no-agent", "cursor sdk module"],
+      ["prompt-only", "does not export Agent.create"],
+    ] as const) {
+      const bridge = await startBridge("unused-cursor-bin", {
+        backend: "sdk",
+        sdkModule: createFakeSdk(mode),
+        apiKey: "test-cursor-api-key",
+      });
+
+      try {
+        const response = await fetch(`http://${HOST}:${bridge.port}/v1/chat/completions`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(streamingTextRequest("answer through sdk stream")),
+        });
+
+        expect(response.status).toBe(502);
+        expect((await response.json()).error.message).toContain(message);
+      } finally {
+        await stopBridge(bridge.child);
+      }
+    }
+  });
+
+  test("sdk streaming setup timeouts do not leave the response open", async () => {
+    for (const mode of ["hung-create", "hung-send", "hung-stream-factory"] as const) {
+      const timeoutMs = 100;
+      const bridge = await startBridge("unused-cursor-bin", {
+        backend: "sdk",
+        sdkModule: createFakeSdk(mode),
+        apiKey: "test-cursor-api-key",
+        timeoutMs,
+      });
+
+      try {
+        const response = await fetch(`http://${HOST}:${bridge.port}/v1/chat/completions`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(streamingTextRequest("answer through sdk stream")),
+        });
+
+        expect(response.status).toBe(502);
+        expect(await response.json()).toEqual({
+          error: { message: `cursor agent timed out after ${timeoutMs}ms`, type: "cursor_agent_bridge_error" },
+        });
+        const metrics = await fetchMetrics(bridge.port);
+        expect(metrics.requests).toMatchObject({ timed_out: 1 });
+      } finally {
+        await stopBridge(bridge.child);
+      }
+    }
+  });
+
+  test("sdk streaming forwards SDK error events as SSE errors", async () => {
+    const sdk = createFakeSdk("stream-error");
+    const bridge = await startBridge("unused-cursor-bin", {
+      backend: "sdk",
+      sdkModule: sdk,
+      apiKey: "test-cursor-api-key",
+    });
+
+    try {
+      const response = await fetch(`http://${HOST}:${bridge.port}/v1/chat/completions`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(streamingTextRequest("answer through sdk stream")),
+      });
+
+      expect(response.status).toBe(200);
+      expect(parseSseEvents(await response.text())).toContainEqual({
+        error: { message: "sdk stream failed", type: "cursor_agent_bridge_error" },
+      });
+    } finally {
+      await stopBridge(bridge.child);
+    }
+  });
+
+  test("sdk streaming reports a missing stream shape", async () => {
+    const sdk = createFakeSdk("missing-stream");
+    const bridge = await startBridge("unused-cursor-bin", {
+      backend: "sdk",
+      sdkModule: sdk,
+      apiKey: "test-cursor-api-key",
+    });
+
+    try {
+      const response = await fetch(`http://${HOST}:${bridge.port}/v1/chat/completions`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(streamingTextRequest("answer through sdk stream")),
+      });
+
+      expect(response.status).toBe(502);
+      expect(await response.json()).toEqual({
+        error: { message: "cursor sdk run does not expose stream", type: "cursor_agent_bridge_error" },
+      });
+    } finally {
+      await stopBridge(bridge.child);
+    }
+  });
+
+  test("sdk streaming times out a hung stream iterator", async () => {
+    const timeoutMs = 100;
+    const sdk = createFakeSdk("hung-stream");
+    const bridge = await startBridge("unused-cursor-bin", {
+      backend: "sdk",
+      sdkModule: sdk,
+      apiKey: "test-cursor-api-key",
+      timeoutMs,
+    });
+
+    try {
+      const response = await fetch(`http://${HOST}:${bridge.port}/v1/chat/completions`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(streamingTextRequest("answer through sdk stream")),
+      });
+
+      expect(response.status).toBe(200);
+      const requestId = response.headers.get(REQUEST_ID_HEADER);
+      const events = parseSseEvents(await response.text());
+      expect(events).toContainEqual({
+        error: { message: `cursor agent timed out after ${timeoutMs}ms`, type: "cursor_agent_bridge_error" },
+      });
+      const metrics = await fetchMetrics(bridge.port);
+      const recent = metrics.recent_requests.find((entry: any) => entry.request_id === requestId);
+      expect(recent).toMatchObject({ backend: "sdk", status: 502, timed_out: true });
+      expect(metrics.requests).toMatchObject({ timed_out: 1 });
+    } finally {
+      await stopBridge(bridge.child);
+    }
+  });
+
+  test("sdk tool-aware streaming emits OpenAI tool_call chunks for a marker", async () => {
+    const bridge = await startBridge("unused-cursor-bin", {
+      backend: "sdk",
+      sdkModule: createFakeSdk("tool-marker"),
+      apiKey: "test-cursor-api-key",
+    });
+
+    try {
+      const response = await fetch(`http://${HOST}:${bridge.port}/v1/chat/completions`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(streamingToolRequest("call lookup_price for BTC")),
+      });
+
+      expect(response.status).toBe(200);
+      assertSingleToolCallResponse(parseSseEvents(await response.text()), "call_sdk", '{"asset":"BTC"}');
+    } finally {
+      await stopBridge(bridge.child);
+    }
+  });
+
+  test("sdk tool-aware required streaming returns an SSE error for text-only output", async () => {
+    const bridge = await startBridge("unused-cursor-bin", {
+      backend: "sdk",
+      sdkModule: createFakeSdk(),
+      apiKey: "test-cursor-api-key",
+    });
+
+    try {
+      const response = await fetch(`http://${HOST}:${bridge.port}/v1/chat/completions`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(streamingToolRequest("call lookup_price", "required")),
+      });
+
+      expect(response.status).toBe(200);
+      expect(parseSseEvents(await response.text())).toContainEqual({
+        error: {
+          message: "tool_choice required but cursor agent returned text",
+          type: "cursor_agent_bridge_error",
+        },
+      });
     } finally {
       await stopBridge(bridge.child);
     }
@@ -533,6 +872,111 @@ ${body}
   return path;
 }
 
+function createFakeSdk(mode = "normal"): string {
+  const dir = mkdtempSync(join(tmpdir(), "cursor-agent-bridge-sdk-test-"));
+  tempDirs.add(dir);
+  const path = join(dir, "fake-cursor-sdk.mjs");
+  if (mode === "no-agent") {
+    writeFileSync(path, `export const NotAgent = {};\n`);
+    return path;
+  }
+  if (mode === "prompt-only") {
+    writeFileSync(path, `export const Agent = { async prompt() { return { result: "prompt only" }; } };\n`);
+    return path;
+  }
+  writeFileSync(
+    path,
+    `const mode = ${JSON.stringify(mode)};
+
+export const Agent = {
+  async prompt(prompt, options) {
+    if (options.apiKey !== "test-cursor-api-key") {
+      throw new Error("unexpected api key");
+    }
+    if (options.model.id !== "sdk-override-model") {
+      throw new Error("unexpected model " + options.model.id);
+    }
+    if (!options.local.cwd) {
+      throw new Error("missing cwd");
+    }
+    if (!prompt.includes("answer through sdk")) {
+      throw new Error("missing prompt");
+    }
+    return { result: "sdk json completion", usage: { inputTokens: 4, outputTokens: 5 } };
+  },
+  async create(options) {
+    if (mode === "hung-create") {
+      await new Promise(() => {});
+    }
+    if (options.apiKey !== "test-cursor-api-key") {
+      throw new Error("unexpected api key");
+    }
+    if (!options.model.id) {
+      throw new Error("missing model");
+    }
+    return {
+      disposed: false,
+      async send(prompt) {
+        if (mode === "hung-send") {
+          await new Promise(() => {});
+        }
+        if (!prompt.includes("answer through sdk") && !prompt.includes("lookup_price")) {
+          throw new Error("missing prompt");
+        }
+        if (mode === "missing-stream") {
+          return {
+            async wait() {
+              return { result: "sdk json completion", usage: { inputTokens: 4, outputTokens: 5 } };
+            },
+            cancel() {},
+          };
+        }
+        return {
+          async wait() {
+            if (mode === "hung-wait") {
+              await new Promise(() => {});
+            }
+            return { result: "sdk json completion", usage: { inputTokens: 4, outputTokens: 5 } };
+          },
+          stream() {
+            if (mode === "hung-stream-factory") {
+              return new Promise(() => {});
+            }
+            return this.iterate(prompt);
+          },
+          async *iterate(prompt) {
+            if (mode === "tool-marker") {
+              const nonce = prompt.match(/<opencode_tool_calls nonce="([^"]+)">/)?.[1];
+              if (!nonce) {
+                throw new Error("missing nonce in prompt");
+              }
+              yield { message: { role: "assistant", content: [{ type: "text", text: '<opencode_tool_calls nonce="' + nonce + '">{"tool_calls":[{"id":"call_sdk","type":"function","function":{"name":"lookup_price","arguments":{"asset":"BTC"}}}]}</opencode_tool_calls>' }] } };
+              return;
+            }
+            if (mode === "stream-error") {
+              yield { is_error: true, result: "sdk stream failed" };
+              return;
+            }
+            if (mode === "hung-stream") {
+              await new Promise(() => {});
+              return;
+            }
+            yield { message: { role: "assistant", content: [{ type: "text", text: "sdk stream " }] } };
+            yield { message: { role: "assistant", content: [{ type: "tool_call", text: "ignored" }] } };
+            yield { message: { role: "assistant", content: [{ type: "text", text: "completion" }] } };
+          },
+          cancel() {},
+        };
+      },
+      dispose() { this.disposed = true; },
+    };
+  },
+};
+`,
+  );
+  return path;
+}
+
 async function startBridge(stub: string, options: StartBridgeOptions = {}): Promise<BridgeProcess> {
   const attempts = options.attempts ?? 3;
   let lastError: unknown;
@@ -549,14 +993,29 @@ async function startBridge(stub: string, options: StartBridgeOptions = {}): Prom
 async function startBridgeOnce(stub: string, options: StartBridgeOptions): Promise<BridgeProcess> {
   const port = await freePort();
   let stderr = "";
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    OPENCODE_CURSOR_AGENT_BIN: stub,
+    OPENCODE_CURSOR_AGENT_BRIDGE_PORT: String(port),
+    OPENCODE_CURSOR_AGENT_BRIDGE_STANDALONE: "1",
+    OPENCODE_CURSOR_AGENT_TIMEOUT_MS: String(options.timeoutMs ?? 30000),
+  };
+  if (options.backend) {
+    env.OPENCODE_CURSOR_AGENT_BACKEND = options.backend;
+  }
+  if (options.sdkModule) {
+    env.OPENCODE_CURSOR_AGENT_SDK_MODULE = options.sdkModule;
+  }
+  if (options.apiKey === null) {
+    delete env.CURSOR_API_KEY;
+  } else if (options.apiKey) {
+    env.CURSOR_API_KEY = options.apiKey;
+  }
+  if (options.sdkModel) {
+    env.OPENCODE_CURSOR_AGENT_SDK_MODEL = options.sdkModel;
+  }
   const child = spawn(process.execPath, [bridgePath], {
-    env: {
-      ...process.env,
-      OPENCODE_CURSOR_AGENT_BIN: stub,
-      OPENCODE_CURSOR_AGENT_BRIDGE_PORT: String(port),
-      OPENCODE_CURSOR_AGENT_BRIDGE_STANDALONE: "1",
-      OPENCODE_CURSOR_AGENT_TIMEOUT_MS: String(options.timeoutMs ?? 30000),
-    },
+    env,
     stdio: ["ignore", "pipe", "pipe"],
   });
   liveChildren.add(child);

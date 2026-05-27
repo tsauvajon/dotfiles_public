@@ -6,6 +6,7 @@ pkgs.runCommand "cursor-agent-bridge-test"
     nativeBuildInputs = [ pkgs.bun ];
 
     bridge = ../plugins/cursor-agent-bridge.ts;
+    packageJson = ../package.json;
     testFile = ./cursor-agent-bridge.test.ts;
     integrationTestFile = ./cursor-agent-bridge.integration.test.ts;
   }
@@ -22,6 +23,8 @@ pkgs.runCommand "cursor-agent-bridge-test"
 
     grep -Fq 'export const _test' plugins/cursor-agent-bridge.ts \
       || fail "cursor-agent bridge should expose test helpers"
+    ! grep -Fq '"@cursor/sdk"' "$packageJson" \
+      || fail "@cursor/sdk must stay lazy/optional and not be a public unconditional dependency"
     for helper in \
       contentToText \
       createToolAwareStreamState \
@@ -38,8 +41,17 @@ pkgs.runCommand "cursor-agent-bridge-test"
       parseCursorOutput \
       parsePositiveInteger \
       promptFromMessages \
+      requestedModel \
+      resolveBackend \
       roleChunk \
       sanitizeInboundContent \
+      sdkAssistantText \
+      sdkContentText \
+      sdkEventError \
+      sdkImportSpecifier \
+      sdkModelId \
+      sdkModuleName \
+      sdkPromptResultText \
       toolAwarePromptFromMessages \
       toolCallChunk \
       toolContextFromRequest \

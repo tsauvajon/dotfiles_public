@@ -21,8 +21,17 @@ describe("cursor-agent-bridge pure helpers", () => {
       "parseCursorOutput",
       "parsePositiveInteger",
       "promptFromMessages",
+      "requestedModel",
+      "resolveBackend",
       "roleChunk",
       "sanitizeInboundContent",
+      "sdkAssistantText",
+      "sdkContentText",
+      "sdkEventError",
+      "sdkImportSpecifier",
+      "sdkModelId",
+      "sdkModuleName",
+      "sdkPromptResultText",
       "toolAwarePromptFromMessages",
       "toolCallChunk",
       "toolContextFromRequest",
@@ -700,6 +709,53 @@ describe("cursor-agent-bridge pure helpers", () => {
     expect(_test.normalizeModel("unknown-model")).toBe("composer-2.5-fast");
   });
 
+  test("backend resolution remains CLI by default and only opts into sdk explicitly", () => {
+    expect(_test.resolveBackend(undefined)).toBe("cli");
+    expect(_test.resolveBackend("")).toBe("cli");
+    expect(_test.resolveBackend("SDK")).toBe("cli");
+    expect(_test.resolveBackend("sdk")).toBe("sdk");
+  });
+
+  test("sdk env helpers resolve module names and model overrides", () => {
+    expect(_test.sdkModuleName(undefined)).toBe("@cursor/sdk");
+    expect(_test.sdkModuleName("  /tmp/fake-sdk.mjs  ")).toBe("/tmp/fake-sdk.mjs");
+    expect(_test.sdkImportSpecifier("/tmp/fake-sdk.mjs")).toBe("file:///tmp/fake-sdk.mjs");
+    expect(_test.sdkImportSpecifier("@cursor/sdk")).toBe("@cursor/sdk");
+    expect(_test.requestedModel(undefined)).toBe("composer-2.5-fast");
+    expect(_test.requestedModel(" unknown-model ")).toBe("unknown-model");
+    expect(_test.sdkModelId(undefined, undefined)).toBe("composer-2.5-fast");
+    expect(_test.sdkModelId(" composer-2.5 ", undefined)).toBe("composer-2.5");
+    expect(_test.sdkModelId(" requested-model ", undefined)).toBe("composer-2.5-fast");
+    expect(_test.sdkModelId("requested-model", " override-model ")).toBe("override-model");
+  });
+
+  test("sdk text helpers extract assistant text blocks defensively", () => {
+    expect(_test.sdkContentText("plain")).toBe("plain");
+    expect(_test.sdkContentText([{ type: "text", text: "hello" }, { type: "tool_call", text: "ignored" }])).toBe(
+      "hello",
+    );
+    expect(_test.sdkAssistantText({ message: { role: "assistant", content: [{ type: "text", text: "hi" }] } })).toBe(
+      "hi",
+    );
+    expect(_test.sdkAssistantText({ message: { role: "user", content: [{ type: "text", text: "ignored" }] } })).toBe(
+      "",
+    );
+    expect(_test.sdkAssistantText({ message: { content: [{ text: "fallback" }] } })).toBe("fallback");
+    expect(_test.sdkPromptResultText({ result: "official result" })).toBe("official result");
+    expect(_test.sdkPromptResultText({ message: { content: [{ type: "text", text: "fallback result" }] } })).toBe(
+      "fallback result",
+    );
+  });
+
+  test("sdkEventError extracts SDK error shapes", () => {
+    expect(_test.sdkEventError({ is_error: true, result: "string result error" })).toBe("string result error");
+    expect(_test.sdkEventError({ error: "string error" })).toBe("string error");
+    expect(_test.sdkEventError({ error: { message: "object error message" } })).toBe("object error message");
+    expect(_test.sdkEventError({ is_error: true })).toBe("cursor sdk reported an error");
+    expect(_test.sdkEventError({ message: { role: "assistant", content: [] } })).toBeUndefined();
+    expect(_test.sdkEventError(undefined)).toBeUndefined();
+  });
+
   test("openAiUsage converts cursor usage into OpenAI usage fields", () => {
     expect(_test.openAiUsage(undefined)).toEqual({
       prompt_tokens: 0,
@@ -753,12 +809,20 @@ describe("cursor-agent-bridge pure helpers", () => {
   });
 
   test("metricsResponse returns safe bridge counters", () => {
+    const originalBackend = process.env.OPENCODE_CURSOR_AGENT_BACKEND;
+    delete process.env.OPENCODE_CURSOR_AGENT_BACKEND;
     const metrics = _test.metricsResponse();
+    if (originalBackend === undefined) {
+      delete process.env.OPENCODE_CURSOR_AGENT_BACKEND;
+    } else {
+      process.env.OPENCODE_CURSOR_AGENT_BACKEND = originalBackend;
+    }
 
     expect(metrics).toEqual({
       ok: true,
       pid: process.pid,
       started_at: expect.any(String),
+      backend: "cli",
       active_children: 0,
       active_requests: 0,
       requests: {
@@ -766,6 +830,10 @@ describe("cursor-agent-bridge pure helpers", () => {
         completed: 0,
         failed: 0,
         timed_out: 0,
+      },
+      requests_by_backend: {
+        cli: { total: 0, completed: 0, failed: 0, timed_out: 0, active: 0 },
+        sdk: { total: 0, completed: 0, failed: 0, timed_out: 0, active: 0 },
       },
       recent_requests: [],
     });

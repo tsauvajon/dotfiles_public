@@ -54,6 +54,18 @@ in
     expected = true;
   };
 
+  testCursorAgentBridgeSdkBackendIsExplicitAndLazy = {
+    expr =
+      (lib.hasInfix "OPENCODE_CURSOR_AGENT_BACKEND" bridgePluginSource)
+      && (lib.hasInfix "OPENCODE_CURSOR_AGENT_SDK_MODULE" bridgePluginSource)
+      && (lib.hasInfix "OPENCODE_CURSOR_AGENT_SDK_MODEL" bridgePluginSource)
+      && (lib.hasInfix "CURSOR_API_KEY is required when OPENCODE_CURSOR_AGENT_BACKEND=sdk" bridgePluginSource)
+      && (lib.hasInfix "await import(sdkImportSpecifier())" bridgePluginSource)
+      && !(lib.hasInfix ''from "@cursor/sdk"'' bridgePluginSource)
+      && !(lib.hasInfix "from '@cursor/sdk'" bridgePluginSource);
+    expected = true;
+  };
+
   testCursorAgentBridgeSystemdLogsToConfiguredFiles = {
     expr =
       (lib.hasInfix ''StandardOutput = "append:'' bridgeModuleSource)

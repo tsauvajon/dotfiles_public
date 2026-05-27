@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createHash, randomUUID } from "node:crypto";
+import { pathToFileURL } from "node:url";
 import type { Plugin } from "@opencode-ai/plugin";
 
 const HOST = "127.0.0.1";
@@ -103,6 +104,24 @@ type ChatRequest = {
   tool_choice?: unknown;
 };
 
+type CursorAgentBackend = "cli" | "sdk";
+
+type CursorSdkModule = {
+  Agent?: {
+    prompt?: (prompt: string, options: CursorSdkOptions) => Promise<unknown> | unknown;
+    create?: (options: CursorSdkOptions) => Promise<unknown> | unknown;
+  };
+  default?: {
+    Agent?: CursorSdkModule["Agent"];
+  };
+};
+
+type CursorSdkOptions = {
+  apiKey: string;
+  model: { id: string };
+  local: { cwd: string };
+};
+
 type CursorStreamEvent = {
   type?: string;
   subtype?: string;
@@ -125,6 +144,7 @@ type RequestContext = {
   requestId: string;
   startedAtMs: number;
   startedAt: string;
+  backend?: CursorAgentBackend;
   model?: string;
   stream?: boolean;
   toolAware?: boolean;
@@ -139,10 +159,19 @@ type RecentRequest = {
   status: number;
   error: string | null;
   timed_out: boolean;
+  backend?: CursorAgentBackend;
   model?: string;
   stream?: boolean;
   tool_aware?: boolean;
   prompt_bytes?: number;
+};
+
+type BackendRequestMetrics = {
+  total: number;
+  completed: number;
+  failed: number;
+  timed_out: number;
+  active: number;
 };
 
 type MetricsState = {
@@ -151,8 +180,19 @@ type MetricsState = {
   failedRequests: number;
   timedOutRequests: number;
   activeRequests: number;
+  requestsByBackend: Record<CursorAgentBackend, BackendRequestMetrics>;
   recentRequests: RecentRequest[];
 };
+
+function emptyBackendMetrics(): BackendRequestMetrics {
+  return {
+    total: 0,
+    completed: 0,
+    failed: 0,
+    timed_out: 0,
+    active: 0,
+  };
+}
 
 const metricsState: MetricsState = {
   totalRequests: 0,
@@ -160,6 +200,10 @@ const metricsState: MetricsState = {
   failedRequests: 0,
   timedOutRequests: 0,
   activeRequests: 0,
+  requestsByBackend: {
+    cli: emptyBackendMetrics(),
+    sdk: emptyBackendMetrics(),
+  },
   recentRequests: [],
 };
 
@@ -169,6 +213,18 @@ class BridgeHttpError extends Error {
     message: string,
   ) {
     super(message);
+  }
+}
+
+class CursorTimeoutError extends BridgeHttpError {
+  constructor(message = `cursor agent timed out after ${REQUEST_TIMEOUT_MS}ms`) {
+    super(502, message);
+  }
+}
+
+class ClientClosedError extends BridgeHttpError {
+  constructor() {
+    super(499, "client closed request");
   }
 }
 
@@ -239,13 +295,26 @@ function finishRequest(
   metricsState.activeRequests = Math.max(0, metricsState.activeRequests - 1);
 
   const failed = status >= 400 || message !== undefined;
+  const backendMetrics = context.backend ? metricsState.requestsByBackend[context.backend] : undefined;
+  if (backendMetrics) {
+    backendMetrics.active = Math.max(0, backendMetrics.active - 1);
+  }
   if (failed) {
     metricsState.failedRequests += 1;
+    if (backendMetrics) {
+      backendMetrics.failed += 1;
+    }
   } else {
     metricsState.completedRequests += 1;
+    if (backendMetrics) {
+      backendMetrics.completed += 1;
+    }
   }
   if (options.timedOut) {
     metricsState.timedOutRequests += 1;
+    if (backendMetrics) {
+      backendMetrics.timed_out += 1;
+    }
   }
 
   metricsState.recentRequests.push({
@@ -255,6 +324,7 @@ function finishRequest(
     status,
     error: message ?? null,
     timed_out: Boolean(options.timedOut),
+    backend: context.backend,
     model: context.model,
     stream: context.stream,
     tool_aware: context.toolAware,
@@ -263,6 +333,22 @@ function finishRequest(
   while (metricsState.recentRequests.length > RECENT_METRICS_LIMIT) {
     metricsState.recentRequests.shift();
   }
+}
+
+function setRequestBackend(context: RequestContext, backend: CursorAgentBackend): void {
+  if (context.backend === backend) {
+    return;
+  }
+  if (context.backend) {
+    metricsState.requestsByBackend[context.backend].active = Math.max(
+      0,
+      metricsState.requestsByBackend[context.backend].active - 1,
+    );
+  }
+  context.backend = backend;
+  const backendMetrics = metricsState.requestsByBackend[backend];
+  backendMetrics.total += 1;
+  backendMetrics.active += 1;
 }
 
 function parseBody(request: IncomingMessage): Promise<unknown> {
@@ -538,6 +624,193 @@ function toolAwarePromptFromMessages(messages: ChatMessage[] | undefined, contex
 function normalizeModel(model: string | undefined): string {
   const requested = model?.trim() || DEFAULT_MODEL;
   return MODELS.has(requested) ? requested : DEFAULT_MODEL;
+}
+
+function requestedModel(model: string | undefined): string {
+  return model?.trim() || DEFAULT_MODEL;
+}
+
+function resolveBackend(value = process.env.OPENCODE_CURSOR_AGENT_BACKEND): CursorAgentBackend {
+  return value === "sdk" ? "sdk" : "cli";
+}
+
+function sdkModuleName(value = process.env.OPENCODE_CURSOR_AGENT_SDK_MODULE): string {
+  return value?.trim() || "@cursor/sdk";
+}
+
+function sdkImportSpecifier(moduleName = sdkModuleName()): string {
+  if (moduleName.startsWith("/")) {
+    return pathToFileURL(moduleName).href;
+  }
+  return moduleName;
+}
+
+function sdkModelId(model: string | undefined, override = process.env.OPENCODE_CURSOR_AGENT_SDK_MODEL): string {
+  return override?.trim() || normalizeModel(model);
+}
+
+function cursorSdkApiKey(): string {
+  const apiKey = process.env.CURSOR_API_KEY?.trim();
+  if (!apiKey) {
+    throw new BridgeHttpError(500, "CURSOR_API_KEY is required when OPENCODE_CURSOR_AGENT_BACKEND=sdk");
+  }
+  return apiKey;
+}
+
+async function loadCursorSdk(): Promise<Required<Pick<CursorSdkModule, "Agent">>> {
+  const module = (await import(sdkImportSpecifier())) as CursorSdkModule;
+  const Agent = module.Agent ?? module.default?.Agent;
+  if (!Agent) {
+    throw new BridgeHttpError(502, `cursor sdk module '${sdkModuleName()}' does not export Agent`);
+  }
+  return { Agent };
+}
+
+function sdkAssistantText(event: unknown): string {
+  if (!event || typeof event !== "object") {
+    return "";
+  }
+  const message = (event as { message?: { role?: string; content?: unknown } }).message;
+  if (!message || (message.role !== undefined && message.role !== "assistant")) {
+    return "";
+  }
+  return sdkContentText(message.content);
+}
+
+function sdkContentText(content: unknown): string {
+  if (typeof content === "string") {
+    return content;
+  }
+  if (!Array.isArray(content)) {
+    return "";
+  }
+  return content
+    .map((part) => {
+      if (!part || typeof part !== "object") {
+        return "";
+      }
+      const block = part as { type?: string; text?: unknown };
+      return (block.type === "text" || block.type === undefined) && typeof block.text === "string" ? block.text : "";
+    })
+    .join("");
+}
+
+function sdkPromptResultText(result: unknown): string {
+  if (typeof result === "string") {
+    return result;
+  }
+  if (!result || typeof result !== "object") {
+    return "";
+  }
+  const value = result as { result?: unknown; message?: { content?: unknown } };
+  if (typeof value.result === "string") {
+    return value.result;
+  }
+  return sdkContentText(value.message?.content);
+}
+
+function sdkEventError(event: unknown): string | undefined {
+  if (!event || typeof event !== "object") {
+    return undefined;
+  }
+  const value = event as { is_error?: boolean; error?: unknown; result?: unknown; message?: unknown };
+  if (!value.is_error && value.error === undefined) {
+    return undefined;
+  }
+  if (typeof value.result === "string") {
+    return value.result;
+  }
+  if (typeof value.error === "string") {
+    return value.error;
+  }
+  if (value.error && typeof value.error === "object" && typeof (value.error as { message?: unknown }).message === "string") {
+    return (value.error as { message: string }).message;
+  }
+  return typeof value.message === "string" ? value.message : "cursor sdk reported an error";
+}
+
+function sdkUsage(result: unknown): CursorStreamEvent["usage"] | undefined {
+  if (!result || typeof result !== "object") {
+    return undefined;
+  }
+  const usage = (result as { usage?: CursorStreamEvent["usage"] }).usage;
+  return usage && typeof usage === "object" ? usage : undefined;
+}
+
+function disposeCursorSdk(value: unknown): void {
+  if (!value || typeof value !== "object") {
+    return;
+  }
+  for (const method of ["cancel", "dispose", "close", "abort"] as const) {
+    const candidate = (value as Record<string, unknown>)[method];
+    if (typeof candidate === "function") {
+      try {
+        void Promise.resolve(candidate.call(value)).catch(() => undefined);
+      } catch {
+        // Cleanup is best-effort and must not mask the request failure path.
+      }
+      return;
+    }
+  }
+}
+
+function isAsyncIterable(value: unknown): value is AsyncIterable<unknown> {
+  return Boolean(value && typeof value === "object" && typeof (value as AsyncIterable<unknown>)[Symbol.asyncIterator] === "function");
+}
+
+async function withCursorTimeout<T>(promise: Promise<T>, onTimeout: () => void): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => {
+          onTimeout();
+          reject(new CursorTimeoutError());
+        }, REQUEST_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  }
+}
+
+function responseClosed(response: ServerResponse): Promise<never> {
+  return new Promise((_, reject) => {
+    response.once("close", () => {
+      if (!response.writableEnded) {
+        reject(new ClientClosedError());
+      }
+    });
+  });
+}
+
+async function runWithRequestLifecycle<T>(response: ServerResponse, promise: Promise<T>, cleanup: () => void): Promise<T> {
+  return await Promise.race([
+    withCursorTimeout(promise, cleanup),
+    responseClosed(response).finally(cleanup),
+  ]);
+}
+
+async function nextWithTimeout<T>(iterator: AsyncIterator<T>, cleanup: () => void): Promise<IteratorResult<T>> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      iterator.next(),
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => {
+          cleanup();
+          reject(new CursorTimeoutError());
+        }, REQUEST_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  }
 }
 
 function openAiUsage(usage: CursorStreamEvent["usage"] | undefined) {
@@ -1215,6 +1488,328 @@ async function handleJsonChat(
   requestAbortCleanup(response, child);
 }
 
+async function handleSdkJsonChat(
+  response: ServerResponse,
+  request: ChatRequest,
+  prompt: string,
+  requestContext: RequestContext,
+  toolContext?: ToolContext,
+) {
+  response.on("error", () => undefined);
+  const model = normalizeModel(request.model);
+  const sdkModel = sdkModelId(request.model);
+  requestContext.model = model;
+  requestContext.stream = false;
+  requestContext.toolAware = toolContext !== undefined;
+  const id = `chatcmpl-${randomUUID()}`;
+
+  let result: unknown;
+  let agent: unknown;
+  let run: unknown;
+  let cleanup = () => undefined;
+  try {
+    const apiKey = cursorSdkApiKey();
+    const sdk = await loadCursorSdk();
+    let cleaned = false;
+    cleanup = () => {
+      if (cleaned) {
+        return;
+      }
+      cleaned = true;
+      disposeCursorSdk(run);
+      disposeCursorSdk(agent);
+    };
+
+    if (typeof sdk.Agent.create === "function") {
+      agent = await runWithRequestLifecycle(
+        response,
+        Promise.resolve(sdk.Agent.create({ apiKey, model: { id: sdkModel }, local: { cwd: process.cwd() } })),
+        cleanup,
+      );
+      const send = agent && typeof agent === "object" ? (agent as { send?: unknown }).send : undefined;
+      if (typeof send !== "function") {
+        throw new BridgeHttpError(502, "cursor sdk Agent.create did not return an agent with send");
+      }
+      run = await runWithRequestLifecycle(response, Promise.resolve(send.call(agent, prompt)), cleanup);
+      const wait = run && typeof run === "object" ? (run as { wait?: unknown }).wait : undefined;
+      if (typeof wait !== "function") {
+        throw new BridgeHttpError(502, "cursor sdk run does not expose wait");
+      }
+      result = await runWithRequestLifecycle(response, Promise.resolve(wait.call(run)), cleanup);
+    } else {
+      if (typeof sdk.Agent.prompt !== "function") {
+        throw new BridgeHttpError(502, `cursor sdk module '${sdkModuleName()}' does not export Agent.create or Agent.prompt`);
+      }
+      // Agent.prompt has no run/agent handle to cancel. Keep it only as a compatibility fallback;
+      // timeout/client-close handling can stop waiting, but cannot cancel the underlying SDK work.
+      result = await runWithRequestLifecycle(
+        response,
+        Promise.resolve(
+          sdk.Agent.prompt(prompt, {
+            apiKey,
+            model: { id: sdkModel },
+            local: { cwd: process.cwd() },
+          }),
+        ),
+        cleanup,
+      );
+    }
+  } catch (err) {
+    cleanup();
+    const status = err instanceof BridgeHttpError ? err.status : 502;
+    const message = err instanceof Error ? err.message : "cursor sdk request failed";
+    finishRequest(requestContext, status, message, { timedOut: err instanceof CursorTimeoutError });
+    if (!response.destroyed) {
+      error(response, status, message, requestHeaders(requestContext));
+    }
+    return;
+  } finally {
+    cleanup();
+  }
+
+  const content = sdkPromptResultText(result);
+  let message: { role: "assistant"; content: string | null; tool_calls?: OpenAiToolCall[] } = {
+    role: "assistant",
+    content,
+  };
+  let finishReason = "stop";
+  if (toolContext) {
+    let parsed: ParsedCursorOutput;
+    try {
+      parsed = parseCursorOutput(content, toolContext);
+    } catch (err) {
+      const status = err instanceof BridgeHttpError ? err.status : 502;
+      const message = err instanceof Error ? err.message : "failed to parse cursor sdk output";
+      finishRequest(requestContext, status, message);
+      error(response, status, message, requestHeaders(requestContext));
+      return;
+    }
+    if (parsed.kind === "tool_calls") {
+      message = { role: "assistant", content: null, tool_calls: parsed.tool_calls };
+      finishReason = "tool_calls";
+    } else {
+      message = { role: "assistant", content: parsed.content };
+    }
+  }
+
+  finishRequest(requestContext, 200);
+  json(response, 200, {
+    id,
+    object: "chat.completion",
+    created: Math.floor(Date.now() / 1000),
+    model,
+    choices: [
+      {
+        index: 0,
+        message,
+        finish_reason: finishReason,
+      },
+    ],
+    usage: openAiUsage(sdkUsage(result)),
+  }, requestHeaders(requestContext));
+}
+
+async function handleSdkStreamingChat(
+  response: ServerResponse,
+  request: ChatRequest,
+  prompt: string,
+  requestContext: RequestContext,
+  toolContext?: ToolContext,
+) {
+  const model = normalizeModel(request.model);
+  const sdkModel = sdkModelId(request.model);
+  requestContext.model = model;
+  requestContext.stream = true;
+  requestContext.toolAware = toolContext !== undefined;
+  const id = `chatcmpl-${randomUUID()}`;
+  const toolStreamState = createToolAwareStreamState();
+  let agent: unknown;
+  let run: unknown;
+  let iterator: AsyncIterator<unknown> | undefined;
+  let cleaned = false;
+  const cleanup = () => {
+    if (cleaned) {
+      return;
+    }
+    cleaned = true;
+    if (iterator && typeof iterator.return === "function") {
+      try {
+        void Promise.resolve(iterator.return()).catch(() => undefined);
+      } catch {
+        // Best-effort stream cleanup only.
+      }
+    }
+    disposeCursorSdk(run);
+    disposeCursorSdk(agent);
+  };
+
+  try {
+    const apiKey = cursorSdkApiKey();
+    const sdk = await loadCursorSdk();
+    if (typeof sdk.Agent.create !== "function") {
+      throw new BridgeHttpError(502, `cursor sdk module '${sdkModuleName()}' does not export Agent.create`);
+    }
+    agent = await runWithRequestLifecycle(
+      response,
+      Promise.resolve(sdk.Agent.create({ apiKey, model: { id: sdkModel }, local: { cwd: process.cwd() } })),
+      cleanup,
+    );
+    const send = agent && typeof agent === "object" ? (agent as { send?: unknown }).send : undefined;
+    if (typeof send !== "function") {
+      throw new BridgeHttpError(502, "cursor sdk Agent.create did not return an agent with send");
+    }
+    run = await runWithRequestLifecycle(response, Promise.resolve(send.call(agent, prompt)), cleanup);
+  } catch (err) {
+    cleanup();
+    const status = err instanceof BridgeHttpError ? err.status : 502;
+    const message = err instanceof Error ? err.message : "cursor sdk request failed";
+    finishRequest(requestContext, status, message, { timedOut: err instanceof CursorTimeoutError });
+    if (!response.destroyed) {
+      error(response, status, message, requestHeaders(requestContext));
+    }
+    return;
+  }
+
+  let stream: AsyncIterable<unknown>;
+  try {
+    const streamFactory = run && typeof run === "object" ? (run as { stream?: unknown }).stream : undefined;
+    if (typeof streamFactory !== "function") {
+      throw new BridgeHttpError(502, "cursor sdk run does not expose stream");
+    }
+    const candidate = await runWithRequestLifecycle(response, Promise.resolve(streamFactory.call(run)), cleanup);
+    if (!isAsyncIterable(candidate)) {
+      throw new BridgeHttpError(502, "cursor sdk run stream is not async iterable");
+    }
+    stream = candidate;
+  } catch (err) {
+    cleanup();
+    const status = err instanceof BridgeHttpError ? err.status : 502;
+    const message = err instanceof Error ? err.message : "cursor sdk stream setup failed";
+    finishRequest(requestContext, status, message, { timedOut: err instanceof CursorTimeoutError });
+    if (!response.destroyed) {
+      error(response, status, message, requestHeaders(requestContext));
+    }
+    return;
+  }
+
+  let failed = false;
+  const fail = (message: string, options: { timedOut?: boolean } = {}) => {
+    if (failed) {
+      return;
+    }
+    failed = true;
+    cleanup();
+    finishRequest(requestContext, 502, message, options);
+    error(response, 502, message, requestHeaders(requestContext));
+  };
+
+  response.writeHead(200, {
+    "content-type": "text/event-stream",
+    "cache-control": "no-cache",
+    connection: "keep-alive",
+    ...requestHeaders(requestContext),
+  });
+  response.on("error", () => undefined);
+  response.on("close", () => {
+    if (!response.writableEnded && !failed) {
+      failed = true;
+      cleanup();
+      finishRequest(requestContext, 499, "client closed request");
+    }
+  });
+
+  if (!toolContext) {
+    sendSse(response, roleChunk(id, model));
+  }
+
+  const processToolAwareText = (text: string) => {
+    const action = updateToolAwareStreamState(toolStreamState, text, toolContext!.toolChoice);
+    if (action.kind === "error") {
+      fail(action.message);
+      return;
+    }
+    if (action.kind === "flush_text") {
+      sendSse(response, roleChunk(id, model));
+      sendSse(response, completionChunk(id, model, action.content, null));
+      return;
+    }
+    if (action.kind === "stream_text") {
+      sendSse(response, completionChunk(id, model, action.content, null));
+    }
+  };
+
+  try {
+    iterator = stream[Symbol.asyncIterator]();
+    while (!failed) {
+      const next = await nextWithTimeout(iterator, cleanup);
+      if (next.done) {
+        break;
+      }
+      const event = next.value;
+      if (failed) {
+        break;
+      }
+      const eventError = sdkEventError(event);
+      if (eventError) {
+        fail(eventError);
+        break;
+      }
+      const text = sdkAssistantText(event);
+      if (!text) {
+        continue;
+      }
+      if (toolContext) {
+        processToolAwareText(text);
+      } else {
+        sendSse(response, completionChunk(id, model, text, null));
+      }
+    }
+  } catch (err) {
+    if (!failed) {
+      fail(err instanceof Error ? err.message : "cursor sdk stream failed", { timedOut: err instanceof CursorTimeoutError });
+    }
+  } finally {
+    cleanup();
+  }
+
+  if (failed || response.destroyed) {
+    return;
+  }
+
+  if (toolContext) {
+    if (toolStreamState.textFlushed) {
+      const pendingText = flushPendingToolAwareText(toolStreamState);
+      if (pendingText) {
+        sendSse(response, completionChunk(id, model, pendingText, null));
+      }
+      sendSse(response, finishChunk(id, model, "stop"));
+    } else {
+      let parsed: ParsedCursorOutput;
+      try {
+        parsed = parseCursorOutput(toolStreamState.output, toolContext);
+      } catch (err) {
+        fail(err instanceof Error ? err.message : "failed to parse cursor sdk output");
+        return;
+      }
+      if (parsed.kind === "tool_calls") {
+        parsed.tool_calls.forEach((toolCall, index) => sendSse(response, toolCallChunk(id, model, toolCall, index)));
+        sendSse(response, finishChunk(id, model, "tool_calls"));
+      } else {
+        sendSse(response, roleChunk(id, model));
+        if (parsed.content) {
+          sendSse(response, completionChunk(id, model, parsed.content, null));
+        }
+        sendSse(response, finishChunk(id, model, "stop"));
+      }
+    }
+  } else {
+    sendSse(response, completionChunk(id, model, "", "stop"));
+  }
+  finishRequest(requestContext, 200);
+  response.write("data: [DONE]\n\n");
+  response.end();
+}
+
 function requestAbortCleanup(response: ServerResponse, child: ReturnType<typeof spawn>): void {
   response.on("close", () => {
     if (!response.writableEnded) {
@@ -1225,6 +1820,8 @@ function requestAbortCleanup(response: ServerResponse, child: ReturnType<typeof 
 
 async function handleChat(request: IncomingMessage, response: ServerResponse): Promise<void> {
   const requestContext = createRequestContext();
+  const backend = resolveBackend();
+  setRequestBackend(requestContext, backend);
   const fail = (status: number, message: string) => {
     finishRequest(requestContext, status, message);
     error(response, status, message, requestHeaders(requestContext));
@@ -1277,7 +1874,13 @@ async function handleChat(request: IncomingMessage, response: ServerResponse): P
     return;
   }
 
-  if (body.stream) {
+  if (backend === "sdk") {
+    if (body.stream) {
+      await handleSdkStreamingChat(response, body, prompt, requestContext, toolContext);
+    } else {
+      await handleSdkJsonChat(response, body, prompt, requestContext, toolContext);
+    }
+  } else if (body.stream) {
     await handleStreamingChat(response, body, prompt, requestContext, toolContext);
   } else {
     await handleJsonChat(response, body, prompt, requestContext, toolContext);
@@ -1312,6 +1915,7 @@ function metricsResponse() {
     ok: true,
     pid: process.pid,
     started_at: STARTED_AT,
+    backend: resolveBackend(),
     active_children: activeChildren.size,
     active_requests: metricsState.activeRequests,
     requests: {
@@ -1319,6 +1923,10 @@ function metricsResponse() {
       completed: metricsState.completedRequests,
       failed: metricsState.failedRequests,
       timed_out: metricsState.timedOutRequests,
+    },
+    requests_by_backend: {
+      cli: { ...metricsState.requestsByBackend.cli },
+      sdk: { ...metricsState.requestsByBackend.sdk },
     },
     recent_requests: metricsState.recentRequests.map((request) => ({ ...request })),
   };
@@ -1339,6 +1947,15 @@ export const _test = Object.freeze({
   hasToolRequest,
   parseCursorOutput,
   normalizeModel,
+  requestedModel,
+  resolveBackend,
+  sdkAssistantText,
+  sdkContentText,
+  sdkEventError,
+  sdkImportSpecifier,
+  sdkModelId,
+  sdkModuleName,
+  sdkPromptResultText,
   openAiUsage,
   sanitizeInboundContent,
   toolAwarePromptFromMessages,
