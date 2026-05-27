@@ -13,6 +13,7 @@ let
     // (import ./rules-modes.nix { inherit lib; })
     // (import ./missing-private.nix { inherit lib; })
     // (import ./server-activation.nix { inherit lib; })
+    // (import ./cargo-cache-guardrails.nix { inherit lib; })
     // (import ./public-base-guardrail.nix { inherit lib; });
 
   failures = lib.runTests cases;

@@ -36,7 +36,7 @@ let
       ln -s ${nightlyRustfmt}/bin/cargo-fmt "$out/bin/cargo-fmt"
     '';
   };
-  kacheBin = "${config.home.profileDirectory}/bin/kache";
+  kacheBin = lib.getExe pkgs.kache;
   kacheLabel = "ninja.kunobi.kache";
   defaultPath = lib.concatStringsSep ":" (
     [
@@ -55,8 +55,29 @@ let
   );
   kacheEnvironment = {
     HOME = config.home.homeDirectory;
+    KACHE_CONFIG = "${config.xdg.configHome}/kache/config.toml";
+    KACHE_LOG = "kache=info";
     PATH = defaultPath;
   };
+  kacheLogDir = "${config.home.homeDirectory}/Library/Logs/kache";
+  kachePlist = lib.generators.toPlist { escape = true; } {
+    Label = kacheLabel;
+    ProgramArguments = [
+      kacheBin
+      "daemon"
+      "run"
+    ];
+    RunAtLoad = true;
+    # Match upstream kache: failures restart, but `kache daemon stop` stays stopped.
+    KeepAlive = {
+      SuccessfulExit = false;
+    };
+    ThrottleInterval = 5;
+    StandardOutPath = "${kacheLogDir}/out.log";
+    StandardErrorPath = "${kacheLogDir}/err.log";
+    EnvironmentVariables = kacheEnvironment;
+  };
+  kachePlistFile = pkgs.writeText "${kacheLabel}.plist" kachePlist;
 in
 lib.mkMerge [
   {
@@ -81,23 +102,33 @@ lib.mkMerge [
   }
 
   (lib.mkIf pkgs.stdenv.isDarwin {
-    launchd.agents.${kacheLabel} = {
-      enable = true;
-      config = {
-        Label = kacheLabel;
-        ProgramArguments = [
-          kacheBin
-          "daemon"
-          "run"
-        ];
-        RunAtLoad = true;
-        KeepAlive = true;
-        ThrottleInterval = 10;
-        StandardOutPath = "${config.home.homeDirectory}/Library/Logs/kache.log";
-        StandardErrorPath = "${config.home.homeDirectory}/Library/Logs/kache-error.log";
-        EnvironmentVariables = kacheEnvironment;
-      };
-    };
+    home.activation.kacheDaemon =
+      lib.hm.dag.entryAfter
+        [
+          "linkGeneration"
+          "setupLaunchAgents"
+        ]
+        ''
+          uid="$(${pkgs.coreutils}/bin/id -u)"
+          domain="gui/$uid"
+          label=${lib.escapeShellArg kacheLabel}
+          plist=${lib.escapeShellArg "${config.home.homeDirectory}/Library/LaunchAgents/${kacheLabel}.plist"}
+          plist_source=${lib.escapeShellArg kachePlistFile}
+          log_dir=${lib.escapeShellArg kacheLogDir}
+
+          ${pkgs.coreutils}/bin/mkdir -p "$(${pkgs.coreutils}/bin/dirname "$plist")" "$log_dir"
+          if [ ! -e "$plist" ] || ! ${pkgs.diffutils}/bin/cmp -s "$plist_source" "$plist"; then
+            ${pkgs.coreutils}/bin/install -m 0644 "$plist_source" "$plist"
+            /bin/launchctl bootout "$domain/$label" >/dev/null 2>&1 || true
+            if ! bootstrap_output="$(/bin/launchctl bootstrap "$domain" "$plist" 2>&1)"; then
+              echo "warning: kache launchd bootstrap failed: $bootstrap_output" >&2
+            fi
+          elif ! /bin/launchctl print "$domain/$label" >/dev/null 2>&1; then
+            if ! bootstrap_output="$(/bin/launchctl bootstrap "$domain" "$plist" 2>&1)"; then
+              echo "warning: kache launchd bootstrap failed: $bootstrap_output" >&2
+            fi
+          fi
+        '';
   })
 
   (lib.mkIf pkgs.stdenv.isLinux {
