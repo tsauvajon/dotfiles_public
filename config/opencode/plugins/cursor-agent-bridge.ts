@@ -439,6 +439,17 @@ function modelsResponse() {
   };
 }
 
+/** @internal Test seam for pure helpers; not used by OpenCode at runtime. */
+export const _test = Object.freeze({
+  parsePositiveInteger,
+  contentToText,
+  unsupportedMessage,
+  promptFromMessages,
+  normalizeModel,
+  openAiUsage,
+  modelsResponse,
+});
+
 function startBridge(): void {
   if (started) {
     return;

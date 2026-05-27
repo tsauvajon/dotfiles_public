@@ -318,6 +318,7 @@
           };
           gpgPinentryCheck = import ./scripts/lib/configure-gpg-pinentry.test.nix { inherit pkgs lib; };
           yaziLiveSearchCheck = import ./config/yazi/live-search.test.nix { inherit pkgs; };
+          cursorAgentBridgeCheck = import ./config/opencode/plugin-tests/cursor-agent-bridge.test.nix { inherit pkgs; };
         in
         {
           formatter = pkgs.nixfmt-rfc-style;
@@ -354,6 +355,7 @@
               patch-string-field-test = patchStringFieldCheck;
               configure-gpg-pinentry-test = gpgPinentryCheck;
               yazi-live-search-test = yaziLiveSearchCheck;
+              cursor-agent-bridge-test = cursorAgentBridgeCheck;
             };
         }
       )
