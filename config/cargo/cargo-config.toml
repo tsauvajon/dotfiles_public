@@ -1,5 +1,5 @@
 [build]
-rustc-wrapper = "sccache"
+rustc-wrapper = "kache"
 
 [net]
 git-fetch-with-cli = true

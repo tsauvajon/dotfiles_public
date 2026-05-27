@@ -17,6 +17,7 @@
 
 let
   cfg = config.programs.crossShellEnv;
+  kacheFallback = "sccache";
   sccacheDir = "${config.home.homeDirectory}/.cache/sccache";
   sccacheCacheSize = "100G";
 
@@ -56,6 +57,7 @@ in
 
   config = {
     home.sessionVariables = {
+      KACHE_FALLBACK = kacheFallback;
       SCCACHE_CACHE_SIZE = sccacheCacheSize;
       SCCACHE_DIR = sccacheDir;
     };
@@ -64,6 +66,7 @@ in
       # bat (cat replacement) theme — Catppuccin Mocha to match the
       # rest of the terminal aesthetic.
       BAT_THEME = "Catppuccin Mocha";
+      KACHE_FALLBACK = kacheFallback;
       SCCACHE_CACHE_SIZE = sccacheCacheSize;
       SCCACHE_DIR = sccacheDir;
     };
