@@ -321,6 +321,9 @@
           cursorAgentBridgeCheck = import ./config/opencode/plugin-tests/cursor-agent-bridge.test.nix {
             inherit pkgs;
           };
+          cargoBuildEnvCheck = import ./config/opencode/plugin-tests/cargo-build-env.test.nix {
+            inherit pkgs;
+          };
           cursorAgentBridgeModuleTests = lib.runTests (
             import ./home/cursor-agent-bridge.test.nix { inherit lib; }
           );
@@ -376,6 +379,7 @@
               configure-gpg-pinentry-test = gpgPinentryCheck;
               yazi-live-search-test = yaziLiveSearchCheck;
               cursor-agent-bridge-test = cursorAgentBridgeCheck;
+              cargo-build-env-test = cargoBuildEnvCheck;
               cursor-agent-bridge-module-test = cursorAgentBridgeModuleCheck;
             };
         }

@@ -8,6 +8,11 @@ const SESSION_LOOKUP_TIMEOUT_MS = 1_000;
 const rootSessionIdCache = new Map<string, string>();
 const warnedNativeCompilerVars = new Set<string>();
 
+type CacheToolPaths = {
+  kache?: string;
+  sccache?: string;
+};
+
 function findCargoRoot(cwd: string): string | undefined {
   let dir = resolve(cwd);
   let nearestCargoRoot: string | undefined;
@@ -127,17 +132,45 @@ function setIfUnset(env: Record<string, string>, name: string, value: string): v
   }
 }
 
-function warnForSccacheNativeCompilerVars(): void {
+function rustCacheEnv(tools: CacheToolPaths): Record<string, string> {
+  if (tools.kache) {
+    return {
+      RUSTC_WRAPPER: tools.kache,
+      ...(tools.sccache ? { KACHE_FALLBACK: tools.sccache } : {}),
+    };
+  }
+
+  if (tools.sccache) {
+    return { RUSTC_WRAPPER: tools.sccache };
+  }
+
+  return {};
+}
+
+function isCacheWrapperValue(value: string): boolean {
+  const lower = value.toLowerCase();
+  return lower.includes("kache") || lower.includes("sccache");
+}
+
+function isKacheWrapperValue(value: string | undefined, kachePath: string | undefined): boolean {
+  if (!value || !kachePath) {
+    return false;
+  }
+  return value === kachePath || value === "kache" || value.endsWith("/kache");
+}
+
+function warnForCacheNativeCompilerVars(): void {
   for (const name of ["CC", "CXX"]) {
     const value = process.env[name];
-    if (!value?.toLowerCase().includes("sccache") || warnedNativeCompilerVars.has(name)) {
+    if (!value || !isCacheWrapperValue(value) || warnedNativeCompilerVars.has(name)) {
       continue;
     }
 
     warnedNativeCompilerVars.add(name);
     console.warn(
-      `[cargo-build-env] ${name}=${value} appears to use sccache. `
-        + "Keep native compilers direct; cc-rs can already use RUSTC_WRAPPER=sccache and double-wrapping can fail.",
+      `[cargo-build-env] ${name}=${value} appears to use a Rust cache wrapper. `
+        + "Keep native compiler variables pointed at direct native compilers such as cc, clang, or gcc; "
+        + "cc-rs can already use RUSTC_WRAPPER with kache or sccache and double-wrapping can fail.",
     );
   }
 }
@@ -146,7 +179,8 @@ function commandPath(name: string): string | undefined {
   return (process.env.PATH ?? "")
     .split(delimiter)
     .filter(Boolean)
-    .map((dir) => join(dir, name))
+    // Cargo may invoke RUSTC_WRAPPER from a different cwd than OpenCode.
+    .map((dir) => resolve(dir, name))
     .find(isExecutable);
 }
 
@@ -176,7 +210,21 @@ export default (async ({ client }) => ({
       return;
     }
 
-    warnForSccacheNativeCompilerVars();
+    warnForCacheNativeCompilerVars();
+
+    const tools = {
+      kache: commandPath("kache"),
+      sccache: commandPath("sccache"),
+    };
+    const cacheEnv = rustCacheEnv(tools);
+    if (cacheEnv.RUSTC_WRAPPER) {
+      setIfUnset(output.env, "RUSTC_WRAPPER", cacheEnv.RUSTC_WRAPPER);
+    }
+
+    const selectedWrapper = output.env.RUSTC_WRAPPER ?? process.env.RUSTC_WRAPPER;
+    if (cacheEnv.KACHE_FALLBACK && isKacheWrapperValue(selectedWrapper, tools.kache)) {
+      setIfUnset(output.env, "KACHE_FALLBACK", cacheEnv.KACHE_FALLBACK);
+    }
 
     if (output.env.CARGO_TARGET_DIR === undefined && process.env.CARGO_TARGET_DIR === undefined) {
       output.env.CARGO_TARGET_DIR = join(
@@ -187,20 +235,22 @@ export default (async ({ client }) => ({
       );
     }
 
-    if (process.env.HOME) {
+    if (tools.sccache && process.env.HOME) {
       setIfUnset(
         output.env,
         "SCCACHE_DIR",
         join(process.env.HOME, ".cache", "sccache"),
       );
     }
-    setIfUnset(output.env, "SCCACHE_CACHE_SIZE", SCCACHE_CACHE_SIZE);
-
-    const sccache = commandPath("sccache");
-    if (!sccache) {
-      return;
+    if (tools.sccache) {
+      setIfUnset(output.env, "SCCACHE_CACHE_SIZE", SCCACHE_CACHE_SIZE);
     }
-
-    setIfUnset(output.env, "RUSTC_WRAPPER", sccache);
   },
 })) satisfies Plugin;
+
+export const _test = Object.freeze({
+  commandPath,
+  isCacheWrapperValue,
+  isKacheWrapperValue,
+  rustCacheEnv,
+});
