@@ -15,7 +15,7 @@ in
 
   testServerHashMarkerWrittenAfterHealthyRestart = {
     expr =
-      (lib.hasInfix "if wait_for_health && verify_service; then" opencodeServerModuleSource)
+      (lib.hasInfix "if wait_with_dots; then" opencodeServerModuleSource)
       && (lib.hasInfix ''
           printf '%s\n' "$new_hash" > "$marker"
       '' opencodeServerModuleSource)
