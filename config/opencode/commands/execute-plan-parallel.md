@@ -11,7 +11,7 @@ Reviews:
 - code: bugs, regressions, missing tests, and quality
 - plan: gaps, scope drift, and missed requirements
 
-Within each workstream, iterate implementation -> review -> fixes until reviews are clean or only explicit tradeoffs remain.
+Within each workstream, iterate implementation -> review -> delegated fixes until reviews are clean or only explicit tradeoffs remain. Send fixes back to the owning workstream agent, or launch the most specific relevant agent for new fix work. The main agent coordinates, reviews, and verifies; it should not implement non-trivial fixes itself.
 
 Make reasonable local decisions without interrupting the user. Ask immediately only when a decision is blocking, risky to guess, or would cause significant rework. For deferred questions, summarize options, recommendation, and impact.
 
