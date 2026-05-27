@@ -7,6 +7,7 @@ pkgs.runCommand "cursor-agent-bridge-test"
 
     bridge = ../plugins/cursor-agent-bridge.ts;
     testFile = ./cursor-agent-bridge.test.ts;
+    integrationTestFile = ./cursor-agent-bridge.integration.test.ts;
   }
   ''
     set -eu
@@ -17,14 +18,17 @@ pkgs.runCommand "cursor-agent-bridge-test"
     mkdir -p plugins plugin-tests
     cp "$bridge" plugins/cursor-agent-bridge.ts
     cp "$testFile" plugin-tests/cursor-agent-bridge.test.ts
+    cp "$integrationTestFile" plugin-tests/cursor-agent-bridge.integration.test.ts
 
     grep -Fq 'export const _test' plugins/cursor-agent-bridge.ts \
       || fail "cursor-agent bridge should expose test helpers"
     for helper in \
       contentToText \
+      createToolAwareStreamState \
       cursorEnvironment \
       deterministicToolCallId \
       finishChunk \
+      flushPendingToolAwareText \
       healthResponse \
       hasToolRequest \
       modelsResponse \
@@ -39,6 +43,7 @@ pkgs.runCommand "cursor-agent-bridge-test"
       toolCallChunk \
       toolContextFromRequest \
       toolDefinitions \
+      updateToolAwareStreamState \
       unsupportedMessage
     do
       grep -Fq "$helper" plugin-tests/cursor-agent-bridge.test.ts \
@@ -46,7 +51,7 @@ pkgs.runCommand "cursor-agent-bridge-test"
     done
 
     # The bridge imports @opencode-ai/plugin as a type only; Bun strips it without node_modules.
-    bun test plugin-tests/cursor-agent-bridge.test.ts
+    bun test plugin-tests/cursor-agent-bridge.test.ts plugin-tests/cursor-agent-bridge.integration.test.ts
 
     echo "all cursor-agent-bridge assertions passed"
     touch "$out"

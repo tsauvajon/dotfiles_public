@@ -7,9 +7,11 @@ describe("cursor-agent-bridge pure helpers", () => {
     expect(Object.isFrozen(_test)).toBe(true);
     expect(Object.keys(_test).sort()).toEqual([
       "contentToText",
+      "createToolAwareStreamState",
       "cursorEnvironment",
       "deterministicToolCallId",
       "finishChunk",
+      "flushPendingToolAwareText",
       "hasToolRequest",
       "healthResponse",
       "modelsResponse",
@@ -25,6 +27,7 @@ describe("cursor-agent-bridge pure helpers", () => {
       "toolContextFromRequest",
       "toolDefinitions",
       "unsupportedMessage",
+      "updateToolAwareStreamState",
     ]);
   });
 
@@ -323,6 +326,23 @@ describe("cursor-agent-bridge pure helpers", () => {
     });
   });
 
+  test("parseCursorOutput treats marker-name lookalikes as text", () => {
+    const context = _test.toolContextFromRequest(
+      [{ type: "function", function: { name: "lookup_price" } }],
+      "auto",
+      "nonce-lookalike-parse",
+    )!;
+
+    expect(_test.parseCursorOutput("literal <opencode_tool_calls_extra value", context)).toEqual({
+      kind: "text",
+      content: "literal <opencode_tool_calls_extra value",
+    });
+    expect(_test.parseCursorOutput("literal <opencode_tool_callsXYZ value", context)).toEqual({
+      kind: "text",
+      content: "literal <opencode_tool_callsXYZ value",
+    });
+  });
+
   test("parseCursorOutput rejects malformed and missing-close markers", () => {
     const context = _test.toolContextFromRequest(
       [{ type: "function", function: { name: "lookup_price" } }],
@@ -442,6 +462,189 @@ describe("cursor-agent-bridge pure helpers", () => {
         specific,
       ),
     ).toThrow("tool_choice requires 'lookup_balance', not 'lookup_price'");
+  });
+
+  test("tool-aware stream state buffers whitespace and split marker prefixes", () => {
+    const context = _test.toolContextFromRequest(
+      [{ type: "function", function: { name: "lookup_price" } }],
+      "auto",
+      "nonce-stream-prefix",
+    )!;
+    const state = _test.createToolAwareStreamState();
+
+    expect(_test.updateToolAwareStreamState(state, "  <opencode_", context.toolChoice)).toEqual({ kind: "buffer" });
+    expect(state.textFlushed).toBe(false);
+    expect(_test.updateToolAwareStreamState(state, "tool", context.toolChoice)).toEqual({ kind: "buffer" });
+    expect(state.textFlushed).toBe(false);
+    expect(_test.updateToolAwareStreamState(state, '_calls nonce="nonce-stream-prefix">', context.toolChoice)).toEqual({
+      kind: "buffer",
+    });
+    expect(state.output).toBe('  <opencode_tool_calls nonce="nonce-stream-prefix">');
+  });
+
+  test("tool-aware stream state keeps prose-before-marker buffered for close-time parsing", () => {
+    const context = _test.toolContextFromRequest(
+      [{ type: "function", function: { name: "lookup_price" } }],
+      "auto",
+      "nonce-stream-prose",
+    )!;
+    const state = _test.createToolAwareStreamState();
+
+    expect(
+      _test.updateToolAwareStreamState(
+        state,
+        'Sure: <opencode_tool_calls nonce="nonce-stream-prose">{"tool_calls":[]}</opencode_tool_calls>',
+        context.toolChoice,
+      ),
+    ).toEqual({ kind: "buffer" });
+    expect(state.textFlushed).toBe(false);
+    expect(state.output).toContain("Sure: <opencode_tool_calls");
+
+    const splitState = _test.createToolAwareStreamState();
+    expect(_test.updateToolAwareStreamState(splitState, "Sure: <opencode_tool", context.toolChoice)).toEqual({
+      kind: "flush_text",
+      content: "Sure: ",
+    });
+    expect(splitState.textFlushed).toBe(true);
+    expect(_test.flushPendingToolAwareText(splitState)).toBe("<opencode_tool");
+  });
+
+  test("tool-aware stream state flushes pre-flush safe text while holding trailing marker prefixes", () => {
+    const auto = _test.toolContextFromRequest([{ type: "function", function: { name: "lookup_price" } }], "auto", "nonce-pre")!;
+    const required = _test.toolContextFromRequest(
+      [{ type: "function", function: { name: "lookup_price" } }],
+      "required",
+      "nonce-pre-required",
+    )!;
+    const specific = _test.toolContextFromRequest(
+      [{ type: "function", function: { name: "lookup_price" } }],
+      { type: "function", function: { name: "lookup_price" } },
+      "nonce-pre-specific",
+    )!;
+
+    const autoState = _test.createToolAwareStreamState();
+    expect(_test.updateToolAwareStreamState(autoState, "hello <", auto.toolChoice)).toEqual({
+      kind: "flush_text",
+      content: "hello ",
+    });
+    expect(autoState.textFlushed).toBe(true);
+    expect(_test.flushPendingToolAwareText(autoState)).toBe("<");
+
+    const requiredState = _test.createToolAwareStreamState();
+    expect(_test.updateToolAwareStreamState(requiredState, "hello <", required.toolChoice)).toEqual({ kind: "buffer" });
+    expect(requiredState.textFlushed).toBe(false);
+    expect(requiredState.output).toBe("hello <");
+
+    const specificState = _test.createToolAwareStreamState();
+    expect(_test.updateToolAwareStreamState(specificState, "hello <", specific.toolChoice)).toEqual({ kind: "buffer" });
+    expect(specificState.textFlushed).toBe(false);
+    expect(specificState.output).toBe("hello <");
+  });
+
+  test("tool-aware stream state does not treat marker-name lookalikes as late markers", () => {
+    const context = _test.toolContextFromRequest(
+      [{ type: "function", function: { name: "lookup_price" } }],
+      "auto",
+      "nonce-lookalike",
+    )!;
+    const extraState = _test.createToolAwareStreamState();
+    expect(_test.updateToolAwareStreamState(extraState, "plain text", context.toolChoice)).toEqual({
+      kind: "flush_text",
+      content: "plain text",
+    });
+    expect(_test.updateToolAwareStreamState(extraState, " <opencode_tool_calls_extra", context.toolChoice)).toEqual({
+      kind: "stream_text",
+      content: " <opencode_tool_calls_extra",
+    });
+
+    const xyzState = _test.createToolAwareStreamState();
+    expect(_test.updateToolAwareStreamState(xyzState, "plain text", context.toolChoice)).toEqual({
+      kind: "flush_text",
+      content: "plain text",
+    });
+    expect(_test.updateToolAwareStreamState(xyzState, " <opencode_tool_callsXYZ", context.toolChoice)).toEqual({
+      kind: "stream_text",
+      content: " <opencode_tool_callsXYZ",
+    });
+
+    const splitLookalikeState = _test.createToolAwareStreamState();
+    expect(_test.updateToolAwareStreamState(splitLookalikeState, "plain text", context.toolChoice)).toEqual({
+      kind: "flush_text",
+      content: "plain text",
+    });
+    expect(_test.updateToolAwareStreamState(splitLookalikeState, " <opencode_tool_calls", context.toolChoice)).toEqual({
+      kind: "stream_text",
+      content: " ",
+    });
+    expect(_test.updateToolAwareStreamState(splitLookalikeState, "_extra", context.toolChoice)).toEqual({
+      kind: "stream_text",
+      content: "<opencode_tool_calls_extra",
+    });
+  });
+
+  test("tool-aware stream state flushes auto text but preserves required and specific enforcement", () => {
+    const auto = _test.toolContextFromRequest([{ type: "function", function: { name: "lookup_price" } }], "auto", "nonce-auto")!;
+    const required = _test.toolContextFromRequest(
+      [{ type: "function", function: { name: "lookup_price" } }],
+      "required",
+      "nonce-required",
+    )!;
+    const specific = _test.toolContextFromRequest(
+      [{ type: "function", function: { name: "lookup_price" } }],
+      { type: "function", function: { name: "lookup_price" } },
+      "nonce-specific",
+    )!;
+
+    expect(_test.updateToolAwareStreamState(_test.createToolAwareStreamState(), "plain text", auto.toolChoice)).toEqual({
+      kind: "flush_text",
+      content: "plain text",
+    });
+
+    const requiredState = _test.createToolAwareStreamState();
+    expect(_test.updateToolAwareStreamState(requiredState, "plain text", required.toolChoice)).toEqual({ kind: "buffer" });
+    expect(requiredState.textFlushed).toBe(false);
+    expect(requiredState.output).toBe("plain text");
+
+    const specificState = _test.createToolAwareStreamState();
+    expect(_test.updateToolAwareStreamState(specificState, "plain text", specific.toolChoice)).toEqual({ kind: "buffer" });
+    expect(specificState.textFlushed).toBe(false);
+    expect(specificState.output).toBe("plain text");
+  });
+
+  test("tool-aware stream state fails markers after text starts without leaking split prefixes", () => {
+    const context = _test.toolContextFromRequest(
+      [{ type: "function", function: { name: "lookup_price" } }],
+      "auto",
+      "nonce-late-marker",
+    )!;
+    const state = _test.createToolAwareStreamState();
+
+    expect(_test.updateToolAwareStreamState(state, "plain text", context.toolChoice)).toEqual({
+      kind: "flush_text",
+      content: "plain text",
+    });
+    expect(_test.updateToolAwareStreamState(state, " then <opencode_tool", context.toolChoice)).toEqual({
+      kind: "stream_text",
+      content: " then ",
+    });
+    expect(_test.flushPendingToolAwareText(state)).toBe("<opencode_tool");
+
+    const splitState = _test.createToolAwareStreamState();
+    expect(_test.updateToolAwareStreamState(splitState, "plain text", context.toolChoice)).toEqual({
+      kind: "flush_text",
+      content: "plain text",
+    });
+    expect(_test.updateToolAwareStreamState(splitState, " <opencode_tool", context.toolChoice)).toEqual({
+      kind: "stream_text",
+      content: " ",
+    });
+    expect(_test.updateToolAwareStreamState(splitState, "_calls", context.toolChoice)).toEqual({
+      kind: "buffer",
+    });
+    expect(_test.updateToolAwareStreamState(splitState, " nonce=\"nonce-late-marker\">", context.toolChoice)).toEqual({
+      kind: "error",
+      message: "tool call marker appeared after streaming text started",
+    });
   });
 
   test("tool call SSE helper emits OpenAI-compatible delta and finish chunks", () => {

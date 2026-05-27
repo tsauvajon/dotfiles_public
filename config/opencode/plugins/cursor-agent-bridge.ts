@@ -15,6 +15,8 @@ const MODELS = new Map([
 const REQUEST_TIMEOUT_MS = parsePositiveInteger(process.env.OPENCODE_CURSOR_AGENT_TIMEOUT_MS, 300_000);
 const MAX_BODY_BYTES = parsePositiveInteger(process.env.OPENCODE_CURSOR_AGENT_MAX_BODY_BYTES, 16 * 1024 * 1024);
 const MAX_TOOL_MARKER_BYTES = 1024 * 1024;
+const MAX_TOOL_AWARE_STREAM_BUFFER_BYTES = MAX_TOOL_MARKER_BYTES;
+const TOOL_MARKER_PREFIX = "<opencode_tool_calls";
 const STARTED_AT = new Date().toISOString();
 
 // Only the standalone service calls startBridge; this guard is defensive for
@@ -78,6 +80,18 @@ type ToolContext = {
 type ParsedCursorOutput =
   | { kind: "text"; content: string }
   | { kind: "tool_calls"; tool_calls: OpenAiToolCall[] };
+
+type ToolAwareStreamState = {
+  output: string;
+  postFlushBuffer: string;
+  textFlushed: boolean;
+};
+
+type ToolAwareStreamAction =
+  | { kind: "buffer" }
+  | { kind: "flush_text"; content: string }
+  | { kind: "stream_text"; content: string }
+  | { kind: "error"; message: string };
 
 type ChatRequest = {
   model?: string;
@@ -518,7 +532,7 @@ function parseCursorOutput(output: string, context: ToolContext): ParsedCursorOu
   const match = openMarker.exec(output);
 
   if (!match) {
-    if (/<opencode_tool_calls/i.test(output)) {
+    if (containsToolMarkerStart(output)) {
       throw new BridgeHttpError(502, "malformed tool call marker");
     }
     if (context.toolChoice.mode === "required") {
@@ -535,7 +549,7 @@ function parseCursorOutput(output: string, context: ToolContext): ParsedCursorOu
   if (end === -1) {
     throw new BridgeHttpError(502, "tool call marker is missing its closing tag");
   }
-  if (output.indexOf("<opencode_tool_calls", end + closeMarker.length) !== -1) {
+  if (containsToolMarkerStart(output.slice(end + closeMarker.length))) {
     throw new BridgeHttpError(502, "multiple tool call markers are not supported");
   }
 
@@ -694,13 +708,133 @@ function sendSse(response: ServerResponse, body: unknown): void {
   response.write(`data: ${JSON.stringify(body)}\n\n`);
 }
 
+function createToolAwareStreamState(): ToolAwareStreamState {
+  return {
+    output: "",
+    postFlushBuffer: "",
+    textFlushed: false,
+  };
+}
+
+function isToolMarkerPrefix(value: string): boolean {
+  return TOOL_MARKER_PREFIX.startsWith(value.toLowerCase());
+}
+
+function isToolMarkerBoundary(value: string | undefined): boolean {
+  return value === ">" || (value !== undefined && /\s/.test(value));
+}
+
+function containsToolMarkerStart(value: string): boolean {
+  const lower = value.toLowerCase();
+  let offset = 0;
+  while (offset < lower.length) {
+    const index = lower.indexOf(TOOL_MARKER_PREFIX, offset);
+    if (index === -1) {
+      return false;
+    }
+    if (isToolMarkerBoundary(lower[index + TOOL_MARKER_PREFIX.length])) {
+      return true;
+    }
+    offset = index + 1;
+  }
+  return false;
+}
+
+function shouldBufferUntilClose(toolChoice: ResolvedToolChoice): boolean {
+  return toolChoice.mode === "required" || toolChoice.mode === "specific";
+}
+
+function toolAwareBufferTooLarge(value: string): boolean {
+  return Buffer.byteLength(value, "utf8") > MAX_TOOL_AWARE_STREAM_BUFFER_BYTES;
+}
+
+function trailingToolMarkerPrefixLength(value: string): number {
+  const lower = value.toLowerCase();
+  const max = Math.min(lower.length, TOOL_MARKER_PREFIX.length);
+  for (let length = max; length > 0; length -= 1) {
+    if (TOOL_MARKER_PREFIX.startsWith(lower.slice(-length))) {
+      return length;
+    }
+  }
+  return 0;
+}
+
+function updateToolAwareStreamState(
+  state: ToolAwareStreamState,
+  text: string,
+  toolChoice: ResolvedToolChoice,
+): ToolAwareStreamAction {
+  if (!text) {
+    return { kind: "buffer" };
+  }
+
+  if (state.textFlushed) {
+    const pending = state.postFlushBuffer + text;
+    if (containsToolMarkerStart(pending)) {
+      return { kind: "error", message: "tool call marker appeared after streaming text started" };
+    }
+
+    const keepLength = trailingToolMarkerPrefixLength(pending);
+    const content = pending.slice(0, pending.length - keepLength);
+    state.postFlushBuffer = pending.slice(pending.length - keepLength);
+    return content ? { kind: "stream_text", content } : { kind: "buffer" };
+  }
+
+  state.output += text;
+
+  if (shouldBufferUntilClose(toolChoice)) {
+    if (toolAwareBufferTooLarge(state.output)) {
+      return { kind: "error", message: "tool-aware streaming buffer is too large" };
+    }
+    return { kind: "buffer" };
+  }
+
+  if (containsToolMarkerStart(state.output)) {
+    if (toolAwareBufferTooLarge(state.output)) {
+      return { kind: "error", message: "tool-aware streaming buffer is too large" };
+    }
+    return { kind: "buffer" };
+  }
+
+  const firstNonWhitespace = state.output.trimStart();
+  if (!firstNonWhitespace || isToolMarkerPrefix(firstNonWhitespace)) {
+    if (toolAwareBufferTooLarge(state.output)) {
+      return { kind: "error", message: "tool-aware streaming buffer is too large" };
+    }
+    return { kind: "buffer" };
+  }
+  const keepLength = trailingToolMarkerPrefixLength(state.output);
+  if (keepLength > 0) {
+    const content = state.output.slice(0, state.output.length - keepLength);
+    if (!content) {
+      return { kind: "buffer" };
+    }
+    state.textFlushed = true;
+    state.postFlushBuffer = state.output.slice(state.output.length - keepLength);
+    state.output = "";
+    return { kind: "flush_text", content };
+  }
+
+  state.textFlushed = true;
+  const content = state.output;
+  state.output = "";
+  return { kind: "flush_text", content };
+}
+
+function flushPendingToolAwareText(state: ToolAwareStreamState): string {
+  const content = state.postFlushBuffer;
+  state.postFlushBuffer = "";
+  return content;
+}
+
 async function handleStreamingChat(response: ServerResponse, request: ChatRequest, prompt: string, toolContext?: ToolContext) {
   const model = normalizeModel(request.model);
   const id = `chatcmpl-${randomUUID()}`;
   const child = spawnCursorAgent(model, prompt, true);
   let buffer = "";
-  let toolEnabledOutput = "";
+  const toolStreamState = createToolAwareStreamState();
   let failed = false;
+  let timedOut = false;
 
   const fail = (message: string) => {
     if (failed) {
@@ -722,7 +856,30 @@ async function handleStreamingChat(response: ServerResponse, request: ChatReques
     sendSse(response, roleChunk(id, model));
   }
 
-  const timeout = setTimeout(() => stopProcess(child), REQUEST_TIMEOUT_MS);
+  // In tool-aware auto-mode, the bridge can only classify Cursor output before
+  // any user-visible text is emitted. After text has been streamed, it must not
+  // reinterpret the response as tool_calls; a real late marker becomes a bridge
+  // error instead of leaking marker XML to the client.
+  const processToolAwareText = (text: string) => {
+    const action = updateToolAwareStreamState(toolStreamState, text, toolContext!.toolChoice);
+    if (action.kind === "error") {
+      fail(action.message);
+      return;
+    }
+    if (action.kind === "flush_text") {
+      sendSse(response, roleChunk(id, model));
+      sendSse(response, completionChunk(id, model, action.content, null));
+      return;
+    }
+    if (action.kind === "stream_text") {
+      sendSse(response, completionChunk(id, model, action.content, null));
+    }
+  };
+
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    stopProcess(child);
+  }, REQUEST_TIMEOUT_MS);
   requestAbortCleanup(response, child);
 
   child.on("error", (err) => fail(`failed to start cursor agent: ${err.message}`));
@@ -745,14 +902,15 @@ async function handleStreamingChat(response: ServerResponse, request: ChatReques
       if (typeof event.timestamp_ms !== "number") {
         return;
       }
-      const text = event.message?.content
-        ?.map((part) => (part.type === "text" ? part.text ?? "" : ""))
-        .join("") ?? "";
+      const content = event.message?.content;
+      if (content !== undefined && !Array.isArray(content)) {
+        fail("cursor agent returned malformed assistant content");
+        return;
+      }
+      const text = content?.map((part) => (part.type === "text" ? part.text ?? "" : "")).join("") ?? "";
       if (text) {
         if (toolContext) {
-          // Tool-aware streams are buffered until Cursor's full answer is known;
-          // the output may be either plain text or a tool-call marker.
-          toolEnabledOutput += text;
+          processToolAwareText(text);
         } else {
           sendSse(response, completionChunk(id, model, text, null));
         }
@@ -779,6 +937,10 @@ async function handleStreamingChat(response: ServerResponse, request: ChatReques
     if (failed) {
       return;
     }
+    if (timedOut) {
+      fail(`cursor agent timed out after ${REQUEST_TIMEOUT_MS}ms`);
+      return;
+    }
     if (code !== 0) {
       fail(`cursor agent exited with code ${code}`);
       return;
@@ -791,22 +953,30 @@ async function handleStreamingChat(response: ServerResponse, request: ChatReques
         }
       }
       if (toolContext) {
-        let parsed: ParsedCursorOutput;
-        try {
-          parsed = parseCursorOutput(toolEnabledOutput, toolContext);
-        } catch (err) {
-          fail(err instanceof Error ? err.message : "failed to parse cursor agent output");
-          return;
-        }
-        if (parsed.kind === "tool_calls") {
-          parsed.tool_calls.forEach((toolCall, index) => sendSse(response, toolCallChunk(id, model, toolCall, index)));
-          sendSse(response, finishChunk(id, model, "tool_calls"));
-        } else {
-          sendSse(response, roleChunk(id, model));
-          if (parsed.content) {
-            sendSse(response, completionChunk(id, model, parsed.content, null));
+        if (toolStreamState.textFlushed) {
+          const pendingText = flushPendingToolAwareText(toolStreamState);
+          if (pendingText) {
+            sendSse(response, completionChunk(id, model, pendingText, null));
           }
           sendSse(response, finishChunk(id, model, "stop"));
+        } else {
+          let parsed: ParsedCursorOutput;
+          try {
+            parsed = parseCursorOutput(toolStreamState.output, toolContext);
+          } catch (err) {
+            fail(err instanceof Error ? err.message : "failed to parse cursor agent output");
+            return;
+          }
+          if (parsed.kind === "tool_calls") {
+            parsed.tool_calls.forEach((toolCall, index) => sendSse(response, toolCallChunk(id, model, toolCall, index)));
+            sendSse(response, finishChunk(id, model, "tool_calls"));
+          } else {
+            sendSse(response, roleChunk(id, model));
+            if (parsed.content) {
+              sendSse(response, completionChunk(id, model, parsed.content, null));
+            }
+            sendSse(response, finishChunk(id, model, "stop"));
+          }
         }
       } else {
         sendSse(response, completionChunk(id, model, "", "stop"));
@@ -823,7 +993,11 @@ async function handleJsonChat(response: ServerResponse, request: ChatRequest, pr
   const id = `chatcmpl-${randomUUID()}`;
   const child = spawnCursorAgent(model, prompt, false);
   const stdout: Buffer[] = [];
-  const timeout = setTimeout(() => stopProcess(child), REQUEST_TIMEOUT_MS);
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    stopProcess(child);
+  }, REQUEST_TIMEOUT_MS);
   let responded = false;
 
   child.stdout.on("data", (chunk) => stdout.push(Buffer.from(chunk)));
@@ -839,6 +1013,10 @@ async function handleJsonChat(response: ServerResponse, request: ChatRequest, pr
     }
     responded = true;
     clearTimeout(timeout);
+    if (timedOut) {
+      error(response, 502, `cursor agent timed out after ${REQUEST_TIMEOUT_MS}ms`);
+      return;
+    }
     if (code !== 0) {
       error(response, 502, `cursor agent exited with code ${code}`);
       return;
@@ -984,8 +1162,10 @@ export const _test = Object.freeze({
   parsePositiveInteger,
   contentToText,
   cursorEnvironment,
+  createToolAwareStreamState,
   deterministicToolCallId,
   finishChunk,
+  flushPendingToolAwareText,
   roleChunk,
   unsupportedMessage,
   promptFromMessages,
@@ -998,6 +1178,7 @@ export const _test = Object.freeze({
   toolCallChunk,
   toolContextFromRequest,
   toolDefinitions,
+  updateToolAwareStreamState,
   modelsResponse,
   healthResponse,
 });
