@@ -149,7 +149,9 @@
         {
           cargo-coupling = final.callPackage ./pkgs/cargo-coupling { };
           glim = final.callPackage ./pkgs/glim { };
+          sem = final.callPackage ./pkgs/sem { };
           tsql = final.callPackage ./pkgs/tsql { };
+          weave = final.callPackage ./pkgs/weave { };
 
           opencode = prev.opencode.overrideAttrs (
             old:
@@ -319,7 +321,13 @@
         {
           formatter = pkgs.nixfmt-rfc-style;
           packages = {
-            inherit (pkgs) cargo-coupling glim tsql;
+            inherit (pkgs)
+              cargo-coupling
+              glim
+              sem
+              tsql
+              weave
+              ;
           };
           checks =
             builtins.listToAttrs (
@@ -329,7 +337,13 @@
               }) hosts
             )
             // {
-              inherit (pkgs) cargo-coupling glim tsql;
+              inherit (pkgs)
+                cargo-coupling
+                glim
+                sem
+                tsql
+                weave
+                ;
               lib-runTests = libRunTestsCheck;
               merge-dirs-test = mergeDirsCheck;
               opencode-version-alignment = opencodeVersionAlignmentCheck;

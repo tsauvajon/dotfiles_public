@@ -4,7 +4,7 @@ description: Rebase safely with deep conflict resolution, run checks, and verify
 compatibility: opencode
 metadata:
   status: experimental
-  version: "0.3.0"
+  version: "0.4.0"
 ---
 
 # Safe Rebase
@@ -16,6 +16,7 @@ Rebase the current branch with deliberate conflict resolution, validation, and a
 - Run inside a git repository on a feature branch (not `main`/`master`)
 - `task` is available and supports `task rebase` and `task check`
 - Working tree is clean before rebasing (create a meaningful safeguard commit first if needed)
+- `weave` is optional. Use it when installed and the rebase is likely to involve non-trivial text conflicts.
 
 ## Step 0: Pre-flight, Clean Tree, and Baseline Capture
 
@@ -34,8 +35,25 @@ Rebase the current branch with deliberate conflict resolution, validation, and a
    - `OLD_MERGE_BASE="$(git merge-base HEAD "$BASE")"`
    - `git log --oneline "$OLD_MERGE_BASE"..HEAD`
    - `git diff --stat "$OLD_MERGE_BASE"...HEAD`
+7. Detect Weave availability and local configuration:
+   - `command -v weave`
+   - `git config --get merge.weave.driver`
+   - If Weave is installed but not configured, use `weave setup --local` when the branch is conflict-prone or touches supported structured files.
+   - Do not use plain `weave setup` unless the user explicitly wants tracked `.gitattributes` entries.
 
-## Step 1: Run Rebase Task
+## Step 1: Optional Weave Preview
+
+If Weave is installed, preview the rebase target before starting when conflicts are likely:
+
+```bash
+weave preview "$BASE"
+```
+
+Treat preview output as advisory. A rebase replays commits one at a time, so this preview is a conflict-risk signal rather than a full simulation of every rebase step.
+
+If Weave was configured with `weave setup --local`, normal Git rebase operations will invoke it automatically for files matched by `.git/info/attributes`.
+
+## Step 2: Run Rebase Task
 
 Run:
 
@@ -43,9 +61,11 @@ Run:
 task rebase
 ```
 
-If no conflicts occur, continue to Step 3.
+If no conflicts occur, continue to Step 4.
 
-## Step 2: Resolve Conflicts Deeply (When Needed)
+## Step 3: Resolve Conflicts Deeply (When Needed)
+
+Weave may auto-resolve supported files through Git's merge driver. If conflicts remain, resolve them manually and do not assume Weave's partial output is complete or semantically correct.
 
 For each conflicted file:
 
@@ -60,7 +80,8 @@ For each conflicted file:
 3. Resolve by preserving behavior and invariants, not just removing markers.
 4. Check for unintended deletions, duplicated logic, silent behavior changes, and API/contract drift.
    - If conflicts involve version fields (for example `Cargo.toml`), keep the single intended semantic version bump for the branch and avoid duplicate or accidental rollback bumps.
-5. Stage resolved file with `git add <file>`.
+5. For Weave-covered files, optionally confirm the active merge driver with `git check-attr merge -- <file>`.
+6. Stage resolved file with `git add <file>`.
 
 After resolving a conflict batch, run focused validation relevant to touched areas when possible. Then continue rebase with:
 
@@ -76,7 +97,7 @@ GIT_EDITOR=true git rebase --continue
 
 Repeat until the rebase completes.
 
-## Step 3: Normalize Formatting
+## Step 4: Normalize Formatting
 
 Before full validation, normalize formatting for touched files using project tooling:
 
@@ -86,7 +107,7 @@ Before full validation, normalize formatting for touched files using project too
 
 Then stage any formatting-only updates produced during conflict resolution.
 
-## Step 4: Run Full Validation
+## Step 5: Run Full Validation
 
 Run:
 
@@ -96,7 +117,7 @@ task check
 
 If `task check` fails, fix issues and rerun until it passes.
 
-## Step 5: Clean Tree Gate
+## Step 6: Clean Tree Gate
 
 After validation passes, verify the tree is clean:
 
@@ -111,7 +132,7 @@ If output is non-empty:
 3. Re-check cleanliness.
 4. If still dirty, report exact files and classify risk (expected/generated vs potentially unintended behavior changes).
 
-## Step 6: Final Pass Against Default Branch
+## Step 7: Final Pass Against Default Branch
 
 1. Recompute base after rebase:
    - `NEW_HEAD="$(git rev-parse HEAD)"`
@@ -124,12 +145,14 @@ If output is non-empty:
    - `git diff "$NEW_MERGE_BASE"...HEAD`
 4. Investigate any unexpected changes and correct them before finishing.
 
-## Step 7: Report Results
+## Step 8: Report Results
 
 Return:
 
 - Rebase outcome (success/failure)
 - Whether conflicts occurred and how they were resolved
+- Whether Weave was installed, previewed, or configured locally
+- Whether Weave auto-resolution was used and which files still required manual resolution
 - Whether non-interactive editor fallback (`GIT_EDITOR=true`) was required
 - Whether formatting produced follow-up changes after conflict resolution
 - `task check` result
