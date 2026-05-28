@@ -74,9 +74,6 @@ __dotfiles_prefer_nix_bins
 ## Run fastfetch at start
 function fish_greeting
     fastfetch
-    if command -q tool-habit
-        tool-habit 2>/dev/null; or true
-    end
 end
 
 # Aliases

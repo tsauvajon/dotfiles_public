@@ -146,6 +146,7 @@ in
         source = ../config/fish;
         recursive = true;
       };
+      "fastfetch".source = ../config/fastfetch;
       "helix".source = ../config/helix;
       "bat".source = ../config/bat;
       # User-level Nix config: enables flakes + nix-command on every

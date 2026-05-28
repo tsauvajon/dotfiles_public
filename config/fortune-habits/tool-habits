@@ -10,29 +10,15 @@ fastfetch: print a system summary with `fastfetch` when you need quick OS and ha
 %
 fzf: pipe candidates into `fzf` when you are choosing from a list.
 %
-gh: GitHub PRs and issues are one `gh pr view` or `gh issue list` away.
-%
-glab: use `glab mr list` and `glab ci status` for GitLab context.
-%
 glim: open the GitLab CI/CD TUI with `glim`.
 %
-gurk-rs: when personal Signal TUI support is enabled, start it with `gurk`.
+gurk-rs: Signal TUI, start it with `gurk`.
 %
 jiq: shape JSON interactively with `jiq data.json` or `curl ... | jiq`.
 %
-mdterm: render Markdown in the terminal with `mdterm README.md`.
-%
 mqttui: browse MQTT topics with `mqttui --broker localhost`.
 %
-opencode-shared: launch OpenCode through the shared local server with `opencode-shared`.
-%
-qpdf: inspect or rewrite PDFs with `qpdf in.pdf --pages . 1-3 -- out.pdf`.
-%
 rainfrog: connect to Postgres in a TUI with `rainfrog postgres://user:pass@host/db`.
-%
-rd: search with ripgrep plus delta output using `rd pattern`.
-%
-sqlx: remember `sqlx migrate run` and `sqlx database create`.
 %
 tdf: view PDFs in the terminal with `tdf file.pdf`; `/` searches and `q` quits.
 %
@@ -40,15 +26,7 @@ tsql: try the keyboard-first Postgres CLI with `tsql postgres://user:pass@host/d
 %
 tw: inspect tabular data quickly with `tw data.csv`.
 %
-zellij: start or attach to terminal workspaces with `zellij` or `zellij attach`.
-%
-zoxide: jump by frecency with `z dir`, or choose interactively with `zi`.
-%
-bat: use `bat -p file` when you want a syntax-highlighted `cat`.
-%
 cyme: modern USB listing is available as `cyme --tree` or the `lsusb` alias.
-%
-delta: let `delta` make diffs readable when reviewing `git diff`.
 %
 dust: find disk usage hotspots with `dust` or `dust -d 2`.
 %
@@ -61,6 +39,4 @@ gpg-tui: manage GPG keys with `gpg-tui` when raw `gpg` is too fiddly.
 htop: use `htop` when process CPU, memory, or tree view matters.
 %
 ouch: compress and extract archives with `ouch c` and `ouch d`.
-%
-yazi: open the terminal file manager with `yazi`, or jump through the `y` helper.
 %
