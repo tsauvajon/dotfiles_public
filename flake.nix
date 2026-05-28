@@ -334,7 +334,7 @@
             fi
 
             set +e
-            output="$(${pkgs.tool-habit}/bin/tool-habit 2>&1)"
+            output="$(NO_COLOR=1 ${pkgs.tool-habit}/bin/tool-habit 2>&1)"
             status=$?
             set -e
 
@@ -353,6 +353,23 @@
               echo "tool-habit output does not start with a lowercase tool prefix: $output" >&2
               exit 1
             fi
+
+            colored_output="$(${pkgs.tool-habit}/bin/tool-habit 2>&1)"
+            escape="$(printf '\033')"
+            case "$colored_output" in
+              *"$escape"*) ;;
+              *)
+                echo "tool-habit colored output contains no ANSI escapes: $colored_output" >&2
+                exit 1
+                ;;
+            esac
+
+            case "$colored_output" in
+              *\`*)
+                echo "tool-habit colored output should replace command backticks: $colored_output" >&2
+                exit 1
+                ;;
+            esac
 
             touch "$out"
           '';

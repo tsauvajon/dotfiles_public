@@ -30,10 +30,11 @@ stdenvNoCC.mkDerivation {
     install -m 444 "$src" "$out/share/fortune-habits/tool-habits"
     install -m 444 tool-habits.dat "$out/share/fortune-habits/tool-habits.dat"
 
-    printf '%s\n' \
-      '#!${stdenvNoCC.shell}' \
-      "exec ${fortune}/bin/fortune \"\$@\" \"$out/share/fortune-habits/tool-habits\"" \
-      > "$out/bin/tool-habit"
+    install -m 755 ${./tool-habit.sh} "$out/bin/tool-habit"
+    substituteInPlace "$out/bin/tool-habit" \
+      --replace-fail @fortune@ ${fortune}/bin/fortune \
+      --replace-fail @habits@ "$out/share/fortune-habits/tool-habits"
+    patchShebangs "$out/bin/tool-habit"
     chmod 755 "$out/bin/tool-habit"
 
     runHook postInstall
