@@ -39,11 +39,6 @@
       "keyColor": "34"
     },
     {
-      "type": "packages",
-      "key": "Packages",
-      "keyColor": "34"
-    },
-    {
       "type": "shell",
       "key": "Shell",
       "keyColor": "34"
@@ -139,15 +134,22 @@
       "key": "Power",
       "keyColor": "32"
     },
-    {
-      "type": "sound",
-      "key": "Sound",
-      "keyColor": "32"
-    },
     "break",
     {
       "type": "custom",
       "format": "{#cyan}Software{#}"
+    },
+    {
+      "type": "command",
+      "key": "Habit",
+      "keyColor": "36",
+      "text": "tool-habit",
+      "format": "{result}"
+    },
+    {
+      "type": "packages",
+      "key": "Packages",
+      "keyColor": "36"
     },
     {
       "type": "command",
@@ -161,13 +163,6 @@
       "key": "Rust",
       "keyColor": "36",
       "text": "sh $HOME/.config/fastfetch/rust-status.sh",
-      "format": "{result}"
-    },
-    {
-      "type": "command",
-      "key": "Habit",
-      "keyColor": "36",
-      "text": "tool-habit",
       "format": "{result}"
     }
   ]
