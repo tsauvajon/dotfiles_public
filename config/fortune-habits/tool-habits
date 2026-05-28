@@ -16,7 +16,11 @@ gurk-rs: Signal TUI, start it with `gurk`.
 %
 jiq: shape JSON interactively with `jiq data.json` or `curl ... | jiq`.
 %
+jq: pretty-print JSON with `jq . file.json`, or extract fields with `jq -r '.items[].name' data.json`.
+%
 mqttui: browse MQTT topics with `mqttui --broker localhost`.
+%
+qpdf: inspect PDFs with `qpdf --check file.pdf`, or list help topics with `qpdf --help`.
 %
 rainfrog: connect to Postgres in a TUI with `rainfrog postgres://user:pass@host/db`.
 %
