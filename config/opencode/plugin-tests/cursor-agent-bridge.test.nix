@@ -21,8 +21,10 @@ pkgs.runCommand "cursor-agent-bridge-test"
     cp "$testFile" plugin-tests/cursor-agent-bridge.test.ts
     cp "$integrationTestFile" plugin-tests/cursor-agent-bridge.integration.test.ts
 
-    grep -Fq 'export const _test' plugins/cursor-agent-bridge.ts \
-      || fail "cursor-agent bridge should expose test helpers"
+    ! grep -Fq 'export const _test' plugins/cursor-agent-bridge.ts \
+      || fail "cursor-agent bridge must not export non-plugin test helpers"
+    grep -Fq 'Object.keys(module)' plugin-tests/cursor-agent-bridge.test.ts \
+      || fail "cursor-agent bridge tests should assert the module only exports default"
     ! grep -Fq '"@cursor/sdk"' "$packageJson" \
       || fail "@cursor/sdk must stay lazy/optional and not be a public unconditional dependency"
     for helper in \

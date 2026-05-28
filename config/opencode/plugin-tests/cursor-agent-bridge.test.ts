@@ -1,9 +1,18 @@
 import { describe, expect, test } from "bun:test";
 
-import { _test } from "../plugins/cursor-agent-bridge";
+import CursorAgentBridgePlugin from "../plugins/cursor-agent-bridge";
+
+const _test = CursorAgentBridgePlugin._test;
 
 describe("cursor-agent-bridge pure helpers", () => {
+  test("only default-exports the plugin function", async () => {
+    const module = await import("../plugins/cursor-agent-bridge");
+
+    expect(Object.keys(module)).toEqual(["default"]);
+  });
+
   test("exposes the expected test seam", () => {
+    expect(typeof CursorAgentBridgePlugin).toBe("function");
     expect(Object.isFrozen(_test)).toBe(true);
     expect(Object.keys(_test).sort()).toEqual([
       "contentToText",

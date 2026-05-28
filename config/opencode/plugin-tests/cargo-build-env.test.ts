@@ -3,10 +3,19 @@ import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { describe, expect, test } from "bun:test";
 
-import { _test } from "../plugins/cargo-build-env";
+import CargoBuildEnvPlugin from "../plugins/cargo-build-env";
+
+const _test = CargoBuildEnvPlugin._test;
 
 describe("cargo-build-env pure helpers", () => {
+  test("only default-exports the plugin function", async () => {
+    const module = await import("../plugins/cargo-build-env");
+
+    expect(Object.keys(module)).toEqual(["default"]);
+  });
+
   test("exposes the expected test seam", () => {
+    expect(typeof CargoBuildEnvPlugin).toBe("function");
     expect(Object.isFrozen(_test)).toBe(true);
     expect(Object.keys(_test).sort()).toEqual([
       "commandPath",

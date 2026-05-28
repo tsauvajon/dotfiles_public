@@ -18,8 +18,10 @@ pkgs.runCommand "cargo-build-env-test"
     cp "$plugin" plugins/cargo-build-env.ts
     cp "$testFile" plugin-tests/cargo-build-env.test.ts
 
-    grep -Fq 'export const _test' plugins/cargo-build-env.ts \
-      || fail "cargo-build-env should expose test helpers"
+    ! grep -Fq 'export const _test' plugins/cargo-build-env.ts \
+      || fail "cargo-build-env must not export non-plugin test helpers"
+    grep -Fq 'Object.keys(module)' plugin-tests/cargo-build-env.test.ts \
+      || fail "cargo-build-env tests should assert the module only exports default"
     for helper in \
       commandPath \
       isCacheWrapperValue \

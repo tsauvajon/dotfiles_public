@@ -196,7 +196,7 @@ function isExecutable(path: string): boolean {
   }
 }
 
-export default (async ({ client }) => ({
+const CargoBuildEnvPlugin = (async ({ client }) => ({
   "shell.env": async (input, output) => {
     if (process.platform !== "darwin") {
       return;
@@ -248,9 +248,13 @@ export default (async ({ client }) => ({
   },
 })) satisfies Plugin;
 
-export const _test = Object.freeze({
+const testHelpers = Object.freeze({
   commandPath,
   isCacheWrapperValue,
   isKacheWrapperValue,
   rustCacheEnv,
 });
+
+Object.defineProperty(CargoBuildEnvPlugin, "_test", { value: testHelpers });
+
+export default CargoBuildEnvPlugin as typeof CargoBuildEnvPlugin & { readonly _test: typeof testHelpers };

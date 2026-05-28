@@ -1933,7 +1933,7 @@ function metricsResponse() {
 }
 
 /** @internal Test seam for pure helpers; not used by OpenCode at runtime. */
-export const _test = Object.freeze({
+const testHelpers = Object.freeze({
   parsePositiveInteger,
   contentToText,
   cursorEnvironment,
@@ -2034,12 +2034,16 @@ function runStandalone(): void {
   process.once("SIGINT", shutdown);
 }
 
-export default (async () => {
+const CursorAgentBridgePlugin = (async () => {
   // The Home Manager service owns the singleton HTTP listener. OpenCode
   // processes still load this file as a plugin, but they must not race to bind
   // the fixed provider port.
   return {};
 }) satisfies Plugin;
+
+Object.defineProperty(CursorAgentBridgePlugin, "_test", { value: testHelpers });
+
+export default CursorAgentBridgePlugin as typeof CursorAgentBridgePlugin & { readonly _test: typeof testHelpers };
 
 if (import.meta.main && process.env.OPENCODE_CURSOR_AGENT_BRIDGE_STANDALONE === "1") {
   runStandalone();
