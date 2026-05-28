@@ -144,33 +144,10 @@
       "key": "Sound",
       "keyColor": "32"
     },
-    {
-      "type": "bluetoothradio",
-      "key": "Bluetooth",
-      "keyColor": "32"
-    },
-    {
-      "type": "bluetooth",
-      "key": "BT Device",
-      "keyColor": "32"
-    },
-    {
-      "type": "camera",
-      "key": "Camera",
-      "keyColor": "32"
-    },
-
     "break",
     {
       "type": "custom",
       "format": "{#cyan}Software{#}"
-    },
-    {
-      "type": "command",
-      "key": "Tasks",
-      "keyColor": "36",
-      "text": "task list | awk '/^\\| open[[:space:]]*\\|/ { open++ } /^\\| parked[[:space:]]*\\|/ { parked++ } END { printf \"%d open, %d parked\", open + 0, parked + 0 }'",
-      "format": "{result}"
     },
     {
       "type": "command",
