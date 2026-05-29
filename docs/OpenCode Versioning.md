@@ -97,7 +97,7 @@ channels to one DB.
 
 ## Current Version Pin
 
-These dotfiles currently pin OpenCode to `1.15.11` in `flake.nix` via
+These dotfiles currently pin OpenCode to `1.15.12` in `flake.nix` via
 `opencodePin`, which holds the OpenCode version, source hash, and fixed-output
 `nodeModulesHash`.
 
@@ -110,7 +110,7 @@ Keep `config/opencode/package.json` aligned with the same version:
 ```json
 {
   "dependencies": {
-    "@opencode-ai/plugin": "1.15.11"
+    "@opencode-ai/plugin": "1.15.12"
   }
 }
 ```
