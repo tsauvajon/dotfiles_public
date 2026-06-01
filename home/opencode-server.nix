@@ -260,6 +260,7 @@ in
             WorkingDirectory = config.home.homeDirectory;
             Restart = "on-failure";
             RestartSec = 2;
+            TimeoutStopSec = "15s";
             Environment = lib.mapAttrsToList (name: value: "${name}=${value}") serviceEnvironment;
           };
           Install.WantedBy = [ "default.target" ];

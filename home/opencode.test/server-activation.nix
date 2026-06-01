@@ -34,4 +34,11 @@ in
       && (lib.hasInfix "restart failed or did not become healthy" opencodeServerModuleSource);
     expected = true;
   };
+
+  testServerStopIsBounded = {
+    expr = lib.hasInfix ''
+      TimeoutStopSec = "15s";
+    '' opencodeServerModuleSource;
+    expected = true;
+  };
 }
