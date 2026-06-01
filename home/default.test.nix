@@ -16,6 +16,7 @@
 let
   home = ./.;
   source = builtins.readFile (home + "/default.nix");
+  rustModuleSource = builtins.readFile (home + "/rust.nix");
 
   # Pull every relative path (`./` followed by non-whitespace, ending
   # in either `.nix` or a directory name) out of the file. The leading
@@ -57,5 +58,22 @@ in
   testImportsResolve = {
     expr = missing;
     expected = [ ];
+  };
+
+  testKacheUsesGracefulBoundedStop = {
+    expr =
+      (lib.hasInfix ''
+        ExecStop = "''${kacheBin} daemon stop";
+      '' rustModuleSource)
+      && (lib.hasInfix ''
+        KillSignal = "SIGKILL";
+      '' rustModuleSource)
+      && (lib.hasInfix ''
+        TimeoutStopSec = "5s";
+      '' rustModuleSource)
+      && (lib.hasInfix ''
+        KACHE_DAEMON_IDLE_TIMEOUT = "0";
+      '' rustModuleSource);
+    expected = true;
   };
 }

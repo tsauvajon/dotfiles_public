@@ -56,6 +56,7 @@ let
   kacheEnvironment = {
     HOME = config.home.homeDirectory;
     KACHE_CONFIG = "${config.xdg.configHome}/kache/config.toml";
+    KACHE_DAEMON_IDLE_TIMEOUT = "0";
     KACHE_LOG = "kache=info";
     PATH = defaultPath;
   };
@@ -141,9 +142,12 @@ lib.mkMerge [
       };
       Service = {
         ExecStart = "${kacheBin} daemon run";
+        ExecStop = "${kacheBin} daemon stop";
         Environment = lib.mapAttrsToList (name: value: "${name}=${value}") kacheEnvironment;
+        KillSignal = "SIGKILL";
         Restart = "on-failure";
-        RestartSec = 2;
+        RestartSec = 5;
+        TimeoutStopSec = "5s";
         Type = "simple";
       };
       Install.WantedBy = [ "default.target" ];
