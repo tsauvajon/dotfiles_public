@@ -34,7 +34,7 @@ These are intentionally outside normal flake updates:
 - `home/cargo-locks/helix-file-watcher.Cargo.lock`: Cargo git dependencies are locked separately from Nix flakes.
 - `pkgs/cargo-coupling/default.nix`: fixed version, source hash, and `cargoHash`.
 - `pkgs/glim/default.nix`: fixed version, source hash, and `cargoHash`.
-- `pkgs/kache/default.nix`: fixed release version and per-platform binary hashes.
+- `pkgs/kache/default.nix`: fixed release version, binary hashes for upstream-published platforms, and source/Cargo hashes for fallback builds.
 - `pkgs/tsql/default.nix`: fixed release version and per-platform binary hashes.
 - `flake.nix`: `opencodePin` overrides the Nix-managed OpenCode binary/server version, source hash, and fixed-output `node_modules` hash.
 - `config/opencode/package.json`: OpenCode plugin dependencies are installed by Bun during activation, not by Nix flake updates. Keep plugin SDK versions aligned with `opencodePin.version`; see [OpenCode Versioning](OpenCode%20Versioning.md).
@@ -57,7 +57,7 @@ When doing a dependency refresh, check each layer explicitly:
 1. Public flakes: `nix flake update` in this repo.
 2. Private flakes: `nix flake update ~/.config/dotfiles` when private inputs should move.
 3. Exact-rev public inputs: edit `flake.nix` URLs manually, then update related code or lock files.
-4. Local packages under `pkgs/`: bump versions and refresh source hashes plus `cargoHash` or platform hashes.
+4. Local packages under `pkgs/`: bump versions and refresh source hashes plus `cargoHash`, platform binary hashes, or both for mixed source/binary packages.
 5. Helix plugin Cargo locks: refresh `home/cargo-locks/*.Cargo.lock` when plugin Cargo dependencies move.
 6. OpenCode binary/plugin: update `opencodePin` in `flake.nix` and `config/opencode/package.json` together, then run `nix flake check` so `opencode-version-alignment` catches drift.
 7. OpenCode package manifests: update private overlay package manifests when needed, then run `bash setup.sh` so activation runs Bun install.
