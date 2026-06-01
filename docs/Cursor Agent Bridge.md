@@ -1,5 +1,17 @@
 # Cursor Agent Bridge
 
+The Cursor Agent bridge is disabled by default. Opt in from the private flake
+overlay with a Home Manager module:
+
+```nix
+homeModules = [
+  ({ ... }: { programs.opencode.cursorAgentBridge.enable = true; })
+];
+```
+
+When disabled, Home Manager does not install/start the bridge service and the
+generated OpenCode config omits the `cursor-agent` provider entry.
+
 The Cursor Agent bridge's production default is the Cursor CLI backend. It runs
 the Cursor CLI as a child process with a small environment allowlist and exposes
 an OpenAI-compatible local HTTP API for OpenCode.

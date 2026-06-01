@@ -170,10 +170,21 @@ let
   # JSON fragments live next to the private overlay's `opencode/` dir
   # (see `privateOpencodeDir` above) so the discovery root stays stable
   # even when `configFile` is overridden by a downstream private flake.
-  mergedJson = mkMergedOpencodeJson {
+  mergedJsonWithCursorProvider = mkMergedOpencodeJson {
     inherit publicRoot importsDirs privateOpencodeDir;
     inherit privateConfigFile;
   };
+  mergedJson =
+    if cfg.cursorAgentBridge.enable || !(mergedJsonWithCursorProvider ? provider) then
+      mergedJsonWithCursorProvider
+    else
+      let
+        providerWithoutCursor = builtins.removeAttrs mergedJsonWithCursorProvider.provider [ "cursor-agent" ];
+      in
+      if providerWithoutCursor == { } then
+        builtins.removeAttrs mergedJsonWithCursorProvider [ "provider" ]
+      else
+        mergedJsonWithCursorProvider // { provider = providerWithoutCursor; };
 
   publicPackage = readJsonOr (publicRoot + "/package.json") { };
   privatePackage = readJsonOr privatePackageFile { };

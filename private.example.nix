@@ -122,6 +122,13 @@
       # Optional — extra Home Manager modules contributed by this overlay.
       # Anything in this list is appended to the public flake's module
       # list and loaded into every host configuration.
+      #
+      # Example: opt in to the Cursor Agent bridge, which is disabled by
+      # default in the public dotfiles:
+      #
+      #   homeModules = [
+      #     ({ ... }: { programs.opencode.cursorAgentBridge.enable = true; })
+      #   ];
       homeModules = [ ];
     };
 

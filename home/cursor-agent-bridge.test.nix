@@ -2,9 +2,19 @@
 
 let
   bridgeModuleSource = builtins.readFile ./cursor-agent-bridge.nix;
+  opencodeModuleSource = builtins.readFile ./opencode.nix;
   bridgePluginSource = builtins.readFile ../config/opencode/plugins/cursor-agent-bridge.ts;
 in
 {
+  testCursorAgentBridgeIsDisabledByDefault = {
+    expr =
+      (lib.hasInfix "default = false;" bridgeModuleSource)
+      && (lib.hasInfix "config = lib.mkIf cfg.enable" bridgeModuleSource)
+      && (lib.hasInfix "cfg.cursorAgentBridge.enable" opencodeModuleSource)
+      && (lib.hasInfix ''builtins.removeAttrs mergedJsonWithCursorProvider.provider [ "cursor-agent" ]'' opencodeModuleSource);
+    expected = true;
+  };
+
   testCursorAgentBridgeUsesFixedProviderPort = {
     expr =
       (lib.hasInfix ''port = "43115";'' bridgeModuleSource)

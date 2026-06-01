@@ -160,7 +160,7 @@ in
   options.programs.opencode.cursorAgentBridge = {
     enable = lib.mkOption {
       type = lib.types.bool;
-      default = true;
+      default = false;
       description = ''
         Run the local Cursor Agent OpenAI-compatible bridge as a
         Home Manager-managed user service. The OpenCode plugin file is
