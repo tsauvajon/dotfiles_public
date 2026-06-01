@@ -21,6 +21,7 @@
     ./helix-plugins.nix
     ./launchd-goto.nix
     ./nodejs.nix
+    ./nixgl-nvidia-doctor.nix
     ./opencode.nix
     ./opencode-server.nix
     ./personal.nix

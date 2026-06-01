@@ -377,6 +377,7 @@
             inherit pkgs lib;
           };
           gpgPinentryCheck = import ./scripts/lib/configure-gpg-pinentry.test.nix { inherit pkgs lib; };
+          nixglNvidiaDoctorCheck = import ./scripts/nixgl-nvidia-doctor.test.nix { inherit pkgs lib; };
           yaziLiveSearchCheck = import ./config/yazi/live-search.test.nix { inherit pkgs; };
           cursorAgentBridgeCheck = import ./config/opencode/plugin-tests/cursor-agent-bridge.test.nix {
             inherit pkgs;
@@ -440,6 +441,7 @@
               tool-habit-smoke = toolHabitSmokeCheck;
               patch-string-field-test = patchStringFieldCheck;
               configure-gpg-pinentry-test = gpgPinentryCheck;
+              nixgl-nvidia-doctor-test = nixglNvidiaDoctorCheck;
               yazi-live-search-test = yaziLiveSearchCheck;
               cursor-agent-bridge-test = cursorAgentBridgeCheck;
               cargo-build-env-test = cargoBuildEnvCheck;

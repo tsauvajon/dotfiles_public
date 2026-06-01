@@ -45,6 +45,20 @@
       '';
     })
 
+    (pkgs.writeShellApplication {
+      name = "nixgl-nvidia-doctor";
+      runtimeInputs = [
+        pkgs.bash
+        pkgs.coreutils
+        pkgs.gnugrep
+        pkgs.gnused
+      ];
+      text = ''
+        export NIXGL_NVIDIA_CONFIG_FILE=${../../home/hosts/linux.nix}
+        exec bash ${../../scripts/nixgl-nvidia-doctor.sh} "$@"
+      '';
+    })
+
     # Force Chromium's macOS window surface to repaint after it gets stuck
     # showing stale pixels while tab/browser state continues to update.
     (pkgs.writeShellApplication {

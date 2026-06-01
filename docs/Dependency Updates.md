@@ -29,7 +29,7 @@ These are intentionally outside normal flake updates:
 
 - `flake.nix`: `nixgl-nixpkgs` is pinned to an exact nixpkgs commit for nixGL stability.
 - `flake.nix`: Steel, Helix plugin sources, and `ddcctl-src` use exact commits or a fixed tag.
-- `home/hosts/linux.nix`: NVIDIA driver version and hash for nixGL are manual literals.
+- `home/hosts/linux.nix`: NVIDIA driver version and hash for nixGL are manual literals. Run `nixgl-nvidia-doctor` when graphical Nix apps fail after a driver update, then use `scripts/nvidia-driver-hash.sh <version>` to refresh the hash.
 - `home/helix-plugins.nix`: `helix-file-watcher` rewrites its Steel dependency to the same pinned Steel commit.
 - `home/cargo-locks/helix-file-watcher.Cargo.lock`: Cargo git dependencies are locked separately from Nix flakes.
 - `pkgs/cargo-coupling/default.nix`: fixed version, source hash, and `cargoHash`.
