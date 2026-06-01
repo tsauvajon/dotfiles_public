@@ -13,6 +13,17 @@
 let
   fishPath = "${config.home.profileDirectory}/bin/fish";
 
+  safeFootConfig = pkgs.writeText "safe-foot.ini" ''
+    font=monospace:size=12
+  '';
+
+  safeTerminal = pkgs.writeShellScriptBin "safe-terminal" ''
+    export PATH="$HOME/.nix-profile/bin:/run/current-system/sw/bin:/usr/bin:/bin"
+    export SHELL=${pkgs.bash}/bin/bash
+
+    exec ${pkgs.foot}/bin/foot --config=${safeFootConfig} -- ${pkgs.bash}/bin/bash --noprofile --norc
+  '';
+
   wrapWithNixGL = import ./lib/wrap-with-nixgl.nix {
     inherit pkgs;
     inherit (inputs) nixgl nixgl-nixpkgs;
@@ -30,6 +41,7 @@ in
     pkgs.fish
     pkgs.just
     (wrapWithNixGL pkgs.kitty "kitty")
+    safeTerminal
     pkgs.socat
     pkgs.tool-habit
     pkgs.websocat
