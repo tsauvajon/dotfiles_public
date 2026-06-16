@@ -16,6 +16,7 @@
     jq
     ouch
     qpdf
+    qrtool
     ripgrep
     tabiew
     tdf

@@ -102,8 +102,9 @@ in
       type = lib.types.bool;
       default = privateChromium.enable or true;
       description = ''
-        Install Chromium. On Linux this uses `pkgs.chromium`. On macOS
-        this declares a Homebrew-managed cask for the official Chromium app.
+        Install Chromium. On Linux this uses `pkgs.chromium` with Widevine
+        enabled. On macOS this declares a Homebrew-managed cask for the
+        official Chromium app.
       '';
     };
 
@@ -136,7 +137,9 @@ in
     home.packages =
       lib.optionals cfg.signal.enable [ pkgs.signal-desktop ]
       ++ lib.optionals cfg.gurk.enable [ pkgs.gurk-rs ]
-      ++ lib.optionals (cfg.chromium.enable && pkgs.stdenv.isLinux) [ pkgs.chromium ]
+      ++ lib.optionals (cfg.chromium.enable && pkgs.stdenv.isLinux) [
+        (pkgs.chromium.override { enableWideVine = true; })
+      ]
       ++ lib.optionals (cfg.naps2.enable && pkgs.stdenv.isLinux) [ pkgs.naps2 ]
       ++ lib.optionals (cfg.tailscale.enable && pkgs.stdenv.isLinux) [ pkgs.tailscale ]
       ++ lib.optionals cfg.plezy.enable [ pkgs.plezy ];
