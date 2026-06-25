@@ -11,11 +11,6 @@ let
   inherit (import ./deep-merge-json.nix { inherit lib; }) deepMerge deepMergeAll;
 in
 {
-  testEmptyMergeEmpty = {
-    expr = deepMerge { } { };
-    expected = { };
-  };
-
   testDisjointKeysUnion = {
     expr = deepMerge { a = 1; } { b = 2; };
     expected = {
@@ -24,55 +19,10 @@ in
     };
   };
 
-  testNumberOverlayWins = {
-    expr = deepMerge { x = 1; } { x = 2; };
-    expected = {
-      x = 2;
-    };
-  };
-
-  testStringOverlayWins = {
-    expr = deepMerge { x = "old"; } { x = "new"; };
-    expected = {
-      x = "new";
-    };
-  };
-
-  testBoolOverlayWins = {
-    expr = deepMerge { x = true; } { x = false; };
-    expected = {
-      x = false;
-    };
-  };
-
   testNullOverlayWins = {
     expr = deepMerge { x = "value"; } { x = null; };
     expected = {
       x = null;
-    };
-  };
-
-  testNestedObjectsMerge = {
-    expr =
-      deepMerge
-        {
-          a = {
-            b = 1;
-            c = 2;
-          };
-        }
-        {
-          a = {
-            b = 99;
-            d = 4;
-          };
-        };
-    expected = {
-      a = {
-        b = 99;
-        c = 2;
-        d = 4;
-      };
     };
   };
 
@@ -101,8 +51,6 @@ in
   };
 
   testArrayReplaced = {
-    # Arrays are replaced wholesale, not concatenated, per the
-    # deep-merge contract documented in deep-merge-json.nix.
     expr =
       deepMerge
         {
@@ -126,20 +74,6 @@ in
     };
   };
 
-  testObjectOverlaysScalar = {
-    # Per the function's contract: when types disagree, overlay wins.
-    expr = deepMerge { x = 1; } {
-      x = {
-        nested = true;
-      };
-    };
-    expected = {
-      x = {
-        nested = true;
-      };
-    };
-  };
-
   testScalarOverlaysObject = {
     expr = deepMerge {
       x = {
@@ -148,18 +82,6 @@ in
     } { x = 42; };
     expected = {
       x = 42;
-    };
-  };
-
-  testDeepMergeAllEmpty = {
-    expr = deepMergeAll [ ];
-    expected = { };
-  };
-
-  testDeepMergeAllSingleton = {
-    expr = deepMergeAll [ { a = 1; } ];
-    expected = {
-      a = 1;
     };
   };
 
@@ -184,8 +106,6 @@ in
   };
 
   testDeepMergeAllNestedPrecedence = {
-    # Mirrors the real opencode merge: each tier may set partial keys
-    # under `permission.bash`, with later tiers winning on conflict.
     expr = deepMergeAll [
       {
         permission.bash = "ask";

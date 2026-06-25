@@ -14,8 +14,8 @@
 
 let
   # Read the palette directly from the source-only catppuccin-palette
-  # flake input. Going through `inputs.catppuccin.packages.<system>.palette`
-  # forced an import-from-derivation on a system-specific build, which
+  # flake input. Going through a system-specific Catppuccin package build
+  # forced an import-from-derivation, which
   # blocked pure cross-system eval (e.g. `nix flake check --all-systems`
   # from a Darwin host).
   catppuccinMocha =
@@ -148,7 +148,6 @@ in
       };
       "fastfetch".source = ../config/fastfetch;
       "helix".source = ../config/helix;
-      "bat".source = ../config/bat;
       # User-level Nix config: enables flakes + nix-command on every
       # machine and turns on parallel builds (max-jobs auto, cores 0).
       # Without this file, fresh hosts default to max-jobs=1 / cores=1

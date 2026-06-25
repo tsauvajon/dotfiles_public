@@ -6,16 +6,16 @@
 
 rustPlatform.buildRustPackage rec {
   pname = "cargo-coupling";
-  version = "0.3.2";
+  version = "0.3.3";
 
   src = fetchFromGitHub {
     owner = "nwiizo";
     repo = "cargo-coupling";
     rev = "v${version}";
-    hash = "sha256-hOYQ2oA2Y7rRCISy3e/08zB7kDqDOqGyF2FsEBFCiIo=";
+    hash = "sha256-H0z2agodJ9Kzky9h2Gsu4UbdGCIyIxEkKt2cu169ASw=";
   };
 
-  cargoHash = "sha256-Az3XGaJ4eDWjiejVICBquXafCOet+cohDZM0GhuYHms=";
+  cargoHash = "sha256-wuRDej0GzdRrmAHNzImauCmywATULsykDJFuJjewiBs=";
   doCheck = false;
 
   meta = {

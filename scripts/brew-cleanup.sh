@@ -15,6 +15,9 @@
 # turning a `dotfiles.personal.*.enable` toggle off removes its line from
 # Brewfile.personal, which in turn makes its cask an "extra" on the next
 # setup.sh run, which then uninstalls it.
+#
+# An empty managed-cask set is an intentional full teardown: running --apply
+# with no declared casks uninstalls every installed Homebrew cask.
 set -euo pipefail
 
 apply=0
@@ -88,7 +91,11 @@ installed="$tmpdir/installed-casks"
 extras="$tmpdir/extra-casks"
 
 sed -nE 's/^[[:space:]]*cask[[:space:]]+"([^"]+)".*/\1/p' "${brewfiles[@]}" | sort -u > "$wanted"
-brew bundle list --cask 2>/dev/null | sort -u > "$installed"
+# `brew list -1 --cask` reports the casks actually installed. (`brew
+# bundle list` reads desired state from a Brewfile — and newer Homebrew
+# errors out when no default Brewfile exists, which silently killed
+# this script under `set -o pipefail`.)
+brew list -1 --cask 2>/dev/null | sort -u > "$installed"
 comm -23 "$installed" "$wanted" > "$extras"
 
 if [ ! -s "$extras" ]; then

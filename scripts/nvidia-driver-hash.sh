@@ -7,9 +7,9 @@
 # Example:
 #   scripts/nvidia-driver-hash.sh 595.71.05
 #
-# When you bump `_module.args.nixglNvidiaVersion` in
-# `home/hosts/linux.nix`, also bump `_module.args.nixglNvidiaHash` to
-# whatever this script prints. Without a matching hash, nixGL falls
+# When you bump `version` in `_module.args.nixglNvidia` in
+# `home/hosts/linux.nix`, also bump `hash` to whatever this script
+# prints. Without a matching hash, nixGL falls
 # back to `builtins.fetchurl` and pure evaluation of `thomas-linux`
 # breaks (see `home/lib/wrap-with-nixgl.nix`).
 set -euo pipefail
@@ -35,6 +35,8 @@ sri:     ${sri_hash}
 
 Paste into home/hosts/linux.nix:
 
-  _module.args.nixglNvidiaVersion = "${version}";
-  _module.args.nixglNvidiaHash    = "${sri_hash}";
+  _module.args.nixglNvidia = {
+    version = "${version}";
+    hash = "${sri_hash}";
+  };
 EOF

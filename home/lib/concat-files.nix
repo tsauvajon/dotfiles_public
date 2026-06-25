@@ -4,14 +4,17 @@
 #
 # - `fragmentDirs`: list of directories to scan. Regular files (and
 #   symlinks to files) are collected from every directory and merged
-#   into a single set keyed by filename. On filename collision, later
+#   into a single set keyed by filename after empty files are skipped
+#   within each source directory. On filename collision, later
 #   directories in the list win — pass `[ public private ]` so that
-#   the private overlay overrides the public source. The combined set
-#   is then sorted by filename in byte order (LC_ALL=C).
+#   a non-empty private overlay overrides the public source. Empty
+#   overlays cannot delete non-empty earlier fragments. The combined
+#   set is then sorted by filename in byte order (LC_ALL=C).
 # - `headerTemplate`: prepended before each fragment. The literal
 #   string `%FILENAME%` is replaced with the fragment's filename.
 #
-# Empty files are skipped. Fragments are separated by `\n\n`.
+# Empty files are skipped before collision resolution. Fragments are
+# separated by `\n\n`.
 { lib }:
 
 {
@@ -33,13 +36,20 @@ let
       path = dir + "/${name}";
     }) (listFilesIn { inherit dir; });
 
-  # Collect entries from every dir, then collapse to a name-keyed
-  # attrset where later dirs override earlier ones on filename
-  # collision (private wins when passed last).
+  # Collect non-empty entries from every dir, then collapse to a
+  # name-keyed attrset where later dirs override earlier ones on
+  # filename collision (private wins when passed last). Empty overlay
+  # files are filtered before this merge so they cannot shadow a
+  # non-empty base fragment.
   collected = lib.foldl' (
     acc: dir:
     let
-      entries = regularFilesIn dir;
+      entries = lib.filter (f: f.content != "") (
+        map (f: {
+          inherit (f) name path;
+          content = builtins.readFile f.path;
+        }) (regularFilesIn dir)
+      );
       asAttrs = lib.listToAttrs (map (e: lib.nameValuePair e.name e) entries);
     in
     acc // asAttrs
@@ -50,13 +60,6 @@ let
   sortedNames = builtins.attrNames collected;
   fragments = map (name: collected.${name}) sortedNames;
 
-  # Read each file and drop empties.
-  fragmentsWithContent = lib.filter (f: f.content != "") (
-    map (f: {
-      inherit (f) name;
-      content = builtins.readFile f.path;
-    }) fragments
-  );
 in
 lib.foldl' (
   acc: f:
@@ -65,4 +68,4 @@ lib.foldl' (
     separator = if acc == "" then "" else "\n\n";
   in
   acc + separator + header + f.content
-) "" fragmentsWithContent
+) "" fragments

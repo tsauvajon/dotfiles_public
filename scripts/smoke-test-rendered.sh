@@ -78,6 +78,14 @@ if [ ! -d "$home_files" ]; then
   exit 1
 fi
 
+sha256_file() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | cut -d' ' -f1
+  else
+    shasum -a 256 "$1" | cut -d' ' -f1
+  fi
+}
+
 # `find -L` follows symlinks so the rendered tree is normalised — both
 # real files and symlinks-to-real-files produce the same manifest.
 {
@@ -85,7 +93,7 @@ fi
   find -L . -type f -print0 \
     | LC_ALL=C sort -z \
     | while IFS= read -r -d '' f; do
-        sum=$(shasum -a 256 "$f" | cut -d' ' -f1)
+        sum=$(sha256_file "$f")
         printf '%s\tfile\t%s\n' "$f" "$sum"
       done
   find -L . -type d -print0 \

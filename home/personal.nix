@@ -18,8 +18,8 @@
 #     app installed via a Homebrew-managed cask, because `pkgs.tailscale` ships
 #     only `tailscale`/`tailscaled` and the user-facing GUI lives in
 #     the App Store / Brew cask.
-#   - Gurk: `pkgs.gurk-rs` on personal hosts only.
 #   - NAPS2: `pkgs.naps2` on Linux. macOS uses the official Homebrew cask.
+#   - Immich CLI: `pkgs.immich-cli` on personal hosts only.
 #
 # Cask lines for Darwin-only apps (Tailscale, Chromium, NAPS2 today) are appended to a
 # generated `Brewfile.personal`; `setup.sh` reconciles it alongside
@@ -37,10 +37,10 @@ let
   privateSignal = privatePersonal.signal or { };
   privateSyncthing = privatePersonal.syncthing or { };
   privateChromium = privatePersonal.chromium or { };
-  privateGurk = privatePersonal.gurk or { };
   privateNaps2 = privatePersonal.naps2 or { };
   privateTailscale = privatePersonal.tailscale or { };
   privatePlezy = privatePersonal.plezy or { };
+  privateImmich = privatePersonal.immich or { };
 
   cfg = config.dotfiles.personal;
 
@@ -108,12 +108,6 @@ in
       '';
     };
 
-    gurk.enable = lib.mkOption {
-      type = lib.types.bool;
-      default = privateGurk.enable or true;
-      description = "Install Gurk, the Signal Messenger TUI, on personal hosts.";
-    };
-
     naps2.enable = lib.mkOption {
       type = lib.types.bool;
       default = privateNaps2.enable or true;
@@ -131,18 +125,24 @@ in
         from nixpkgs on all supported platforms.
       '';
     };
+
+    immich.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = privateImmich.enable or true;
+      description = "Install the Immich CLI for photo management on personal hosts.";
+    };
   };
 
   config = lib.mkIf cfg.enable {
     home.packages =
       lib.optionals cfg.signal.enable [ pkgs.signal-desktop ]
-      ++ lib.optionals cfg.gurk.enable [ pkgs.gurk-rs ]
       ++ lib.optionals (cfg.chromium.enable && pkgs.stdenv.isLinux) [
         (pkgs.chromium.override { enableWideVine = true; })
       ]
       ++ lib.optionals (cfg.naps2.enable && pkgs.stdenv.isLinux) [ pkgs.naps2 ]
       ++ lib.optionals (cfg.tailscale.enable && pkgs.stdenv.isLinux) [ pkgs.tailscale ]
-      ++ lib.optionals cfg.plezy.enable [ pkgs.plezy ];
+      ++ lib.optionals cfg.plezy.enable [ pkgs.plezy ]
+      ++ lib.optionals cfg.immich.enable [ pkgs.immich-cli ];
 
     services.syncthing = lib.mkIf cfg.syncthing.enable {
       enable = true;

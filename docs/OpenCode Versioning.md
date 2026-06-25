@@ -1,13 +1,16 @@
 # OpenCode Versioning
 
-OpenCode has three independent versioning surfaces in these dotfiles:
+OpenCode has three versioning surfaces in these dotfiles, with the plugin SDK
+version generated from the Nix pin unless a private overlay deliberately skews
+it:
 
 - The Nix-managed `opencode` CLI/server binary from `pkgs.opencode`.
-- The npm package `@opencode-ai/plugin` installed under `~/.config/opencode` by Bun during Home Manager activation.
+- The npm package `@opencode-ai/plugin` installed under `~/.config/opencode` by Bun during Home Manager activation, injected into the generated package manifest from `pkgs.opencode.version`.
 - The SQLite database selected by the OpenCode installation channel.
 
-Keep the binary/server version and `@opencode-ai/plugin` version aligned unless
-there is a deliberate compatibility test proving a skewed pair works.
+The public package manifest must not pin `@opencode-ai/plugin`; the Home
+Manager merge injects it from the installed OpenCode package. A private package
+overlay remains the escape hatch for a deliberate, tested skew.
 
 ## Current Wiring
 
@@ -29,7 +32,9 @@ opencodeBin = "${opencodePackage}/bin/opencode";
 
 Plugin dependencies are declared in `config/opencode/package.json`, rendered to
 `~/.config/opencode/package.json`, then installed by `bun install` during
-activation.
+activation. The `@opencode-ai/plugin` version is not declared there: the Home
+Manager merge injects it from `pkgs.opencode.version`, so it always matches the
+installed binary.
 
 Useful checks:
 
@@ -97,26 +102,26 @@ channels to one DB.
 
 ## Current Version Pin
 
-These dotfiles currently pin OpenCode to `1.15.12` in `flake.nix` via
-`opencodePin`, which holds the OpenCode version, source hash, and fixed-output
-`nodeModulesHash`.
+These dotfiles pin OpenCode in `flake.nix` via `opencodePin`, which holds the
+OpenCode version, source hash, and fixed-output `nodeModulesHash`. That pin is
+the single version source.
 
 The pin overrides `pkgs.opencode`, so both the installed CLI in
 `home/editors.nix` and the shared server in `home/opencode-server.nix` use the
 same Nix package.
 
-Keep `config/opencode/package.json` aligned with the same version:
+`config/opencode/package.json` intentionally does not pin
+`@opencode-ai/plugin`. The Home Manager merge (`mkMergedPackage` in
+`home/lib/opencode-merge.nix`) injects the plugin version from
+`pkgs.opencode.version`, so the generated `~/.config/opencode/package.json`
+always matches the binary. The merge asserts that the public manifest does not
+pin the plugin; a private overlay
+(`~/.config/dotfiles/config/opencode/package.json`) may still pin it for a
+deliberate, tested skew — it wins over the injected value.
 
-```json
-{
-  "dependencies": {
-    "@opencode-ai/plugin": "1.15.12"
-  }
-}
-```
-
-The flake check `opencode-version-alignment` fails if `pkgs.opencode.version`,
-`opencodePin.version`, and `@opencode-ai/plugin` drift apart.
+The flake check `opencode-version-alignment` fails if `pkgs.opencode.version`
+drifts from `opencodePin.version`, or if the public manifest reintroduces an
+`@opencode-ai/plugin` pin.
 
 The override preserves `OPENCODE_CHANNEL = "stable"`. That should preserve use
 of `opencode-stable.db`. Building as `local`, `dev`, or another non-stable
@@ -129,18 +134,25 @@ set. It does not enable unsupported packages globally.
 
 ## Updating OpenCode
 
-When bumping OpenCode, update all versioned surfaces together:
+When bumping OpenCode, everything versioned follows `opencodePin`:
 
 1. Change `opencodePin.version` in `flake.nix`.
-2. Refresh `opencodePin.srcHash` for `github:anomalyco/opencode` tag `v<version>`.
-3. Refresh `opencodePin.nodeModulesHash` for the package's fixed-output `node_modules` derivation.
-4. Change `@opencode-ai/plugin` in `config/opencode/package.json` to the same version.
-5. Run `nix flake check` or at least the current system's `opencode-version-alignment` check.
+2. Verify `@opencode-ai/plugin@<version>` is published before relying on the injected pin. npm publication is not lockstep with the CLI (for example, opencode-ai 1.4.4 existed without a matching plugin, and plugin 1.1.46 existed without a matching CLI). One quick check:
+
+   ```sh
+   curl -sf https://registry.npmjs.org/@opencode-ai/plugin/<version> >/dev/null
+   ```
+
+   If the plugin is not published and you still need the binary bump, pin a known-compatible plugin in the private package overlay as an explicit skew.
+3. Refresh `opencodePin.srcHash` for `github:anomalyco/opencode` tag `v<version>`.
+4. Refresh `opencodePin.nodeModulesHash` for the package's fixed-output `node_modules` derivation.
+5. Run `nix flake check` or at least the current system's `opencode-version-alignment` and `opencode-tests` checks.
 6. Run `bash setup.sh` so Home Manager links the new binary/config and Bun refreshes the plugin install.
 
-If `~/.config/dotfiles/opencode/package.json` exists, keep its
-`@opencode-ai/plugin` override aligned too. Private package overlays win over
-the public package manifest during the Home Manager merge.
+The `@opencode-ai/plugin` version in the generated package.json follows the pin
+automatically. If `~/.config/dotfiles/config/opencode/package.json` pins
+`@opencode-ai/plugin`, it overrides the injected version — remove that pin
+unless a deliberate skew is being tested.
 
 A newer binary may apply DB migrations. Before and after a binary-channel
 change, count sessions in each DB and keep a backup of

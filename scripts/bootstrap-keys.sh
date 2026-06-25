@@ -110,7 +110,7 @@ require_nix() {
 
 eval_private_attr() {
   local attr="$1"
-  local stderr_file value
+  local stderr_file value attr_re attr_leaf attr_leaf_re
 
   stderr_file=$(mktemp -t dotfiles-key-bootstrap.XXXXXX)
   if value=$(nix \
@@ -123,7 +123,10 @@ eval_private_attr() {
     return 0
   fi
 
-  if grep -qE "(does not provide attribute|attribute '.+' missing)" "$stderr_file"; then
+  attr_re=$(printf '%s' "$attr" | sed -e 's/[][(){}.^$*+?|\\/]/\\&/g')
+  attr_leaf="${attr##*.}"
+  attr_leaf_re=$(printf '%s' "$attr_leaf" | sed -e 's/[][(){}.^$*+?|\\/]/\\&/g')
+  if grep -qE "(does not provide attribute .*'${attr_re}'|attribute '?${attr_leaf_re}'? missing)" "$stderr_file"; then
     rm -f "$stderr_file"
     printf ''
     return 0
@@ -235,6 +238,7 @@ ensure_gpg_key() {
 
 ensure_ssh_key() {
   local email="$1"
+  local ssh_pub_tmp
 
   mkdir -p "$HOME/.ssh"
   chmod 700 "$HOME/.ssh"
@@ -245,8 +249,14 @@ ensure_ssh_key() {
       warn "SSH public key missing: $ssh_pub"
       if command -v ssh-keygen >/dev/null 2>&1; then
         log "recreating SSH public key from $ssh_key"
-        ssh-keygen -y -f "$ssh_key" > "$ssh_pub" || warn "could not recreate $ssh_pub"
-        [ -f "$ssh_pub" ] && chmod 644 "$ssh_pub"
+        ssh_pub_tmp=$(mktemp "$ssh_pub.tmp.XXXXXX")
+        if ssh-keygen -y -f "$ssh_key" > "$ssh_pub_tmp" && [ -s "$ssh_pub_tmp" ]; then
+          mv "$ssh_pub_tmp" "$ssh_pub"
+          chmod 644 "$ssh_pub"
+        else
+          rm -f "$ssh_pub_tmp"
+          warn "could not recreate $ssh_pub"
+        fi
       else
         warn 'ssh-keygen not found; cannot recreate SSH public key'
       fi

@@ -87,7 +87,6 @@ in
       almqtt = "mqttui";
       alpsql1 = "tsql";
       alpsql2 = "rainfrog";
-      alsignal = "gurk";
       csv = "tw";
       docx = "doxx";
       gpg = "gpg-tui";

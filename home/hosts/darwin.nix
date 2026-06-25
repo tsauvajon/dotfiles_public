@@ -14,7 +14,7 @@
 
   # Use the cross-source merge: public rules in
   # config/opencode/rules/ and private rules in
-  # ~/.config/dotfiles/opencode/rules/ are sorted together by
+  # ~/.config/dotfiles/config/opencode/rules/ are sorted together by
   # filename to build AGENTS.md (private wins on collision).
   programs.opencode.rulesMode = "merged";
 }

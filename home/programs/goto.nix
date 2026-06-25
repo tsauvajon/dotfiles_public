@@ -2,15 +2,16 @@
 #
 # Identity (apiUrl, bookmarksFile) comes from the private flake at
 # ~/.config/dotfiles/flake.nix under the `goto` attribute. Both
-# fields are optional — when `apiUrl` is null/empty, programs.goto
-# stays disabled and no goto config is generated.
+# fields are optional — when either the API URL or bookmarks database is
+# absent, programs.goto stays disabled and no goto config is generated.
 { inputs, lib, ... }:
 
 let
   privateGoto = inputs.private.goto or { };
   apiUrl = privateGoto.apiUrl or null;
   bookmarksFile = privateGoto.bookmarksFile or null;
-  hasGoto = lib.isString apiUrl && apiUrl != "";
+  # Shared with home/launchd-goto.nix so both sides stay in lock-step.
+  hasGoto = (import ../lib/goto-enabled.nix { inherit lib; }) { inherit apiUrl bookmarksFile; };
 in
 {
   imports = [ inputs.goto.homeManagerModules.default ];

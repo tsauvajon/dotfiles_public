@@ -5,6 +5,11 @@
 # If not running interactively, don't do anything
 [[ $- != *i* ]] && return
 
+# Bash is a deliberately minimal fallback shell; zsh/fish load the full
+# generated cross-shell env/aliases/functions layer.
+export EDITOR=hx
+export VISUAL=hx
+
 if [[ -e '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' ]]; then
   . '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
 fi

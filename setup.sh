@@ -33,6 +33,9 @@ set -euo pipefail
 DOTFILES="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 export DOTFILES
 
+# shellcheck source=scripts/lib/opencode-imports.sh
+. "$DOTFILES/scripts/lib/opencode-imports.sh"
+
 if ! command -v nix >/dev/null 2>&1; then
   printf 'error: nix not found on PATH. Install Nix from https://nixos.org first.\n' >&2
   exit 1
@@ -150,31 +153,48 @@ sync_opencode_imports() {
     --apply '
       imports:
         let
+          hasTabOrNewline = s: builtins.match ".*[\t\n].*" s != null;
+          checked = label: s:
+            if hasTabOrNewline s
+            then builtins.throw "opencode.imports ${label} contains a tab or newline"
+            else s;
           fmtImport = i:
             let
+              name       = checked "name" i.name;
+              source     = checked "source for ${name}" i.source;
               rename     = i.rename or {};
               exclude    = i.exclude or [];
               hasPaths   = i ? paths;
               paths      = i.paths or {};
               mode       = if hasPaths then "explicit" else "auto";
-              header     = "HEADER\t${i.name}\t${i.source}\t${mode}";
+              header     = "HEADER\t${name}\t${source}\t${mode}";
               renameLines = builtins.map
-                (k: "RENAME\t${i.name}\t${k}\t${rename.${k}}")
+                (k:
+                  let
+                    src = checked "rename key for ${name}" k;
+                    dest = checked "rename value for ${name}.${src}" rename.${k};
+                  in
+                    "RENAME\t${name}\t${src}\t${dest}")
                 (builtins.attrNames rename);
               excludeLines = builtins.map
-                (s: "EXCLUDE\t${i.name}\t${s}")
+                (s: "EXCLUDE\t${name}\t${checked "exclude entry for ${name}" s}")
                 exclude;
               pathLines = builtins.map
-                (k: "PATH\t${i.name}\t${k}\t${paths.${k}}")
+                (k:
+                  let
+                    src = checked "paths key for ${name}" k;
+                    dest = checked "paths value for ${name}.${src}" paths.${k};
+                  in
+                    "PATH\t${name}\t${src}\t${dest}")
                 (builtins.attrNames paths);
-              footer = "END\t${i.name}";
+              footer = "END\t${name}";
             in
               builtins.concatStringsSep "\n"
                 ([ header ] ++ renameLines ++ excludeLines ++ pathLines ++ [ footer ]);
         in
           builtins.concatStringsSep "\n" (builtins.map fmtImport imports)
     ' 2>"$stderr_file"); then
-    if grep -qE "(does not provide attribute|attribute '?opencode'?)" "$stderr_file"; then
+    if grep -qE "(does not provide attribute .*'(opencode|opencode\.imports|imports)'|attribute '?(opencode|imports)'? missing)" "$stderr_file"; then
       # Expected: private flake has no imports manifest. Leave any
       # existing staging untouched.
       rm -f "$stderr_file"
@@ -189,170 +209,7 @@ sync_opencode_imports() {
   fi
   rm -f "$stderr_file"
 
-  # Eval succeeded — reset the staging root so removed manifest entries
-  # do not linger.
-  if [ -d "$sync_root" ]; then
-    chmod -R u+w "$sync_root" 2>/dev/null || true
-  fi
-  rm -rf "$sync_root"
-
-  if [ -z "$manifest" ]; then
-    return 0
-  fi
-
-  mkdir -p "$sync_root"
-  printf '==> Syncing OpenCode imports into %s\n' "$sync_root"
-
-  # Per-import accumulators (reset on each HEADER, consumed on END).
-  local cur_name="" cur_source="" cur_mode=""
-  local -a cur_rename_src=() cur_rename_dest=()
-  local -a cur_exclude=()
-  local -a cur_path_src=() cur_path_dest=()
-
-  local tag a b c
-  while IFS=$'\t' read -r tag a b c; do
-    [ -z "$tag" ] && continue
-    case "$tag" in
-      HEADER)
-        cur_name="$a" cur_source="$b" cur_mode="$c"
-        cur_rename_src=() cur_rename_dest=()
-        cur_exclude=()
-        cur_path_src=() cur_path_dest=()
-        ;;
-      RENAME)
-        cur_rename_src+=("$b") cur_rename_dest+=("$c")
-        ;;
-      EXCLUDE)
-        cur_exclude+=("$b")
-        ;;
-      PATH)
-        cur_path_src+=("$b") cur_path_dest+=("$c")
-        ;;
-      END)
-        process_import
-        ;;
-      *)
-        printf 'warning: unknown opencode-import record tag %q\n' "$tag" >&2
-        ;;
-    esac
-  done <<<"$manifest"
-}
-
-# Stage src→dst as either a file or a directory copy. cp -L /-RL
-# dereferences symlinks so the staging area is a clean tree of regular
-# files. `cp -R src dst` copies *into* dst when dst already exists, so
-# we wipe an existing destination first to keep the sync idempotent.
-stage_one() {
-  local src="$1" dst="$2" name="$3"
-  if [ -d "$src" ]; then
-    rm -rf "$dst"
-    mkdir -p "$(dirname "$dst")"
-    cp -RL "$src" "$dst"
-    chmod -R u+w "$dst" 2>/dev/null || true
-  elif [ -f "$src" ]; then
-    mkdir -p "$(dirname "$dst")"
-    cp -L "$src" "$dst"
-    chmod u+w "$dst" 2>/dev/null || true
-  else
-    printf 'warning: opencode-import "%s" missing path: %s\n' "$name" "$src" >&2
-  fi
-}
-
-# Membership check against the cur_exclude array.
-import_excluded() {
-  local rel="$1" i
-  for ((i = 0; i < ${#cur_exclude[@]}; i++)); do
-    [ "${cur_exclude[$i]}" = "$rel" ] && return 0
-  done
-  return 1
-}
-
-# Print the rename destination for a source-rel path, or the path
-# itself when no rename rule matches.
-import_rename_for() {
-  local rel="$1" i
-  for ((i = 0; i < ${#cur_rename_src[@]}; i++)); do
-    if [ "${cur_rename_src[$i]}" = "$rel" ]; then
-      printf '%s' "${cur_rename_dest[$i]}"
-      return 0
-    fi
-  done
-  printf '%s' "$rel"
-}
-
-# Process the import described by the cur_* state. Validates schema,
-# expands `~` in source, then either cherry-picks (explicit mode) or
-# walks the standard layout (auto mode).
-process_import() {
-  local source="$cur_source"
-
-  # Tilde expansion. Only `~` and `~/...` are supported; the
-  # `~user/...` form would require user-database lookup.
-  # shellcheck disable=SC2088
-  case "$source" in
-    "~"|"~/"*) source="$HOME${source#\~}" ;;
-    "~"*)
-      printf 'warning: opencode-import "%s" uses unsupported ~user/ form: %s\n' "$cur_name" "$source" >&2
-      return 0
-      ;;
-  esac
-
-  local stage="$private_ref/opencode-imports/$cur_name"
-  mkdir -p "$stage"
-
-  # Mutual-exclusion validation: `paths` cannot mix with rename/exclude.
-  # Misconfiguration is fatal — make the user fix the flake before any
-  # downstream nix build runs against an inconsistent staging tree.
-  if [ "$cur_mode" = "explicit" ]; then
-    if [ ${#cur_rename_src[@]} -gt 0 ]; then
-      printf 'error: opencode-import "%s" sets both `paths` and `rename` (mutually exclusive)\n' "$cur_name" >&2
-      exit 1
-    fi
-    if [ ${#cur_exclude[@]} -gt 0 ]; then
-      printf 'error: opencode-import "%s" sets both `paths` and `exclude` (mutually exclusive)\n' "$cur_name" >&2
-      exit 1
-    fi
-    local i
-    for ((i = 0; i < ${#cur_path_src[@]}; i++)); do
-      stage_one "$source/${cur_path_src[$i]}" "$stage/${cur_path_dest[$i]}" "$cur_name"
-    done
-    return 0
-  fi
-
-  # Auto mode: walk the standard layout.
-  local sub entry rel dest
-  for sub in commands skills agents plugins rules; do
-    [ -d "$source/$sub" ] || continue
-    for entry in "$source/$sub"/*; do
-      [ -e "$entry" ] || continue
-      rel="$sub/$(basename "$entry")"
-      import_excluded "$rel" && continue
-      dest=$(import_rename_for "$rel")
-      stage_one "$entry" "$stage/$dest" "$cur_name"
-    done
-  done
-
-  # Top-level opencode.*.json (excluding bare opencode.json) + package.json.
-  for entry in "$source"/opencode.*.json "$source"/package.json; do
-    [ -f "$entry" ] || continue
-    rel="$(basename "$entry")"
-    [ "$rel" = "opencode.json" ] && continue
-    import_excluded "$rel" && continue
-    dest=$(import_rename_for "$rel")
-    stage_one "$entry" "$stage/$dest" "$cur_name"
-  done
-
-  # Rename entries pointing at non-standard sources (e.g.
-  # mcp.fragment.json → opencode.foo.mcp.json) — anything referenced
-  # by `rename` whose src wasn't auto-discovered.
-  local i
-  for ((i = 0; i < ${#cur_rename_src[@]}; i++)); do
-    rel="${cur_rename_src[$i]}"
-    dest="${cur_rename_dest[$i]}"
-    [ -e "$stage/$dest" ] && continue
-    [ -e "$source/$rel" ] || continue
-    stage_one "$source/$rel" "$stage/$dest" "$cur_name"
-  done
+  opencode_imports_sync "$sync_root" <<<"$manifest"
 }
 
 sync_opencode_imports
@@ -437,6 +294,7 @@ if [ "$(uname -s)" = "Darwin" ]; then
     else
       printf '\n'
       printf 'warning: Homebrew not found; skipping managed casks. To install manually, run:\n'
+      # shellcheck disable=SC2016
       printf '  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"\n'
       printf '\n'
     fi

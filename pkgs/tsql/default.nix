@@ -1,6 +1,6 @@
 {
   lib,
-  stdenv,
+  stdenvNoCC,
   fetchurl,
 }:
 
@@ -21,10 +21,10 @@ let
   };
 
   source =
-    sources.${stdenv.hostPlatform.system}
-      or (throw "tsql is not packaged for ${stdenv.hostPlatform.system}");
+    sources.${stdenvNoCC.hostPlatform.system}
+      or (throw "tsql is not packaged for ${stdenvNoCC.hostPlatform.system}");
 in
-stdenv.mkDerivation rec {
+stdenvNoCC.mkDerivation rec {
   pname = "tsql";
   version = "0.6.0";
 
@@ -45,6 +45,17 @@ stdenv.mkDerivation rec {
     install -m755 tsql "$out/bin/tsql"
 
     runHook postInstall
+  '';
+
+  # Linux release assets are dynamically-linked GNU binaries. They need the FHS
+  # loader path (/lib64/ld-linux-*) that is absent in the Nix build sandbox.
+  doInstallCheck = stdenvNoCC.hostPlatform.isDarwin;
+  installCheckPhase = ''
+    runHook preInstallCheck
+
+    "$out/bin/tsql" --version || "$out/bin/tsql" --help
+
+    runHook postInstallCheck
   '';
 
   meta = {

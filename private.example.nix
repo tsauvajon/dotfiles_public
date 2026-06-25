@@ -59,32 +59,32 @@
       #   signal     pkgs.signal-desktop on both Linux and macOS.
       #   syncthing  HM service (systemd user / launchd agent).
       #   tailscale  Linux: pkgs.tailscale. macOS: Homebrew-managed cask.
-      #   gurk       pkgs.gurk-rs on personal hosts only.
       #   naps2      Linux: pkgs.naps2. macOS: Homebrew-managed cask.
+      #   immich     pkgs.immich-cli on personal hosts only.
       personal = {
         enable = false;
         signal.enable = true;
         syncthing.enable = true;
         chromium.enable = true;
-        gurk.enable = true;
         naps2.enable = true;
         tailscale.enable = true;
         plezy.enable = true;
+        immich.enable = true;
       };
 
       # Optional — OpenCode private overlays.
       #
       # Defaults: every overlay path falls back to the standard
-      # subpath under `<this flake>/opencode/`. Just drop a file or
+      # subpath under `<this flake>/config/opencode/`. Just drop a file or
       # directory at one of these locations and it gets merged in:
       #
-      #   ./opencode/commands/        slash commands
-      #   ./opencode/skills/          loadable skills
-      #   ./opencode/agents/          agent definitions
-      #   ./opencode/plugins/         autoloaded plugins
-      #   ./opencode/rules/           AGENTS.md fragments
-      #   ./opencode/opencode.json    config overlay (e.g. MCP servers)
-      #   ./opencode/package.json     plugin dependency overlay
+      #   ./config/opencode/commands/        slash commands
+      #   ./config/opencode/skills/          loadable skills
+      #   ./config/opencode/agents/          agent definitions
+      #   ./config/opencode/plugins/         autoloaded plugins
+      #   ./config/opencode/rules/           AGENTS.md fragments
+      #   ./config/opencode/opencode.json    config overlay (e.g. MCP servers)
+      #   ./config/opencode/package.json     plugin dependency overlay
       #
       # Override only when you need a non-standard layout. Use `null`
       # to disable an overlay even when the standard subpath exists,
@@ -161,6 +161,6 @@
   #     agents; see `home/launchd-goto.nix` in the public dotfiles
   #     for the canonical example.
   #
-  #   ~/.config/dotfiles/opencode/opencode.*.json
+  #   ~/.config/dotfiles/config/opencode/opencode.*.json
   #     OpenCode JSON fragments (deep-merged in filename order).
 }

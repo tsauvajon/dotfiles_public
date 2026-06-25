@@ -1,7 +1,5 @@
 atuin: press Ctrl-r for interactive shell history, or run `atuin search`.
 %
-backup: copy a file or directory to `<name>.bak` with `backup <path>`.
-%
 cargo-coupling: inspect Rust dependency coupling with `cargo coupling --help`.
 %
 doxx: preview `.docx` files in the terminal with `doxx file.docx`.
@@ -11,8 +9,6 @@ fastfetch: print a system summary with `fastfetch` when you need quick OS and ha
 fzf: pipe candidates into `fzf` when you are choosing from a list.
 %
 glim: open the GitLab CI/CD TUI with `glim`.
-%
-gurk-rs: Signal TUI, start it with `gurk`.
 %
 jiq: shape JSON interactively with `jiq data.json` or `curl ... | jiq`.
 %

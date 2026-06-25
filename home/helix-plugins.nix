@@ -3,7 +3,13 @@
 # Builds a single derivation `helixPlugins` whose `bin/hx` is a wrapper
 # that exports STEEL_HOME / STEEL_SEARCH_PATHS and adds steel/rust/git to
 # PATH so plugin resolution works at runtime.
-{ pkgs, lib, inputs, system, ... }:
+{
+  pkgs,
+  lib,
+  inputs,
+  system,
+  ...
+}:
 
 let
   inherit (inputs)
@@ -15,26 +21,38 @@ let
     helix-file-watcher
     ;
 
-  stableRust = pkgs.rust-bin.stable.latest.default.override {
-    extensions = [ "rust-src" ];
-  };
+  stableRust = import ./lib/rust-toolchain.nix { inherit pkgs; };
 
   helixWithSteel = (helix-steel.packages.${system}.default).overrideAttrs (old: {
-    cargoBuildFlags = (old.cargoBuildFlags or [ ]) ++ [ "--features" "steel" ];
-    cargoCheckFlags = (old.cargoCheckFlags or [ ]) ++ [ "--features" "steel" ];
-    cargoInstallFlags = (old.cargoInstallFlags or [ ]) ++ [ "--features" "steel" ];
+    cargoBuildFlags = (old.cargoBuildFlags or [ ]) ++ [
+      "--features"
+      "steel"
+    ];
+    cargoCheckFlags = (old.cargoCheckFlags or [ ]) ++ [
+      "--features"
+      "steel"
+    ];
+    cargoInstallFlags = (old.cargoInstallFlags or [ ]) ++ [
+      "--features"
+      "steel"
+    ];
   });
 
   steelPkg = steel.packages.${system}.steel;
   dylibExt = if pkgs.stdenv.isDarwin then "dylib" else "so";
 
-  copyPluginDirs = src: name: dirs:
+  copyPluginDirs =
+    src: name: dirs:
     lib.concatMapStringsSep "\n" (dir: ''
       cp -R "${src}/${dir}" "$out/lib/steel/cogs/${name}/${dir}"
     '') dirs;
 
   mkSchemePlugin =
-    { name, src, extraDirs ? [ ] }:
+    {
+      name,
+      src,
+      extraDirs ? [ ],
+    }:
     pkgs.runCommand "helix-plugin-${name}" { } ''
       mkdir -p "$out/lib/steel/cogs/${name}"
       cp -R ${src}/*.scm "$out/lib/steel/cogs/${name}/"
@@ -42,7 +60,15 @@ let
     '';
 
   mkRustPlugin =
-    { name, src, libName, cargoHash ? null, cargoLock ? null, extraDirs ? [ ], postPatch ? "" }:
+    {
+      name,
+      src,
+      libName,
+      cargoHash ? null,
+      cargoLock ? null,
+      extraDirs ? [ ],
+      postPatch ? "",
+    }:
     pkgs.rustPlatform.buildRustPackage (
       {
         pname = "helix-plugin-${name}";
@@ -74,14 +100,17 @@ let
         '';
       }
       // (
-        if cargoLock != null then {
-          cargoLock = {
-            lockFile = cargoLock;
-            allowBuiltinFetchGit = true;
-          };
-        } else {
-          inherit cargoHash;
-        }
+        if cargoLock != null then
+          {
+            cargoLock = {
+              lockFile = cargoLock;
+              allowBuiltinFetchGit = true;
+            };
+          }
+        else
+          {
+            inherit cargoHash;
+          }
       )
     );
 

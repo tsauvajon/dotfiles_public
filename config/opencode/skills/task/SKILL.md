@@ -72,12 +72,11 @@ task worktrees   # raw `git worktree list` output
 ### Work inside a task
 
 ```bash
-task check              # run project checks for the current task
 task rebase [args…]     # rebase task branch onto a base ref
 task coverage           # cargo-llvm-cov coverage for Rust tasks
 ```
 
-`task check` and `task rebase` are used by the `rebase` skill.
+`task rebase` is used by the `rebase` skill.
 
 ## Exploring a repo's main branch (detach)
 
@@ -161,4 +160,4 @@ task finish <repo> <branch>
 - Base config: `config/task/config.toml` (symlinked to `~/.config/task/config.toml`).
 - Private overlays: `~/.config/dotfiles/task.*.toml` (merged into the generated config by Home Manager).
 - Overlay-append mechanics: see the dotfiles repo `AGENTS.md` section "Overlay-append merges".
-- Companion skills: `rebase` (uses `task rebase` / `task check`).
+- Companion skills: `rebase` (uses `task rebase`).

@@ -98,13 +98,13 @@ pkgs.runCommand "patch-string-field-test"
     grep -q 'name = null;' "$fix5" \
       || fail "test5: null form should not be modified"
 
-    # --- Test 6: special chars (/ and &) splice cleanly --------------
+    # --- Test 6: special chars (/ and &, plus sed delimiter |) splice cleanly
     fix6="$TMPDIR/test6.nix"
     install -m 0644 "$fixtureEmpty" "$fix6"
-    bash "$helper" "$fix6" signingKey "abc/def&ghi" >/dev/null \
+    bash "$helper" "$fix6" signingKey "abc/def&ghi|jkl" >/dev/null \
       || fail "test6: helper failed on special chars"
     line=$(grep_field "$fix6" signingKey)
-    expected6=$(expected_field_line signingKey "abc/def&ghi")
+    expected6=$(expected_field_line signingKey "abc/def&ghi|jkl")
     [ "$line" = "$expected6" ] \
       || fail "test6: expected '$expected6', got: '$line'"
 

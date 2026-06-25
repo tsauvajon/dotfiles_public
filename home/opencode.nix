@@ -4,15 +4,19 @@
 #   private wins on collision. Built by `lib/merge-dirs.nix`.
 # - `AGENTS.md`: cross-source fragment merge. Public rules in
 #   `config/opencode/rules/` and private rules in
-#   `~/.config/dotfiles/opencode/rules/` are collected together,
+#   `~/.config/dotfiles/config/opencode/rules/` are collected together,
 #   filename collisions resolve in favor of the private overlay, and
 #   the surviving fragments are sorted by filename in byte order
 #   (LC_ALL=C). Built by `lib/concat-files.nix`.
 # - `opencode.*.json` partials and `package.json`: deep JSON merge,
 #   private wins. The public side is fragment-only — there is no
-#   `config/opencode/opencode.json`; every section lives in its own
-#   `opencode.<scope>.json` file (meta, watcher, permission.{bash,fs,web},
-#   experimental.quotaToast). Built by `lib/deep-merge-json.nix`.
+#   `config/opencode/opencode.json`; sections live in per-scope
+#   `opencode.<scope>.json` partials (for example meta, watcher,
+#   permission.*, agent, provider.*, experimental.*). Built by
+#   `lib/deep-merge-json.nix`.
+#   `package.json` additionally injects the `@opencode-ai/plugin`
+#   version from `pkgs.opencode.version` (i.e. `opencodePin` in
+#   flake.nix), so the public manifest never pins it.
 #
 # Rules mode (`merged` / `private_only` / `disabled`) is exposed as a
 # module option so the user's host config can override the default.
@@ -28,32 +32,31 @@ let
   cfg = config.programs.opencode;
 
   mergeDirs = import ./lib/merge-dirs.nix { inherit pkgs lib; };
-  inherit (import ./lib/deep-merge-json.nix { inherit lib; }) deepMergeAll;
   inherit (import ./lib/opencode-merge.nix { inherit lib; })
     mkMergedOpencodeJson
+    mkMergedPackage
     mkAgentsContent
     ;
-  readJsonOr = import ./lib/read-json-or.nix;
 
   publicRoot = ../config/opencode;
   # Every field of `inputs.private.opencode` is optional. A user's
   # private flake.nix may omit the entire `opencode` attribute (the
   # placeholder does), in which case we fall back to an empty attrset
   # and every consumed path defaults to its standard subpath under
-  # `<private flake>/opencode/` — see `defaultPrivateSubpath` below.
+  # `<private flake>/config/opencode/` — see `defaultPrivateSubpath` below.
   privatePaths = inputs.private.opencode or { };
 
   # Standard layout: every private OpenCode overlay lives under
-  # `<private flake outPath>/opencode/<name>` (e.g. `commands/`,
+  # `<private flake outPath>/config/opencode/<name>` (e.g. `commands/`,
   # `skills/`, `opencode.json`). We expose this dir explicitly so the
   # discovery root stays stable even when a downstream private flake
   # overrides individual fields with non-standard locations.
-  privateOpencodeDir = inputs.private.outPath + "/opencode";
+  privateOpencodeDir = inputs.private.outPath + "/config/opencode";
 
   # Resolve a private subpath to its absolute Nix path if it exists,
   # else null. Used to default each `*Dir` / `*File` field below so
   # users do not need to enumerate the standard layout in their
-  # private flake — dropping a file under `<private>/opencode/<name>`
+  # private flake — dropping a file under `<private>/config/opencode/<name>`
   # is enough to wire it into the merge.
   defaultPrivateSubpath =
     sub:
@@ -73,7 +76,7 @@ let
 
   # Each *Dir / *File field is optional in the private flake. When
   # omitted, fall back to the standard subpath under
-  # `<private>/opencode/<name>`. Setting a field to `null` explicitly
+  # `<private>/config/opencode/<name>`. Setting a field to `null` explicitly
   # disables the overlay even if the standard subpath exists; setting
   # it to a custom path overrides the default location.
   privateCommandsDir = privatePaths.commandsDir or (defaultPrivateSubpath "commands");
@@ -149,11 +152,26 @@ let
     privatePath = privateAgentsDir;
     importDirs = importAgentsDirs;
   };
-  mergedPlugins = mkMergedDir {
+  mergedPluginsWithCursorBridge = mkMergedDir {
     name = "plugins";
     privatePath = privatePluginsDir;
     importDirs = importPluginsDirs;
   };
+  mergedPlugins =
+    if cfg.cursorAgentBridge.enable then
+      mergedPluginsWithCursorBridge
+    else
+      pkgs.runCommand "opencode-plugins-without-cursor-agent-bridge" { } ''
+        mkdir -p "$out"
+        for path in "${mergedPluginsWithCursorBridge}"/*; do
+          [ -e "$path" ] || [ -L "$path" ] || continue
+          name="''${path##*/}"
+          case "$name" in
+            cursor-agent-bridge.ts) ;;
+            *) ln -sfn "$path" "$out/$name" ;;
+          esac
+        done
+      '';
 
   # AGENTS.md content respecting cfg.rulesMode. The pure merge logic
   # lives in lib/opencode-merge.nix so it can be unit-tested with
@@ -167,7 +185,7 @@ let
 
   # opencode.json: 4-tier deep merge. The pure merge logic (including
   # the publicBaseExists guardrail) lives in lib/opencode-merge.nix.
-  # JSON fragments live next to the private overlay's `opencode/` dir
+  # JSON fragments live next to the private overlay's `config/opencode/` dir
   # (see `privateOpencodeDir` above) so the discovery root stays stable
   # even when `configFile` is overridden by a downstream private flake.
   mergedJsonWithCursorProvider = mkMergedOpencodeJson {
@@ -186,12 +204,15 @@ let
       else
         mergedJsonWithCursorProvider // { provider = providerWithoutCursor; };
 
-  publicPackage = readJsonOr (publicRoot + "/package.json") { };
-  privatePackage = readJsonOr privatePackageFile { };
-  mergedPackage = deepMergeAll [
-    publicPackage
-    privatePackage
-  ];
+  # package.json: public manifest + injected `@opencode-ai/plugin` pin
+  # (from the installed OpenCode package version, i.e. `opencodePin` in
+  # flake.nix) + optional private overlay (wins, for deliberate skew).
+  # Keeping the plugin version out of the committed manifest makes the
+  # flake pin the single place to bump.
+  mergedPackage = mkMergedPackage {
+    inherit publicRoot privatePackageFile;
+    pluginVersion = pkgs.opencode.version;
+  };
 
   opencodeAllowedEntries = [
     ".gitignore"
@@ -309,8 +330,11 @@ ${opencodeAllowedEntryCases}
           old_hash=$(${pkgs.coreutils}/bin/cat "$marker" 2>/dev/null || true)
           if [ "$new_hash" != "$old_hash" ]; then
             echo "==> opencode/package.json changed; running bun install"
-            ( cd "$(dirname "$pkg")" && ${pkgs.bun}/bin/bun install ) || true
-            printf '%s\n' "$new_hash" > "$marker"
+            if ( cd "$(dirname "$pkg")" && ${pkgs.bun}/bin/bun install ); then
+              printf '%s\n' "$new_hash" > "$marker"
+            else
+              echo "warning: bun install failed for $pkg; leaving marker unchanged so the next activation retries" >&2
+            fi
           fi
         fi
       '';

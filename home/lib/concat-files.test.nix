@@ -74,4 +74,17 @@ in
     expr = concatFiles { fragmentDirs = [ ./concat-files.test/with-empty ]; };
     expected = "# Rules overlay: full.md\n\nfull content\n";
   };
+
+  testEmptyOverlayDoesNotShadowBase = {
+    # Empty files are filtered per source directory before filename
+    # collisions are resolved. An empty private fragment with the same
+    # name must not delete a non-empty public fragment.
+    expr = concatFiles {
+      fragmentDirs = [
+        ./concat-files.test/empty-collision-public
+        ./concat-files.test/empty-collision-private
+      ];
+    };
+    expected = "# Rules overlay: shared.md\n\npublic-shared\n";
+  };
 }

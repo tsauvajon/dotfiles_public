@@ -114,10 +114,17 @@ async function getSession(client: PluginInput["client"], sessionID: string) {
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T | undefined> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
   return Promise.race([
     promise.catch(() => undefined),
-    new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), timeoutMs)),
-  ]);
+    new Promise<undefined>((resolve) => {
+      timer = setTimeout(() => resolve(undefined), timeoutMs);
+    }),
+  ]).finally(() => {
+    if (timer !== undefined) {
+      clearTimeout(timer);
+    }
+  });
 }
 
 function cacheVisitedSessions(sessionIDs: string[], rootID: string): void {

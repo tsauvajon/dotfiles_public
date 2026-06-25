@@ -5,8 +5,7 @@
   pkgs,
   lib,
   inputs,
-  nixglNvidiaVersion ? null,
-  nixglNvidiaHash ? null,
+  nixglNvidia ? null,
   ...
 }:
 
@@ -17,18 +16,25 @@ let
     font=monospace:size=12
   '';
 
-  safeTerminal = pkgs.writeShellScriptBin "safe-terminal" ''
-    export PATH="$HOME/.nix-profile/bin:/run/current-system/sw/bin:/usr/bin:/bin"
-    export SHELL=${pkgs.bash}/bin/bash
+  safeTerminal =
+    if pkgs.stdenv.isLinux then
+      pkgs.writeShellScriptBin "safe-terminal" ''
+        export PATH="$HOME/.nix-profile/bin:/run/current-system/sw/bin:/usr/bin:/bin"
+        export SHELL=${pkgs.bash}/bin/bash
 
-    exec ${pkgs.foot}/bin/foot --config=${safeFootConfig} -- ${pkgs.bash}/bin/bash --noprofile --norc
-  '';
+        exec ${pkgs.foot}/bin/foot --config=${safeFootConfig} -- ${pkgs.bash}/bin/bash --noprofile --norc
+      ''
+    else if pkgs.stdenv.isDarwin then
+      pkgs.writeShellScriptBin "safe-terminal" ''
+        /usr/bin/osascript -e 'tell application "Terminal" to do script "export PATH=\"${config.home.profileDirectory}/bin:/usr/bin:/bin:/usr/sbin:/sbin\"; export SHELL=\"${pkgs.bash}/bin/bash\"; exec ${pkgs.bash}/bin/bash --noprofile --norc"'
+      ''
+    else
+      null;
 
   wrapWithNixGL = import ./lib/wrap-with-nixgl.nix {
     inherit pkgs;
     inherit (inputs) nixgl nixgl-nixpkgs;
-    nvidiaVersion = nixglNvidiaVersion;
-    nvidiaHash = nixglNvidiaHash;
+    inherit nixglNvidia;
   };
 in
 {
@@ -41,7 +47,6 @@ in
     pkgs.fish
     pkgs.just
     (wrapWithNixGL pkgs.kitty "kitty")
-    safeTerminal
     pkgs.socat
     pkgs.tool-habit
     pkgs.websocat
@@ -51,7 +56,8 @@ in
     pkgs.zsh-completions
     pkgs.zsh-powerlevel10k
     pkgs.zsh-syntax-highlighting
-  ];
+  ]
+  ++ lib.optionals (safeTerminal != null) [ safeTerminal ];
 
   programs.atuin = {
     enable = true;

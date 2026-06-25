@@ -93,10 +93,7 @@ in
 lib.mkIf pkgs.stdenv.isDarwin {
   home.packages =
     with pkgs;
-    [
-      aerospace
-      keepassxc
-    ]
+    [ aerospace ]
     ++ fontPackages
     ++ ddcPackages
     ++ lib.optionals (personal.enable && personal.plezy.enable) [ plezy ];

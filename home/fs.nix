@@ -4,6 +4,7 @@
 {
   home.packages = with pkgs; [
     bat
+    dumap
     doxx
     dust
     eza

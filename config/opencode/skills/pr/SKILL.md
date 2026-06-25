@@ -41,13 +41,9 @@ If current branch is `main` or `master`, stop and ask for a feature branch name.
 
 If the repository is Rust-based (for example contains `Cargo.toml`), run validation before opening the PR in this order:
 
-1. Prefer project workflow checks first:
+1. Prefer any documented project workflow validation command first.
 
-```bash
-task check
-```
-
-2. If `task check` is unavailable, use project shell tooling if available (for example Nix):
+2. Otherwise use project shell tooling if available (for example Nix):
 
 ```bash
 nix develop -c cargo fmt

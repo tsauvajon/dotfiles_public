@@ -47,12 +47,14 @@ Common private overlays:
   `~/.config/git/config` when `git.extraConfigInclude` points at it
 - `~/.config/dotfiles/ssh/config`: private SSH hosts and `IdentityFile` paths
 - `~/.config/dotfiles/goto/database.yml`: private goto bookmarks
-- `~/.config/dotfiles/opencode/`: private OpenCode overlays
+- `~/.config/dotfiles/config/opencode/`: private OpenCode overlays
 - `~/.config/dotfiles/task.<name>.toml`: private task overlays
 - `~/.config/dotfiles/cargo.<name>.toml`: private cargo overlays
 - `~/.config/dotfiles/aerospace.<name>.toml`: private AeroSpace rules
-- `~/.config/dotfiles/opencode/{opencode*.json,rules,commands,skills,agents,plugins,package.json}`:
-  private OpenCode config
+- `~/.config/dotfiles/config/opencode/{opencode*.json,rules,commands,skills,agents,plugins,package.json}`:
+  private OpenCode config; JSON partials use per-scope filenames such as
+  `opencode.<scope>.json` (for example permission.*, agent, provider.*,
+  experimental.*)
 
 ## Repo scope
 
@@ -131,9 +133,10 @@ nix --extra-experimental-features 'nix-command flakes' \
 avoid changing that input unless you are explicitly testing Linux OpenGL.
 
 OpenCode plugin dependencies are declared in `config/opencode/package.json` and
-the optional private package overlay. After changing those package versions,
-run `./setup.sh`; activation automatically runs `bun install` for
-`~/.config/opencode` when the merged package file changes.
+the optional private package overlay; the `@opencode-ai/plugin` version itself
+is injected from `opencodePin` in `flake.nix`. After changing the pin or those
+package versions, run `./setup.sh`; activation automatically runs `bun install`
+for `~/.config/opencode` when the merged package file changes.
 
 If something breaks after a bump, roll back with `home-manager switch
 --rollback`, or revert `flake.lock` (`git checkout flake.lock`) and rerun

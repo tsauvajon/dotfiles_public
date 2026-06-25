@@ -25,13 +25,29 @@ in
 
   testDefaultPredicateExcludesDirs = {
     # The mixed fixture contains three files and one subdirectory.
-    # Default predicate keeps regular files (and symlinks) only, so
-    # `subdir/` must not appear in the result.
+    # Default predicate keeps regular files (and file symlinks) only,
+    # so `subdir/` must not appear in the result.
     expr = listFilesIn { dir = ./list-files-in.test/mixed; };
     expected = [
       "00.md"
       "01.toml"
       "02.toml"
+    ];
+  };
+
+  testDefaultPredicateKeepsOnlyFilesAndFileSymlinks = {
+    # The symlinks fixture contains a regular file, a symlink to that
+    # file, a symlink to a directory, a dangling symlink, and a real
+    # directory. Pure Nix cannot resolve symlink target types, so the
+    # default predicate keeps symlinks, including dangling and directory
+    # symlinks; see the module doc for why fragment symlinks must point
+    # at regular files.
+    expr = listFilesIn { dir = ./list-files-in.test/symlinks; };
+    expected = [
+      "dangling-link"
+      "dir-link"
+      "file-link.md"
+      "target.md"
     ];
   };
 

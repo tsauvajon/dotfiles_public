@@ -20,7 +20,7 @@ After `setup.sh` runs, re-read any file before retrying an edit. Home Manager ma
 Global OpenCode config is generated from this repo plus private overlays:
 
 - Public sources: `config/opencode/`
-- Private overlays: `~/.config/dotfiles/opencode/`
+- Private overlays: `~/.config/dotfiles/config/opencode/`
 - Generated target: `~/.config/opencode/`
 
 Public `AGENTS.md` fragments in `config/opencode/rules/` apply globally after activation. Do not put repo-specific pitfalls there. For repo-local guidance, use this repo's root `AGENTS.md` or project skills under `.opencode/skills/`.

@@ -1,6 +1,7 @@
 theme = "catppuccin_mocha"
 
 [editor]
+# steel fork option: implicitly trusts every workspace.
 insecure = true
 
 [keys.normal]

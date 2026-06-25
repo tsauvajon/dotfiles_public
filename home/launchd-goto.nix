@@ -23,8 +23,8 @@ let
   privateGoto = inputs.private.goto or { };
   apiUrl = privateGoto.apiUrl or null;
   bookmarksFile = privateGoto.bookmarksFile or null;
-  hasBookmarksFile = bookmarksFile != null && toString bookmarksFile != "";
-  hasGoto = lib.isString apiUrl && apiUrl != "" && hasBookmarksFile;
+  # Shared with home/programs/goto.nix so both sides stay in lock-step.
+  hasGoto = (import ./lib/goto-enabled.nix { inherit lib; }) { inherit apiUrl bookmarksFile; };
 
   privateStoreRoot = toString inputs.private;
   privateWritableRoot = "${config.home.homeDirectory}/.config/dotfiles";

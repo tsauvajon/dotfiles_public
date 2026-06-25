@@ -1,3 +1,6 @@
+# Pre-compositor login environment sourced from ~/.profile.
+# Keep overlapping NVIDIA/Wayland values deliberately in sync with
+# config/hypr/env.conf, which sets the Hyprland session environment.
 export XDG_SESSION_TYPE=wayland
 export XDG_CURRENT_DESKTOP=Hyprland
 export QT_QPA_PLATFORM=wayland

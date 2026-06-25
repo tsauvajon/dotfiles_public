@@ -2,11 +2,35 @@
   "watcher": {
     "ignore": [
       ".git/**",
+      "**/.git/**",
       ".direnv/**",
+      "**/.direnv/**",
+      ".cache/**",
+      "**/.cache/**",
+      ".next/**",
+      "**/.next/**",
+      ".nuxt/**",
+      "**/.nuxt/**",
+      ".parcel-cache/**",
+      "**/.parcel-cache/**",
+      ".pytest_cache/**",
+      "**/.pytest_cache/**",
+      ".ruff_cache/**",
+      "**/.ruff_cache/**",
+      ".turbo/**",
+      "**/.turbo/**",
+      ".vite/**",
+      "**/.vite/**",
       "node_modules/**",
+      "**/node_modules/**",
       "target/**",
+      "**/target/**",
       "dist/**",
-      "build/**"
+      "**/dist/**",
+      "build/**",
+      "**/build/**",
+      "coverage/**",
+      "**/coverage/**"
     ]
   }
 }

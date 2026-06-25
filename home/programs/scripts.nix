@@ -59,6 +59,31 @@
       '';
     })
 
+    (pkgs.writeShellApplication {
+      name = "opencode-server-status";
+      runtimeInputs = [
+        pkgs.bash
+        pkgs.coreutils
+        pkgs.curl
+        pkgs.gnugrep
+        pkgs.gnused
+      ];
+      text = ''
+        exec bash ${../../scripts/opencode-server-status.sh} "$@"
+      '';
+    })
+
+    (pkgs.writeShellApplication {
+      name = "opencode-reap";
+      runtimeInputs = [
+        pkgs.bash
+        pkgs.coreutils
+      ];
+      text = ''
+        exec bash ${../../scripts/opencode-reap.sh} "$@"
+      '';
+    })
+
     # Force Chromium's macOS window surface to repaint after it gets stuck
     # showing stale pixels while tab/browser state continues to update.
     (pkgs.writeShellApplication {

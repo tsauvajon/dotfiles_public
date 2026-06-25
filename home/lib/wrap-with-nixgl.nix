@@ -8,7 +8,7 @@
 # Usage:
 #   wrapWithNixGL alacritty "alacritty"
 #
-# Pure evaluation: pass `nvidiaVersion` AND `nvidiaHash` together (the
+# Pure evaluation: pass `nixglNvidia.version` AND `nixglNvidia.hash` together (the
 # sha256 of the matching `NVIDIA-Linux-x86_64-<version>.run` from
 # https://download.nvidia.com/XFree86/). Without a hash, nixGL falls
 # back to `builtins.fetchurl` and the activation package only evaluates
@@ -17,13 +17,14 @@
   pkgs,
   nixgl,
   nixgl-nixpkgs,
-  nvidiaVersion ? null,
-  nvidiaHash ? null,
+  nixglNvidia ? null,
 }:
 
 let
   inherit (pkgs.stdenv.hostPlatform) system;
   isX86Linux = system == "x86_64-linux";
+  nvidiaVersion = if nixglNvidia == null then null else nixglNvidia.version;
+  nvidiaHash = if nixglNvidia == null then null else nixglNvidia.hash;
   nixglPkgs = import nixgl {
     pkgs = import nixgl-nixpkgs {
       inherit system;

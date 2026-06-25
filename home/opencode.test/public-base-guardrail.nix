@@ -53,4 +53,11 @@ in
     expr = lib.hasInfix ''opencodeBunInstall = lib.hm.dag.entryAfter [ "opencodeCheckUnmanaged" ]'' opencodeModuleSource;
     expected = true;
   };
+
+  testPrivateDefaultRootMirrorsPublicLayout = {
+    expr =
+      (lib.hasInfix ''privateOpencodeDir = inputs.private.outPath + "/config/opencode";'' opencodeModuleSource)
+      && !(lib.hasInfix ''privateOpencodeDir = inputs.private.outPath + "/opencode";'' opencodeModuleSource);
+    expected = true;
+  };
 }

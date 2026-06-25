@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@opencode-ai/plugin": "0.0.0-private-skew",
+    "extra-private-dep": "1.0.0"
+  }
+}

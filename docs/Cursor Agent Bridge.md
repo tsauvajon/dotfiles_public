@@ -30,7 +30,7 @@ The SDK module is lazy-loaded only in this mode. By default the bridge imports
 yet, and the real SDK is not exercised by automated tests. The current tests use
 fake SDK modules so they do not require dependency installation, network access,
 or a Cursor API key. If you want to install the SDK locally for this spike, add
-it to your private `~/.config/dotfiles/opencode/package.json` overlay rather
+it to your private `~/.config/dotfiles/config/opencode/package.json` overlay rather
 than the public `config/opencode/package.json`.
 
 SDK authentication uses `CURSOR_API_KEY`, which is required when

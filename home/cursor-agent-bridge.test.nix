@@ -2,6 +2,7 @@
 
 let
   bridgeModuleSource = builtins.readFile ./cursor-agent-bridge.nix;
+  managedUserServiceSource = builtins.readFile ./lib/managed-user-service.nix;
   opencodeModuleSource = builtins.readFile ./opencode.nix;
   bridgePluginSource = builtins.readFile ../config/opencode/plugins/cursor-agent-bridge.ts;
 in
@@ -11,6 +12,8 @@ in
       (lib.hasInfix "default = false;" bridgeModuleSource)
       && (lib.hasInfix "config = lib.mkIf cfg.enable" bridgeModuleSource)
       && (lib.hasInfix "cfg.cursorAgentBridge.enable" opencodeModuleSource)
+      && (lib.hasInfix "opencode-plugins-without-cursor-agent-bridge" opencodeModuleSource)
+      && (lib.hasInfix "cursor-agent-bridge.ts) ;;" opencodeModuleSource)
       && (lib.hasInfix ''builtins.removeAttrs mergedJsonWithCursorProvider.provider [ "cursor-agent" ]'' opencodeModuleSource);
     expected = true;
   };
@@ -35,18 +38,19 @@ in
 
   testCursorAgentBridgeActivationHasManagedHealth = {
     expr =
-      (lib.hasInfix "running_under_opencode_agent" bridgeModuleSource)
+      (lib.hasInfix "managedUserService" bridgeModuleSource)
+      && (lib.hasInfix "running_under_opencode_agent" managedUserServiceSource)
       && (lib.hasInfix "restart deferred because setup is running under an OpenCode agent" bridgeModuleSource)
-      && (lib.hasInfix "verify_service && health" bridgeModuleSource)
-      && (lib.hasInfix ''printf '%s\n' "$new_hash" > "$marker"'' bridgeModuleSource);
+      && (lib.hasInfix "verify_service && health" managedUserServiceSource)
+      && (lib.hasInfix ''printf '%s\n' "$new_hash" > "$marker"'' managedUserServiceSource);
     expected = true;
   };
 
   testCursorAgentBridgeUsesTrustedWorkingDirectory = {
     expr =
       (lib.hasInfix "serviceWorkingDirectory = config.home.homeDirectory;" bridgeModuleSource)
-      && (lib.hasInfix ''cd ''${lib.escapeShellArg serviceWorkingDirectory}'' bridgeModuleSource)
-      && (lib.hasInfix "WorkingDirectory = serviceWorkingDirectory;" bridgeModuleSource);
+      && (lib.hasInfix "cd \${lib.escapeShellArg serviceWorkingDirectory}" bridgeModuleSource)
+      && (lib.hasInfix "workingDirectory = serviceWorkingDirectory;" bridgeModuleSource);
     expected = true;
   };
 

@@ -7,14 +7,7 @@
 }:
 
 let
-  stableRust = pkgs.rust-bin.stable.latest.default.override {
-    extensions = [
-      "clippy"
-      "llvm-tools-preview"
-      "rust-analyzer"
-      "rust-src"
-    ];
-  };
+  stableRust = import ./lib/rust-toolchain.nix { inherit pkgs; };
   nightlyRustfmt = pkgs.rust-bin.selectLatestNightlyWith (
     toolchain:
     toolchain.default.override {
@@ -38,26 +31,15 @@ let
   };
   kacheBin = lib.getExe pkgs.kache;
   kacheLabel = "ninja.kunobi.kache";
-  defaultPath = lib.concatStringsSep ":" (
-    [
-      "${config.home.homeDirectory}/.local/share/mise/shims"
-      "${config.home.profileDirectory}/bin"
-      "/nix/var/nix/profiles/default/bin"
-      "${config.home.homeDirectory}/go/bin"
-      "/usr/local/bin"
-      "/opt/homebrew/bin"
-      "/usr/bin"
-      "/bin"
-      "/usr/sbin"
-      "/sbin"
-    ]
-    ++ lib.optional pkgs.stdenv.isLinux "/run/current-system/sw/bin"
-  );
+  kacheLocalMaxSize = "300GiB";
+  defaultPath = import ./lib/service-path.nix { inherit config lib pkgs; };
   kacheEnvironment = {
     HOME = config.home.homeDirectory;
     KACHE_CONFIG = "${config.xdg.configHome}/kache/config.toml";
     KACHE_DAEMON_IDLE_TIMEOUT = "0";
     KACHE_LOG = "kache=info";
+    # Keep this in the daemon environment so macOS plist changes restart stale daemons.
+    KACHE_MAX_SIZE = kacheLocalMaxSize;
     PATH = defaultPath;
   };
   kacheLogDir = "${config.home.homeDirectory}/Library/Logs/kache";
@@ -99,6 +81,7 @@ lib.mkMerge [
     xdg.configFile."kache/config.toml".text = ''
       [cache]
       fallback = "sccache"
+      local_max_size = "${kacheLocalMaxSize}"
     '';
   }
 
@@ -120,6 +103,7 @@ lib.mkMerge [
           ${pkgs.coreutils}/bin/mkdir -p "$(${pkgs.coreutils}/bin/dirname "$plist")" "$log_dir"
           if [ ! -e "$plist" ] || ! ${pkgs.diffutils}/bin/cmp -s "$plist_source" "$plist"; then
             ${pkgs.coreutils}/bin/install -m 0644 "$plist_source" "$plist"
+            HOME=${lib.escapeShellArg config.home.homeDirectory} KACHE_CONFIG=${lib.escapeShellArg "${config.xdg.configHome}/kache/config.toml"} ${kacheBin} daemon stop >/dev/null 2>&1 || true
             /bin/launchctl bootout "$domain/$label" >/dev/null 2>&1 || true
             if ! bootstrap_output="$(/bin/launchctl bootstrap "$domain" "$plist" 2>&1)"; then
               echo "warning: kache launchd bootstrap failed: $bootstrap_output" >&2

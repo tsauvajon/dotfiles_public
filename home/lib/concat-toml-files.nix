@@ -1,6 +1,8 @@
 # Concatenate a base file with overlay fragments to produce a single
-# output file. Output layout: the base file verbatim, then for each
-# overlay a `\n` separator followed by the overlay content.
+# output file. Output layout: the base file verbatim, then each
+# surviving overlay in byte-sorted filename order, separated by `\n`.
+# Fragment dirs are optional. When multiple dirs contain the same
+# fragment filename, later dirs win.
 #
 # Used for cargo / aerospace / alacritty where the base config plus
 # platform/private fragments are stitched together. Attribute-level
@@ -24,7 +26,10 @@ let
 
   fragmentsIn =
     dir:
-    map (n: dir + "/${n}") (listFilesIn {
+    map (n: {
+      name = n;
+      path = dir + "/${n}";
+    }) (listFilesIn {
       inherit dir;
       predicate =
         name: type:
@@ -34,7 +39,15 @@ let
         && name != baseName;
     });
 
-  fragments = lib.concatLists (map fragmentsIn fragmentDirs);
+  collected = lib.foldl' (
+    acc: dir:
+    let
+      asAttrs = lib.listToAttrs (map (f: lib.nameValuePair f.name f) (fragmentsIn dir));
+    in
+    acc // asAttrs
+  ) { } fragmentDirs;
+
+  fragments = map (name: collected.${name}.path) (builtins.attrNames collected);
 in
 pkgs.runCommand name { } ''
   cat ${base} > "$out"

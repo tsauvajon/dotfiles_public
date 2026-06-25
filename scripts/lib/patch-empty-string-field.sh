@@ -26,12 +26,12 @@
 #
 # Notes:
 #   - <value> is spliced in as a literal string after escaping the
-#     sed-replacement metacharacters `\` and `&`. The caller is still
+#     sed-replacement metacharacters `\`, `&`, and `|`. The caller is still
 #     responsible for not passing values that contain `"` or
 #     newlines, since those would corrupt the resulting Nix string
 #     literal.
 #   - The sed delimiter is `|`, so `/` in <value> is safe and needs
-#     no escaping.
+#     no escaping, but literal `|` values must be escaped.
 set -euo pipefail
 umask 077
 
@@ -63,10 +63,9 @@ existing_re="^[[:space:]]*${field}[[:space:]]*=[[:space:]]*\"([^\"]*)\"[[:space:
 present_re="^[[:space:]]*${field}[[:space:]]*="
 
 if grep -Eq "$empty_re" "$file"; then
-  # Empty literal — patch it. Escape `\` and `&` in the replacement
-  # so they are not interpreted by sed (the delimiter `|` does not
-  # need escaping).
-  escaped_value=$(printf '%s' "$value" | sed -e 's/[\\&]/\\&/g')
+  # Empty literal — patch it. Escape `\`, `&`, and the `|` delimiter
+  # so they are not interpreted by sed.
+  escaped_value=$(printf '%s' "$value" | sed -e 's/[\\&|]/\\&/g')
   backup="$file.bak"
   if ! sed -i.bak -E \
     "s|^([[:space:]]*${field}[[:space:]]*=[[:space:]]*)\"\"([[:space:]]*;.*)$|\\1\"${escaped_value}\"\\2|" \

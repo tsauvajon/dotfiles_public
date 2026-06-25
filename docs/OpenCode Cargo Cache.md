@@ -47,10 +47,13 @@ absolute fallback path used by the OpenCode plugin.
 Rust compiler caching comes from the managed Cargo config at
 `~/.cargo/config.toml`, which sets `build.rustc-wrapper = "kache"`. Home Manager
 also writes `~/.config/kache/config.toml` with `[cache] fallback = "sccache"`
-and manages the `kache daemon run` user service through launchd on macOS and
-systemd user services on Linux. Native builds that use `cc-rs` also use the
-Cargo wrapper, so `CC` and `CXX` intentionally remain direct compiler values
-from Cargo config or the toolchain defaults.
+and `local_max_size = "300GiB"`, and manages the `kache daemon run` user service
+through launchd on macOS and systemd user services on Linux. The daemon
+environment also sets `KACHE_MAX_SIZE` to the same value, so the macOS plist
+changes when the size changes; activation stops any existing daemon before
+bootstrapping the launchd job. Native builds that
+use `cc-rs` also use the Cargo wrapper, so `CC` and `CXX` intentionally remain
+direct compiler values from Cargo config or the toolchain defaults.
 
 ## Native Compiler Guardrails
 

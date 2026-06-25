@@ -17,7 +17,11 @@
 
     # nixGL pinned alongside a known-good nixpkgs commit. Touching the
     # pin will likely break OpenGL on Linux.
-    nixgl.url = "github:nix-community/nixGL";
+    nixgl = {
+      url = "github:nix-community/nixGL";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-utils.follows = "flake-utils";
+    };
     nixgl-nixpkgs.url = "github:nixos/nixpkgs/93e8cdce7afc64297cfec447c311470788131cd9";
 
     # Helix Steel and pinned plugin sources.
@@ -71,18 +75,16 @@
       inputs.rust-overlay.follows = "rust-overlay";
     };
 
-    # Catppuccin theme content sourced from upstream flakes. The
-    # catppuccin/nix metaflake covers most tools; fzf, zellij, and the
-    # raw palette JSON are pinned as source repos directly.
-    catppuccin = {
-      url = "github:catppuccin/nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    # Catppuccin theme content sourced from upstream source repos.
     # Source-only palette so home/files.nix can read palette.json without
     # forcing an import-from-derivation on a system-specific catppuccin
     # build (which previously broke pure cross-system eval).
     catppuccin-palette = {
       url = "github:catppuccin/palette";
+      flake = false;
+    };
+    catppuccin-waybar = {
+      url = "github:catppuccin/waybar";
       flake = false;
     };
     catppuccin-fzf = {
@@ -130,11 +132,15 @@
     }:
     let
       opencodePin = {
-        version = "1.15.5";
-        srcHash = "sha256-HZiqia9QzkJMfRQ6bzFBsiGXNHv1WFLUdwhekE+rXM8=";
-        nodeModulesHash = "sha256-lxwxaFTgonMPIe2GweEVZhCMSUN/quBgV1wvV05U5wc=";
+        version = "1.17.7";
+        srcHash = "sha256-rTeJuwqc11r6Xiksfg5IoTezK2ZtG3GlenQCxTW04P4=";
+        nodeModulesHash = "sha256-DntnRo2N32nhjv8YxedIbRMtEkSsXAOrpFmK6six/g4=";
       };
-      opencodePackageJson = builtins.fromJSON (builtins.readFile ./config/opencode/package.json);
+      supportedSystems = [
+        "x86_64-linux"
+        "aarch64-darwin"
+        "x86_64-darwin"
+      ];
 
       localOverlay =
         system: final: prev:
@@ -148,7 +154,9 @@
         in
         {
           cargo-coupling = final.callPackage ./pkgs/cargo-coupling { };
+          dumap = final.callPackage ./pkgs/dumap { };
           glim = final.callPackage ./pkgs/glim { };
+          herdr = final.callPackage ./pkgs/herdr { };
           kache = final.callPackage ./pkgs/kache { };
           sem = final.callPackage ./pkgs/sem { };
           tool-habit = final.callPackage ./pkgs/tool-habit { };
@@ -186,14 +194,18 @@
             }
           );
 
-          # Apply a downstream patch to harper that suppresses the
-          # SentenceCapitalization lint inside markdown list items, since
-          # upstream issue #189 was closed as not planned.
-          harper = prev.harper.overrideAttrs (old: {
-            patches = (old.patches or [ ]) ++ [
-              ./pkgs/harper/skip-list-capitalization.patch
-            ];
-          });
+          # Keep the downstream patch line-context honest when nixpkgs
+          # bumps harper; re-verify the patch before updating this guard.
+          harper = prev.harper.overrideAttrs (
+            old:
+            assert final.lib.assertMsg (old.version == "2.3.0")
+              "harper bumped to ${old.version}; re-verify pkgs/harper/skip-list-capitalization.patch still applies and update this guard";
+            {
+              patches = (old.patches or [ ]) ++ [
+                ./pkgs/harper/skip-list-capitalization.patch
+              ];
+            }
+          );
         };
 
       mkPkgs =
@@ -207,6 +219,8 @@
           ];
         };
 
+      pkgsFor = nixpkgs.lib.genAttrs supportedSystems mkPkgs;
+
       dotfilesRoot = ./.;
 
       mkHome =
@@ -215,7 +229,7 @@
           hostModule,
         }:
         home-manager.lib.homeManagerConfiguration {
-          pkgs = mkPkgs system;
+          pkgs = pkgsFor.${system};
           extraSpecialArgs = { inherit inputs system dotfilesRoot; };
           modules = [
             ./home
@@ -239,216 +253,223 @@
         };
       };
     in
-    flake-utils.lib.eachSystem
-      [
-        "x86_64-linux"
-        "aarch64-darwin"
-        "x86_64-darwin"
-      ]
-      (
-        system:
-        let
-          pkgs = mkPkgs system;
-          inherit (pkgs) lib;
-          # Map each host to the system it targets so `nix flake check
-          # --all-systems` exercises every homeConfiguration. Pure
-          # evaluation alone catches issues like the nixGL fetchurl
-          # regression; building still requires the matching system or
-          # a remote builder.
-          hostsForSystem = {
-            "aarch64-darwin" = [ "thomas-darwin" ];
-            "x86_64-darwin" = [ "thomas-darwin-intel" ];
-            "x86_64-linux" = [ "thomas-linux" ];
-          };
-          hosts = hostsForSystem.${system} or [ ];
+    flake-utils.lib.eachSystem supportedSystems (
+      system:
+      let
+        pkgs = pkgsFor.${system};
+        inherit (pkgs) lib;
+        # Map each host to the system it targets so `nix flake check
+        # --all-systems` exercises every homeConfiguration. Pure
+        # evaluation alone catches issues like the nixGL fetchurl
+        # regression; building still requires the matching system or
+        # a remote builder.
+        hostsForSystem = {
+          "aarch64-darwin" = [ "thomas-darwin" ];
+          "x86_64-darwin" = [ "thomas-darwin-intel" ];
+          "x86_64-linux" = [ "thomas-linux" ];
+        };
+        hosts = hostsForSystem.${system} or [ ];
 
-          # Pure value-equality unit tests for the lib helpers. Each
-          # imported file returns an attrset of `{expr; expected;}`
-          # cases; we union them and feed the union to `lib.runTests`.
-          # `runTests` returns `[]` on success or a list of failed
-          # cases, which we convert into a 0/non-zero exit by writing
-          # `$out` only when the list is empty.
-          libRunTestsCases =
-            (import ./home/lib/deep-merge-json.test.nix { inherit lib; })
-            // (import ./home/lib/concat-files.test.nix { inherit lib; })
-            // (import ./home/lib/list-files-in.test.nix { inherit lib; })
-            // (import ./home/default.test.nix { inherit lib; })
-            // (import ./home/bootstrap.test.nix { inherit lib; })
-            // (import ./home/programs/cross-shell-aliases.test.nix { inherit lib; });
-          libRunTestsFailures = lib.runTests libRunTestsCases;
-          libRunTestsCheck = pkgs.runCommand "lib-runTests" { } (
-            if libRunTestsFailures == [ ] then
-              ''
-                echo "lib runTests: all ${toString (builtins.length (builtins.attrNames libRunTestsCases))} cases passed"
-                touch "$out"
-              ''
-            else
-              ''
-                echo "lib runTests failures:" >&2
-                cat <<'EOF' >&2
-                ${builtins.toJSON libRunTestsFailures}
-                EOF
+        # Pure value-equality unit tests for the lib helpers. Each
+        # imported file returns an attrset of `{expr; expected;}`
+        # cases; we union them and feed the union to `lib.runTests`.
+        # `runTests` returns `[]` on success or a list of failed
+        # cases, which we convert into a 0/non-zero exit by writing
+        # `$out` only when the list is empty.
+        libRunTestsCases =
+          (import ./home/lib/deep-merge-json.test.nix { inherit lib; })
+          // (import ./home/lib/concat-files.test.nix { inherit lib; })
+          // (import ./home/lib/goto-enabled.test.nix { inherit lib; })
+          // (import ./home/lib/list-files-in.test.nix { inherit lib; })
+          // (import ./home/lib/read-json-or.test.nix { inherit lib; })
+          // (import ./home/lib/managed-user-service.test.nix { inherit lib; })
+          // (import ./home/lib/service-path.test.nix { inherit lib; })
+          // (import ./home/lib/rust-toolchain.test.nix { inherit lib; })
+          // (import ./home/default.test.nix { inherit lib; })
+          // (import ./home/bootstrap.test.nix { inherit lib; })
+          // (import ./home/programs/cross-shell-aliases.test.nix { inherit lib; });
+        libRunTestsFailures = lib.runTests libRunTestsCases;
+        libRunTestsCheck = pkgs.runCommand "lib-runTests" { } (
+          if libRunTestsFailures == [ ] then
+            ''
+              echo "lib runTests: all ${toString (builtins.length (builtins.attrNames libRunTestsCases))} cases passed"
+              touch "$out"
+            ''
+          else
+            ''
+              echo "lib runTests failures:" >&2
+              cat <<'EOF' >&2
+              ${builtins.toJSON libRunTestsFailures}
+              EOF
+              exit 1
+            ''
+        );
+
+        bootstrapKeysCheck = import ./scripts/bootstrap-keys.test.nix { inherit pkgs lib; };
+        brewCleanupCheck = import ./scripts/brew-cleanup.test.nix { inherit pkgs lib; };
+        mergeDirsCheck = import ./home/lib/merge-dirs.test.nix { inherit pkgs lib; };
+        concatTomlFilesCheck = import ./home/lib/concat-toml-files.test.nix { inherit pkgs lib; };
+        opencodeImportsCheck = import ./scripts/lib/opencode-imports.test.nix { inherit pkgs lib; };
+        opencodeTestsCheck = import ./home/opencode.test { inherit pkgs lib; };
+        opencodeVersionAlignmentCheck =
+          pkgs.runCommand "opencode-version-alignment"
+            {
+              expectedVersion = opencodePin.version;
+              packageVersion = pkgs.opencode.version;
+            }
+            ''
+              if [ "$packageVersion" != "$expectedVersion" ]; then
+                echo "pkgs.opencode is $packageVersion, expected $expectedVersion" >&2
                 exit 1
-              ''
-          );
-
-          mergeDirsCheck = import ./home/lib/merge-dirs.test.nix { inherit pkgs lib; };
-          opencodeTestsCheck = import ./home/opencode.test { inherit pkgs lib; };
-          opencodeVersionAlignmentCheck =
-            pkgs.runCommand "opencode-version-alignment"
-              {
-                expectedVersion = opencodePin.version;
-                packageVersion = pkgs.opencode.version;
-                pluginVersion = opencodePackageJson.dependencies."@opencode-ai/plugin";
-              }
-              ''
-                if [ "$packageVersion" != "$expectedVersion" ]; then
-                  echo "pkgs.opencode is $packageVersion, expected $expectedVersion" >&2
-                  exit 1
-                fi
-
-                if [ "$pluginVersion" != "$expectedVersion" ]; then
-                  echo "@opencode-ai/plugin is $pluginVersion, expected $expectedVersion" >&2
-                  exit 1
-                fi
-
-                touch "$out"
-              '';
-          toolHabitSmokeCheck = pkgs.runCommand "tool-habit-smoke" { } ''
-            line_count=0
-            while IFS= read -r line; do
-              if [ "$line" = % ]; then
-                continue
               fi
 
-              line_count=$((line_count + 1))
-              if ! expr "$line" : '[a-z][a-z0-9_-]*: ' > /dev/null; then
-                echo "invalid tool habit line: $line" >&2
-                exit 1
-              fi
-            done < ${pkgs.tool-habit}/share/fortune-habits/tool-habits
+              touch "$out"
+            '';
+        toolHabitSmokeCheck = pkgs.runCommand "tool-habit-smoke" { } ''
+          line_count=0
+          while IFS= read -r line; do
+            if [ "$line" = % ]; then
+              continue
+            fi
 
-            if [ "$line_count" -eq 0 ]; then
-              echo "tool-habit contains no reminders" >&2
+            line_count=$((line_count + 1))
+            if ! expr "$line" : '[a-z][a-z0-9_-]*: ' > /dev/null; then
+              echo "invalid tool habit line: $line" >&2
               exit 1
             fi
+          done < ${pkgs.tool-habit}/share/fortune-habits/tool-habits
 
-            set +e
-            output="$(NO_COLOR=1 ${pkgs.tool-habit}/bin/tool-habit 2>&1)"
-            status=$?
-            set -e
+          if [ "$line_count" -eq 0 ]; then
+            echo "tool-habit contains no reminders" >&2
+            exit 1
+          fi
 
-            if [ "$status" -ne 0 ]; then
-              echo "tool-habit exited with status $status" >&2
-              echo "$output" >&2
-              exit "$status"
-            fi
+          set +e
+          output="$(NO_COLOR=1 ${pkgs.tool-habit}/bin/tool-habit 2>&1)"
+          status=$?
+          set -e
 
-            if [ -z "$output" ]; then
-              echo "tool-habit printed no output" >&2
+          if [ "$status" -ne 0 ]; then
+            echo "tool-habit exited with status $status" >&2
+            echo "$output" >&2
+            exit "$status"
+          fi
+
+          if [ -z "$output" ]; then
+            echo "tool-habit printed no output" >&2
+            exit 1
+          fi
+
+          if ! expr "$output" : '[a-z][a-z0-9_-]*: ' > /dev/null; then
+            echo "tool-habit output does not start with a lowercase tool prefix: $output" >&2
+            exit 1
+          fi
+
+          colored_output="$(${pkgs.tool-habit}/bin/tool-habit 2>&1)"
+          escape="$(printf '\033')"
+          case "$colored_output" in
+            *"$escape"*) ;;
+            *)
+              echo "tool-habit colored output contains no ANSI escapes: $colored_output" >&2
               exit 1
-            fi
+              ;;
+          esac
 
-            if ! expr "$output" : '[a-z][a-z0-9_-]*: ' > /dev/null; then
-              echo "tool-habit output does not start with a lowercase tool prefix: $output" >&2
+          case "$colored_output" in
+            *\`*)
+              echo "tool-habit colored output should replace command backticks: $colored_output" >&2
               exit 1
-            fi
+              ;;
+          esac
 
-            colored_output="$(${pkgs.tool-habit}/bin/tool-habit 2>&1)"
-            escape="$(printf '\033')"
-            case "$colored_output" in
-              *"$escape"*) ;;
-              *)
-                echo "tool-habit colored output contains no ANSI escapes: $colored_output" >&2
-                exit 1
-                ;;
-            esac
-
-            case "$colored_output" in
-              *\`*)
-                echo "tool-habit colored output should replace command backticks: $colored_output" >&2
-                exit 1
-                ;;
-            esac
-
-            touch "$out"
-          '';
-          patchStringFieldCheck = import ./scripts/lib/patch-empty-string-field.test.nix {
-            inherit pkgs lib;
-          };
-          gpgPinentryCheck = import ./scripts/lib/configure-gpg-pinentry.test.nix { inherit pkgs lib; };
-          nixglNvidiaDoctorCheck = import ./scripts/nixgl-nvidia-doctor.test.nix { inherit pkgs lib; };
-          yaziLiveSearchCheck = import ./config/yazi/live-search.test.nix { inherit pkgs; };
-          cursorAgentBridgeCheck = import ./config/opencode/plugin-tests/cursor-agent-bridge.test.nix {
-            inherit pkgs;
-          };
-          cargoBuildEnvCheck = import ./config/opencode/plugin-tests/cargo-build-env.test.nix {
-            inherit pkgs;
-          };
-          cursorAgentBridgeModuleTests = lib.runTests (
-            import ./home/cursor-agent-bridge.test.nix { inherit lib; }
-          );
-          cursorAgentBridgeModuleCheck = pkgs.runCommand "cursor-agent-bridge-module-test" { } (
-            if cursorAgentBridgeModuleTests == [ ] then
-              ''
-                echo "cursor-agent-bridge-module-test: all cases passed"
-                touch "$out"
-              ''
-            else
-              ''
-                echo "cursor-agent-bridge-module-test failures:" >&2
-                cat <<'EOF' >&2
-                ${builtins.toJSON cursorAgentBridgeModuleTests}
-                EOF
-                exit 1
-              ''
-          );
-        in
-        {
-          formatter = pkgs.nixfmt-rfc-style;
-          packages = {
+          touch "$out"
+        '';
+        patchStringFieldCheck = import ./scripts/lib/patch-empty-string-field.test.nix {
+          inherit pkgs lib;
+        };
+        gpgPinentryCheck = import ./scripts/lib/configure-gpg-pinentry.test.nix { inherit pkgs lib; };
+        nixglNvidiaDoctorCheck = import ./scripts/nixgl-nvidia-doctor.test.nix { inherit pkgs lib; };
+        opencodeOpsCheck = import ./scripts/opencode-ops.test.nix { inherit pkgs lib; };
+        yaziLiveSearchCheck = import ./config/yazi/live-search.test.nix { inherit pkgs; };
+        cursorAgentBridgeCheck = import ./config/opencode/plugin-tests/cursor-agent-bridge.test.nix {
+          inherit pkgs;
+        };
+        cargoBuildEnvCheck = import ./config/opencode/plugin-tests/cargo-build-env.test.nix {
+          inherit pkgs;
+        };
+        cursorAgentBridgeModuleTests = lib.runTests (
+          import ./home/cursor-agent-bridge.test.nix { inherit lib; }
+        );
+        cursorAgentBridgeModuleCheck = pkgs.runCommand "cursor-agent-bridge-module-test" { } (
+          if cursorAgentBridgeModuleTests == [ ] then
+            ''
+              echo "cursor-agent-bridge-module-test: all cases passed"
+              touch "$out"
+            ''
+          else
+            ''
+              echo "cursor-agent-bridge-module-test failures:" >&2
+              cat <<'EOF' >&2
+              ${builtins.toJSON cursorAgentBridgeModuleTests}
+              EOF
+              exit 1
+            ''
+        );
+      in
+      {
+        formatter = pkgs.nixfmt-rfc-style;
+        packages = {
+          inherit (pkgs)
+            cargo-coupling
+            dumap
+            glim
+            herdr
+            kache
+            sem
+            tool-habit
+            tsql
+            weave
+            ;
+        };
+        checks =
+          builtins.listToAttrs (
+            map (h: {
+              name = h;
+              value = homeConfigurations.${h}.activationPackage;
+            }) hosts
+          )
+          // {
             inherit (pkgs)
               cargo-coupling
+              dumap
               glim
+              herdr
               kache
               sem
               tool-habit
               tsql
               weave
               ;
+            lib-runTests = libRunTestsCheck;
+            bootstrap-keys-test = bootstrapKeysCheck;
+            brew-cleanup-test = brewCleanupCheck;
+            concat-toml-files-test = concatTomlFilesCheck;
+            merge-dirs-test = mergeDirsCheck;
+            opencode-imports-test = opencodeImportsCheck;
+            opencode-version-alignment = opencodeVersionAlignmentCheck;
+            opencode-tests = opencodeTestsCheck;
+            tool-habit-smoke = toolHabitSmokeCheck;
+            patch-string-field-test = patchStringFieldCheck;
+            configure-gpg-pinentry-test = gpgPinentryCheck;
+            nixgl-nvidia-doctor-test = nixglNvidiaDoctorCheck;
+            opencode-ops-test = opencodeOpsCheck;
+            yazi-live-search-test = yaziLiveSearchCheck;
+            cursor-agent-bridge-test = cursorAgentBridgeCheck;
+            cargo-build-env-test = cargoBuildEnvCheck;
+            cursor-agent-bridge-module-test = cursorAgentBridgeModuleCheck;
           };
-          checks =
-            builtins.listToAttrs (
-              map (h: {
-                name = h;
-                value = homeConfigurations.${h}.activationPackage;
-              }) hosts
-            )
-            // {
-              inherit (pkgs)
-                cargo-coupling
-                glim
-                kache
-                sem
-                tool-habit
-                tsql
-                weave
-                ;
-              lib-runTests = libRunTestsCheck;
-              merge-dirs-test = mergeDirsCheck;
-              opencode-version-alignment = opencodeVersionAlignmentCheck;
-              opencode-tests = opencodeTestsCheck;
-              tool-habit-smoke = toolHabitSmokeCheck;
-              patch-string-field-test = patchStringFieldCheck;
-              configure-gpg-pinentry-test = gpgPinentryCheck;
-              nixgl-nvidia-doctor-test = nixglNvidiaDoctorCheck;
-              yazi-live-search-test = yaziLiveSearchCheck;
-              cursor-agent-bridge-test = cursorAgentBridgeCheck;
-              cargo-build-env-test = cargoBuildEnvCheck;
-              cursor-agent-bridge-module-test = cursorAgentBridgeModuleCheck;
-            };
-        }
-      )
+      }
+    )
     // {
       inherit homeConfigurations;
     };

@@ -1,25 +1,27 @@
 {
   lib,
-  stdenv,
+  stdenvNoCC,
   fetchurl,
   fetchFromGitHub,
   rustPlatform,
 }:
 
 let
-  version = "0.4.0";
+  version = "0.6.0";
 
   prebuiltSources = {
     aarch64-darwin = {
       target = "aarch64-apple-darwin";
-      hash = "sha256-qiJ4OBqlnoUpoksGXHY5WbIlQh3AyhlgPr5AOmP+Rqk=";
+      hash = "sha256-IX4HROdlZ+vfAx/6yZYJA0ROG2rNEzkOPA2Jss1MuY8=";
     };
     aarch64-linux = {
       target = "aarch64-unknown-linux-musl";
-      hash = "sha256-5W7O2iTTiT8fImAa+IjRxlr5tG9TnluhYnyTN4JFYtA=";
+      hash = "sha256-1oxO4IZWRmBduDi1sMyCXxDmMOAfCi21cghTOESLlSA=";
     };
   };
 
+  # Upstream v0.6.0 publishes aarch64-only release assets; x86_64 falls back to
+  # source builds (verified 2026-06-17 via the GitHub API).
   sourceBuildPlatforms = [
     "x86_64-darwin"
     "x86_64-linux"
@@ -27,7 +29,7 @@ let
 
   platforms = (builtins.attrNames prebuiltSources) ++ sourceBuildPlatforms;
 
-  source = prebuiltSources.${stdenv.hostPlatform.system} or null;
+  source = prebuiltSources.${stdenvNoCC.hostPlatform.system} or null;
 
   meta = {
     description = "Zero-copy, content-addressed Rust build cache";
@@ -38,7 +40,7 @@ let
   };
 in
 if source != null then
-  stdenv.mkDerivation {
+  stdenvNoCC.mkDerivation {
     pname = "kache";
     inherit version;
 
@@ -61,9 +63,20 @@ if source != null then
       runHook postInstall
     '';
 
+    # Kache's prebuilt Linux asset is a musl binary, so it can execute inside the
+    # Nix build sandbox. GNU Linux release assets would need the FHS loader path.
+    doInstallCheck = stdenvNoCC.hostPlatform.isDarwin || lib.hasInfix "musl" source.target;
+    installCheckPhase = ''
+      runHook preInstallCheck
+
+      "$out/bin/kache" --version || "$out/bin/kache" --help
+
+      runHook postInstallCheck
+    '';
+
     inherit meta;
   }
-else if builtins.elem stdenv.hostPlatform.system sourceBuildPlatforms then
+else if builtins.elem stdenvNoCC.hostPlatform.system sourceBuildPlatforms then
   rustPlatform.buildRustPackage {
     pname = "kache";
     inherit version;
@@ -72,10 +85,10 @@ else if builtins.elem stdenv.hostPlatform.system sourceBuildPlatforms then
       owner = "kunobi-ninja";
       repo = "kache";
       rev = "v${version}";
-      hash = "sha256-vtU+WgMsXzE+NC8/X7UlkHaJkClL/hlVkxgv4uU8z7E=";
+      hash = "sha256-bOls4m1SVuIxoeF2/kCtIU+f11AO/1BFrxcWFXvGHIE=";
     };
 
-    cargoHash = "sha256-yc7E1fDPe3FVflKvkR8faQGFfN+W2YQAXZKrxO5kaq0=";
+    cargoHash = "sha256-XV7DRPaodZx5bL/neJj9KbjHVGZktD9Rumq1z55A8lM=";
     cargoBuildFlags = [
       "-p"
       "kache"
@@ -87,4 +100,4 @@ else if builtins.elem stdenv.hostPlatform.system sourceBuildPlatforms then
     inherit meta;
   }
 else
-  throw "kache is not packaged for ${stdenv.hostPlatform.system}"
+  throw "kache is not packaged for ${stdenvNoCC.hostPlatform.system}"

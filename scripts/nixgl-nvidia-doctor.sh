@@ -8,7 +8,7 @@ usage: nixgl-nvidia-doctor.sh
 
 Checks:
   - running NVIDIA kernel driver version
-  - configured nixglNvidiaVersion in home/hosts/linux.nix
+  - configured nixglNvidia.version in home/hosts/linux.nix
   - active nixGL wrapper version, when discoverable from kitty/alacritty
 
 Test/advanced overrides:
@@ -32,8 +32,8 @@ if [[ $# -gt 0 ]]; then
     esac
 fi
 
-script_dir=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-repo_root=$(CDPATH= cd -- "$script_dir/.." && pwd)
+script_dir=$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+repo_root=$(CDPATH='' cd -- "$script_dir/.." && pwd)
 config_file=${NIXGL_NVIDIA_CONFIG_FILE:-$repo_root/home/hosts/linux.nix}
 
 first_line() {
@@ -42,20 +42,43 @@ first_line() {
 
 configured_version() {
     [[ -r "$config_file" ]] || return 1
-    sed -n 's/^[[:space:]]*_module\.args\.nixglNvidiaVersion[[:space:]]*=[[:space:]]*"\([^"]*\)";.*/\1/p' "$config_file" | first_line
+    awk '
+        /^[[:space:]]*_module\.args\.nixglNvidia[[:space:]]*=[[:space:]]*\{[[:space:]]*version[[:space:]]*=/ {
+            line = $0
+            sub(/^[[:space:]]*_module\.args\.nixglNvidia[[:space:]]*=[[:space:]]*\{[[:space:]]*version[[:space:]]*=[[:space:]]*"/, "", line)
+            sub(/".*$/, "", line)
+            print line
+            exit
+        }
+        /^[[:space:]]*_module\.args\.nixglNvidia[[:space:]]*=/ { in_pin = 1 }
+        in_pin && /^[[:space:]]*version[[:space:]]*=[[:space:]]*"[^"]*"/ {
+            line = $0
+            sub(/^[[:space:]]*version[[:space:]]*=[[:space:]]*"/, "", line)
+            sub(/".*$/, "", line)
+            print line
+            exit
+        }
+        in_pin && /^[[:space:]]*};[[:space:]]*$/ { exit }
+    ' "$config_file" | first_line
 }
 
 running_version() {
+    local version
+
     if [[ -v NIXGL_NVIDIA_RUNNING_VERSION ]]; then
         printf '%s\n' "$NIXGL_NVIDIA_RUNNING_VERSION"
         return 0
     fi
 
     if command -v nvidia-smi >/dev/null 2>&1; then
-        nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null \
+        version=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null \
             | sed 's/[[:space:]]//g' \
             | first_line \
-            || true
+            || true)
+        if [[ -n "$version" ]]; then
+            printf '%s\n' "$version"
+            return 0
+        fi
     fi
 
     if [[ -r /proc/driver/nvidia/version ]]; then
@@ -77,9 +100,9 @@ store_refs_in_file() {
 
 version_from_wrapper_file() {
     local queue=$1
-    local depth file resolved version refs next
+    local _depth file resolved version refs next
 
-    for depth in 1 2 3 4; do
+    for _depth in 1 2 3 4; do
         next=
         for file in $queue; do
             [[ -n "$file" ]] || continue
@@ -133,7 +156,7 @@ printf 'running NVIDIA driver:   %s\n' "${running:-unknown}"
 printf 'active nixGL wrapper:    %s\n' "${wrapper:-unknown}"
 
 if [[ -z "$configured" ]]; then
-    printf '\nERROR: could not read nixglNvidiaVersion from %s\n' "$config_file" >&2
+    printf '\nERROR: could not read nixglNvidia.version from %s\n' "$config_file" >&2
     exit 1
 fi
 

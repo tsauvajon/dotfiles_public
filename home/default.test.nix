@@ -18,14 +18,6 @@ let
   source = builtins.readFile (home + "/default.nix");
   rustModuleSource = builtins.readFile (home + "/rust.nix");
 
-  # Pull every relative path (`./` followed by non-whitespace, ending
-  # in either `.nix` or a directory name) out of the file. The leading
-  # `./` is included; trailing whitespace and other punctuation are
-  # stripped by the regex group.
-  matches = builtins.match
-    "(.*)" # placate the type checker; we use builtins.split below
-    source;
-
   # `builtins.split` returns a list alternating between non-match
   # strings and match groups (themselves lists). We keep only the
   # match groups whose first element is the captured path.
@@ -71,8 +63,21 @@ in
       && (lib.hasInfix ''
         TimeoutStopSec = "5s";
       '' rustModuleSource)
+      && (lib.hasInfix "HOME=\${lib.escapeShellArg config.home.homeDirectory} KACHE_CONFIG=" rustModuleSource)
+      && (lib.hasInfix ''
+        ''${kacheBin} daemon stop >/dev/null 2>&1 || true
+      '' rustModuleSource)
       && (lib.hasInfix ''
         KACHE_DAEMON_IDLE_TIMEOUT = "0";
+      '' rustModuleSource)
+      && (lib.hasInfix ''
+        kacheLocalMaxSize = "300GiB";
+      '' rustModuleSource)
+      && (lib.hasInfix ''
+        KACHE_MAX_SIZE = kacheLocalMaxSize;
+      '' rustModuleSource)
+      && (lib.hasInfix ''
+        local_max_size = "''${kacheLocalMaxSize}"
       '' rustModuleSource);
     expected = true;
   };

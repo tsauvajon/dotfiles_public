@@ -1,0 +1,7 @@
+{
+  "name": "sample",
+  "nested": {
+    "enabled": true
+  },
+  "values": [1, 2]
+}

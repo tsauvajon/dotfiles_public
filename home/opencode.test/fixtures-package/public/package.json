@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@ai-sdk/openai-compatible": "9.9.9"
+  }
+}

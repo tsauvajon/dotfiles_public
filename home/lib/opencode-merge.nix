@@ -66,12 +66,50 @@ let
     assert lib.assertMsg (!publicBaseExists) ''
       config/opencode/opencode.json must not exist.
       (Detected at: ${toString publicRoot}/opencode.json)
-      The public side is fragment-only — split content into one of the
-      `opencode.<scope>.json` partials (meta, watcher, permission.bash,
-      permission.fs, permission.web, experimental.quotaToast).
+      The public side is fragment-only — split content into per-scope
+      `opencode.<scope>.json` partials (for example meta, watcher,
+      permission.*, agent, provider.*, experimental.*).
       See AGENTS.md > "opencode.json (4-tier deep merge)" for details.
     '';
     deepMergeAll (repoFragments ++ importFragments ++ privateFragments ++ [ privateOverlay ]);
+
+  # Compute the merged `package.json` for ~/.config/opencode.
+  #
+  # The public manifest declares every plugin dependency except
+  # `@opencode-ai/plugin`, whose version is injected by the caller
+  # (`home/opencode.nix` passes `pkgs.opencode.version`) so the plugin
+  # SDK always matches the installed OpenCode binary. `opencodePin` in
+  # flake.nix is therefore the single version source for a bump. The
+  # optional private overlay merges last and may deliberately override
+  # the injected version.
+  #
+  # The merge fails fast (via assertMsg) if the public manifest pins
+  # `@opencode-ai/plugin`: the injected version would silently win,
+  # turning the committed pin into a lie.
+  mkMergedPackage =
+    {
+      publicRoot,
+      privatePackageFile ? null,
+      pluginVersion,
+    }:
+    let
+      publicPackage = readJsonOr (publicRoot + "/package.json") { };
+      privatePackage = readJsonOr privatePackageFile { };
+      publicPluginPin = lib.attrByPath [ "dependencies" "@opencode-ai/plugin" ] null publicPackage;
+    in
+    assert lib.assertMsg (publicPluginPin == null) ''
+      config/opencode/package.json must not pin @opencode-ai/plugin.
+      (Found "${toString publicPluginPin}" at ${toString publicRoot}/package.json)
+      The plugin version is injected from the installed OpenCode package
+      (opencodePin in flake.nix), so the SDK always matches the binary.
+      Remove the dependency from the public manifest; use the private
+      overlay package.json for a deliberate version skew.
+    '';
+    deepMergeAll [
+      publicPackage
+      { dependencies."@opencode-ai/plugin" = pluginVersion; }
+      privatePackage
+    ];
 
   # Compute the merged AGENTS.md content respecting rulesMode:
   #   - "merged":       public + import + private rule fragments
@@ -104,6 +142,7 @@ in
   inherit
     jsonFragmentsIn
     mkMergedOpencodeJson
+    mkMergedPackage
     mkAgentsContent
     ;
 }

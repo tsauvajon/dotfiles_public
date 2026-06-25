@@ -47,7 +47,7 @@ dotfiles/
 │   └── Node.js.md             # Bun-first JavaScript setup notes
 └── config/                   # Dotfile sources, grouped by tool
     ├── opencode/
-    │   ├── opencode.*.json   # Per-section partials (meta, watcher, permission.{bash,fs,web}, experimental.quotaToast); deep-merged at build time
+    │   ├── opencode.*.json   # Per-section partials (`opencode.<scope>.json`, e.g. meta, watcher, permission.*, agent, provider.*, experimental.*); deep-merged at build time
     │   ├── tui.json          # OpenCode TUI config (separate $schema; symlinked verbatim, not deep-merged)
     │   ├── package.json      # Plugin dependency manifest (deep-merged with private overlay)
     │   ├── rules/            # Public AGENTS.md fragments (sorted with private rules)
@@ -166,7 +166,7 @@ two reusable Nix helpers:
 #### AGENTS.md
 
 Public rule fragments live at `config/opencode/rules/<name>.md`. Optional private
-rule fragments live at `~/.config/dotfiles/opencode/rules/<name>.md`. The HM module
+rule fragments live at `~/.config/dotfiles/config/opencode/rules/<name>.md`. The HM module
 collects nonempty files from both directories, sorts them together by filename in
 byte order (`LC_ALL=C`), and concatenates them with `# Rules overlay: <filename>`
 headers separated by blank lines. The result is written as
@@ -188,7 +188,7 @@ filename collision):
 1. Public — `config/opencode/<name>/`
 2. External imports — `~/.config/dotfiles/opencode-imports/<import-name>/<name>/`
    (one per entry in the imports manifest, see [External imports](#external-imports))
-3. Private — `~/.config/dotfiles/opencode/<name>/`
+3. Private — `~/.config/dotfiles/config/opencode/<name>/`
 
 The HM module merges all three via `mergeDirs` and exposes the result at
 `~/.config/opencode/<name>/`. Private always wins; imports sit in the middle so
@@ -201,27 +201,31 @@ HM picks up the change.
 
 #### opencode.json (4-tier deep merge)
 
-The public side is fragment-only — every section lives in its own
-`opencode.<scope>.json` file (`opencode.meta.json`,
-`opencode.watcher.json`, `opencode.permission.bash.json`,
-`opencode.permission.fs.json`, `opencode.permission.web.json`,
-`opencode.experimental.quotaToast.json`). There is intentionally no
-public `opencode.json` base; the merged result is written to
-`~/.config/opencode/opencode.json`.
+The public side is fragment-only — each section lives in a per-scope
+partial (`opencode.<scope>.json`, e.g. meta, watcher, permission.*, agent,
+provider.*, experimental.*). There is intentionally no public `opencode.json`
+base; the merged result is written to `~/.config/opencode/opencode.json`.
 
 Each tier wins over the prior one on key collision:
 
 1. Repo fragments — `config/opencode/opencode.*.json` (sorted by filename)
 2. Import fragments — `~/.config/dotfiles/opencode-imports/<name>/opencode.*.json`
    (sorted within each import; imports applied in flake-declared order)
-3. Private fragments — `~/.config/dotfiles/opencode/opencode.*.json` (sorted by filename)
-4. Private overlay — `~/.config/dotfiles/opencode/opencode.json`
+3. Private fragments — `~/.config/dotfiles/config/opencode/opencode.*.json` (sorted by filename)
+4. Private overlay — `~/.config/dotfiles/config/opencode/opencode.json`
 
 #### package.json
 
-Public base (`config/opencode/package.json`) is deep-merged with the optional
-private overlay (`~/.config/dotfiles/opencode/package.json`). After changes, run
-`bun install --cwd ~/.config/opencode` to install dependencies.
+Public base (`config/opencode/package.json`) is deep-merged with an injected
+`@opencode-ai/plugin` pin and the optional private overlay
+(`~/.config/dotfiles/config/opencode/package.json`), in that order (later wins).
+The plugin version is injected from `pkgs.opencode.version` — i.e. `opencodePin`
+in `flake.nix` — so the SDK always matches the installed binary and a version
+bump only touches the flake pin. The public manifest must not pin
+`@opencode-ai/plugin`; the merge asserts this (see `mkMergedPackage` in
+`home/lib/opencode-merge.nix`). A private overlay may still pin it for a
+deliberate skew. After changes, run `bun install --cwd ~/.config/opencode` to
+install dependencies.
 
 #### External imports
 
@@ -284,7 +288,7 @@ removed manifest entries (and removed source files) do not linger.
 
 `setup.sh` builds with `--override-input private "path:$HOME/.config/dotfiles"`,
 which reads the private overlay's working tree directly (no commit required, no
-flake.lock update needed). Edit anything under `~/.config/dotfiles/opencode/` or
+flake.lock update needed). Edit anything under `~/.config/dotfiles/config/opencode/` or
 the imports source repos, then rerun:
 
 ```sh
@@ -299,8 +303,8 @@ These configs are built by appending overlays onto a base file:
 2. **Repo overlays** — e.g. `config/cargo/cargo.darwin.toml` (platform-specific, tracked in git)
 3. **Private overlays** — e.g. `~/.config/dotfiles/cargo.*.toml`, `~/.config/dotfiles/task.*.toml` (machine-local, not tracked)
 
-Overlays are sorted by filename (byte order) within each group. Repo overlays are appended
-first, then private overlays (private wins on conflict).
+Overlay fragments are merged by filename first (later directories win on filename
+collision), then the surviving fragments are appended in byte-order filename sort.
 
 ## Private config
 
@@ -309,24 +313,24 @@ Everything private lives **outside the repo** at `~/.config/dotfiles/`:
 | Path | Purpose |
 |---|---|
 | `~/.config/dotfiles/flake.nix` | **Required.** Private flake — git identity, optional goto/opencode/homeModules wiring |
-| `~/.config/dotfiles/opencode/skills/` | Private OpenCode skills (not committed) |
-| `~/.config/dotfiles/opencode/commands/` | Private OpenCode commands (not committed) |
-| `~/.config/dotfiles/opencode/rules/` | Private AGENTS.md rules overlays (not committed) |
-| `~/.config/dotfiles/opencode/agents/` | Private OpenCode agents (not committed) |
-| `~/.config/dotfiles/opencode/plugins/` | Private OpenCode plugins (not committed) |
-| `~/.config/dotfiles/opencode/package.json` | Private plugin dependency overlay (not committed) |
-| `~/.config/dotfiles/opencode/opencode.json` | Private OpenCode config overlay (for MCP servers and local-only overrides) |
+| `~/.config/dotfiles/config/opencode/skills/` | Private OpenCode skills (not committed) |
+| `~/.config/dotfiles/config/opencode/commands/` | Private OpenCode commands (not committed) |
+| `~/.config/dotfiles/config/opencode/rules/` | Private AGENTS.md rules overlays (not committed) |
+| `~/.config/dotfiles/config/opencode/agents/` | Private OpenCode agents (not committed) |
+| `~/.config/dotfiles/config/opencode/plugins/` | Private OpenCode plugins (not committed) |
+| `~/.config/dotfiles/config/opencode/package.json` | Private plugin dependency overlay (not committed) |
+| `~/.config/dotfiles/config/opencode/opencode.json` | Private OpenCode config overlay (for MCP servers and local-only overrides) |
 
 Bootstrap `~/.config/dotfiles/flake.nix` from `private.example.nix` at the repo root
 (`setup.sh` does this automatically on first run when the file is missing). Private
 skills need no registration — drop a `<skill-name>/SKILL.md` directory into
-`opencode/skills/` and rerun `setup.sh`.
+`config/opencode/skills/` and rerun `setup.sh`.
 
 Private commands also need no registration — drop a `<name>.md` file into
-`opencode/commands/` and rerun `setup.sh`.
+`config/opencode/commands/` and rerun `setup.sh`.
 
 The OpenCode merge in `home/opencode.nix` also supports an optional
-`~/.config/dotfiles/opencode/opencode.json` file. When present, it is deep-merged on top
+`~/.config/dotfiles/config/opencode/opencode.json` file. When present, it is deep-merged on top
 of the public partials under `config/opencode/` (plus any `opencode.*.json` fragments
 in the same private directory) to generate the merged `opencode.json` linked at
 `~/.config/opencode/opencode.json`.
@@ -335,7 +339,7 @@ in the same private directory) to generate the merged `opencode.json` linked at
 
 | File | Purpose |
 |---|---|
-| `config/opencode/opencode.*.json` | Per-section partials (meta, watcher, permission.{bash,fs,web}, experimental.quotaToast); deep-merged at build time |
+| `config/opencode/opencode.*.json` | Per-section partials (`opencode.<scope>.json`, e.g. meta, watcher, permission.*, agent, provider.*, experimental.*); deep-merged at build time |
 | `config/opencode/tui.json` | OpenCode TUI config (separate `$schema`; symlinked verbatim, not deep-merged) |
 | `config/opencode/rules/<name>.md` | Public AGENTS.md fragments (merged with private rules sorted by filename) |
 | `config/opencode/commands/<name>.md` | Custom slash commands |
@@ -359,7 +363,7 @@ Run all tests with `nix flake check --all-systems` (or the per-arch
 |---|---|
 | `lib-runTests` | Pure unit tests via `lib.runTests`: `deep-merge-json`, `concat-files`, `list-files-in`, `home/default.nix` import resolution, `bootstrap.nix` activation-hook regression guard |
 | `merge-dirs-test` | Integration test for `home/lib/merge-dirs.nix` (builds a derivation and asserts on its contents) |
-| `opencode-tests` | End-to-end tests of `home/lib/opencode-merge.nix` (4-tier JSON merge, filename sort, rules modes, missing-private fallback, public-base guardrail) |
+| `opencode-tests` | End-to-end tests of `home/lib/opencode-merge.nix` (4-tier JSON merge, filename sort, rules modes, missing-private fallback, public-base guardrail, package-merge plugin-version injection) |
 | `tool-habit-smoke` | Smoke test that validates tool habit source lines and checks `tool-habit` prints a reminder prefixed by a lowercase tool name |
 | `patch-string-field-test` | Integration test for `scripts/lib/patch-empty-string-field.sh` (empty/null/absent shapes, exit codes) |
 | `configure-gpg-pinentry-test` | Integration test for `scripts/lib/configure-gpg-pinentry.sh` (idempotent rewrite of gpg-agent.conf pinentry-program lines) |

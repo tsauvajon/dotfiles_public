@@ -14,7 +14,7 @@ Rebase the current branch with deliberate conflict resolution, validation, and a
 ## Prerequisites
 
 - Run inside a git repository on a feature branch (not `main`/`master`)
-- `task` is available and supports `task rebase` and `task check`
+- `task` is available and supports `task rebase`
 - Working tree is clean before rebasing (create a meaningful safeguard commit first if needed)
 - `weave` is optional. Use it when installed and the rebase is likely to involve non-trivial text conflicts.
 
@@ -109,13 +109,9 @@ Then stage any formatting-only updates produced during conflict resolution.
 
 ## Step 5: Run Full Validation
 
-Run:
+Run the repository's documented full validation command(s).
 
-```bash
-task check
-```
-
-If `task check` fails, fix issues and rerun until it passes.
+If validation fails, fix issues and rerun until it passes.
 
 ## Step 6: Clean Tree Gate
 
@@ -128,7 +124,7 @@ git status --porcelain
 If output is non-empty:
 
 1. Confirm whether remaining changes are expected generated updates (for example lockfile/version alignment).
-2. Run one formatting/normalization pass again if needed, then rerun `task check`.
+2. Run one formatting/normalization pass again if needed, then rerun full validation.
 3. Re-check cleanliness.
 4. If still dirty, report exact files and classify risk (expected/generated vs potentially unintended behavior changes).
 
@@ -155,7 +151,7 @@ Return:
 - Whether Weave auto-resolution was used and which files still required manual resolution
 - Whether non-interactive editor fallback (`GIT_EDITOR=true`) was required
 - Whether formatting produced follow-up changes after conflict resolution
-- `task check` result
+- Full validation result
 - Final verification notes from range-diff and base-branch diff
 - Final working tree cleanliness status
 - Any remaining risks or follow-up actions

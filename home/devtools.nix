@@ -10,6 +10,7 @@
     eva
     glim
     gpg-tui
+    herdr
     mdterm
     mqttui
     rainfrog

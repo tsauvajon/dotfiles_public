@@ -11,9 +11,12 @@
 # Add an entry only if a cask cannot (or should not) be Nix-managed:
 # - `gimp` and `vlc` are not built for aarch64-darwin in current nixpkgs
 #   (`meta.platforms` excludes Darwin).
-# - `visual-studio-code` is intentionally kept on Brew alongside the
-#   Nix-managed `vscodium` so both editors coexist.
+#
+# Do NOT add `visual-studio-code`: it is Jamf-managed on this machine
+# (com.jamf.appinstallers.MicrosoftVisualStudioCode, root-owned bundle in
+# /Applications). Brew upgrades fail without sudo and Jamf re-takes
+# ownership on its next push anyway. Removed 2026-06-11.
 
+cask "aerial"
 cask "gimp"
 cask "vlc"
-cask "visual-studio-code"

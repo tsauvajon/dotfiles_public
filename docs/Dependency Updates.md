@@ -28,16 +28,16 @@ nix flake update ~/.config/dotfiles
 These are intentionally outside normal flake updates:
 
 - `flake.nix`: `nixgl-nixpkgs` is pinned to an exact nixpkgs commit for nixGL stability.
-- `flake.nix`: Steel, Helix plugin sources, and `ddcctl-src` use exact commits or a fixed tag.
+- `flake.nix`: Helix plugin sources and `ddcctl-src` use exact commits or a fixed tag.
+- `flake.nix`: `helix-steel` deliberately tracks the `steel-event-system` branch, so it can move on every `nix flake update` even though most Helix-related inputs are exact-rev pins.
+- `flake.nix`: the Harper patch is guarded against the pinned nixpkgs Harper version. When nixpkgs bumps Harper, the build fails with a guard message; re-verify or update the patch and the pinned version string together.
 - `home/hosts/linux.nix`: NVIDIA driver version and hash for nixGL are manual literals. Run `nixgl-nvidia-doctor` when graphical Nix apps fail after a driver update, then use `scripts/nvidia-driver-hash.sh <version>` to refresh the hash.
 - `home/helix-plugins.nix`: `helix-file-watcher` rewrites its Steel dependency to the same pinned Steel commit.
 - `home/cargo-locks/helix-file-watcher.Cargo.lock`: Cargo git dependencies are locked separately from Nix flakes.
-- `pkgs/cargo-coupling/default.nix`: fixed version, source hash, and `cargoHash`.
-- `pkgs/glim/default.nix`: fixed version, source hash, and `cargoHash`.
+- `pkgs/*/default.nix`: every local package that fetches upstream sources or release assets carries manual version and hash pins (`tool-habit` is built from in-repo files and pins nothing). Source-built packages also pin `cargoHash`; binary packages pin one hash per upstream asset. The heavy cases are `pkgs/weave/default.nix` with 9 release asset hashes and `pkgs/herdr/default.nix` with 3.
 - `pkgs/kache/default.nix`: fixed release version, binary hashes for upstream-published platforms, and source/Cargo hashes for fallback builds.
-- `pkgs/tsql/default.nix`: fixed release version and per-platform binary hashes.
-- `flake.nix`: `opencodePin` overrides the Nix-managed OpenCode binary/server version, source hash, and fixed-output `node_modules` hash.
-- `config/opencode/package.json`: OpenCode plugin dependencies are installed by Bun during activation, not by Nix flake updates. Keep plugin SDK versions aligned with `opencodePin.version`; see [OpenCode Versioning](OpenCode%20Versioning.md).
+- `flake.nix`: `opencodePin` overrides the Nix-managed OpenCode binary/server version, source hash, and fixed-output `node_modules` hash. Recompute `nodeModulesHash` with the fixed-output-derivation mismatch flow on every OpenCode bump.
+- `config/opencode/package.json`: OpenCode plugin dependencies are installed by Bun during activation, not by Nix flake updates. The `@opencode-ai/plugin` version is injected from `opencodePin.version` at merge time; see [OpenCode Versioning](OpenCode%20Versioning.md).
 - `config/Brewfile` and generated personal casks from `home/personal.nix`: reconciled by Homebrew through `setup.sh`, not by Nix.
 
 ## Private Manual Pins
@@ -59,7 +59,7 @@ When doing a dependency refresh, check each layer explicitly:
 3. Exact-rev public inputs: edit `flake.nix` URLs manually, then update related code or lock files.
 4. Local packages under `pkgs/`: bump versions and refresh source hashes plus `cargoHash`, platform binary hashes, or both for mixed source/binary packages.
 5. Helix plugin Cargo locks: refresh `home/cargo-locks/*.Cargo.lock` when plugin Cargo dependencies move.
-6. OpenCode binary/plugin: update `opencodePin` in `flake.nix` and `config/opencode/package.json` together, then run `nix flake check` so `opencode-version-alignment` catches drift.
+6. OpenCode binary/plugin: update `opencodePin` in `flake.nix` (version + `srcHash` + `nodeModulesHash`; get the new `nodeModulesHash` from the expected FOD mismatch). The plugin version in the generated package.json follows automatically. Run `nix flake check` so `opencode-version-alignment` catches drift.
 7. OpenCode package manifests: update private overlay package manifests when needed, then run `bash setup.sh` so activation runs Bun install.
 8. Private local imports: update or fetch the detached source repos, then run `bash setup.sh` to restage `opencode-imports/`.
 9. Mise tools: edit `~/.config/dotfiles/home/mise.nix` and rerun `bash setup.sh`.
