@@ -501,11 +501,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1778766442,
-        "narHash": "sha256-5+oVawioLdveoDG0k60jarN4HGUVulkbjffTgaphaNw=",
+        "lastModified": 1782386665,
+        "narHash": "sha256-TgHEStXYnQJzXYEUZRWRfb5vsg+jHJtW4ROom2CSWno=",
         "owner": "tsauvajon",
         "repo": "task",
-        "rev": "7001c4787b09c381819e0b12d93ad4d3fcc05a7e",
+        "rev": "1613ad91791a02cb8f591d60333ad7a849e31469",
         "type": "github"
       },
       "original": {
