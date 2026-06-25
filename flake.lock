@@ -444,17 +444,17 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1779503501,
-        "narHash": "sha256-n4eAVKzkjzmY7BM2XWVMpKJH8/YCJkaTj+aGoS/Gm5E=",
+        "lastModified": 1781985802,
+        "narHash": "sha256-TP1hmlju7h7ce0dnSKuIMk7XK5kcloqiyR+sxumNsQk=",
         "owner": "mattwparas",
         "repo": "steel",
-        "rev": "363768e23f58b7212b12b6e0e903887f9aa631cf",
+        "rev": "dec633b908afeafeaf62bab457a92e2bf873745a",
         "type": "github"
       },
       "original": {
         "owner": "mattwparas",
         "repo": "steel",
-        "rev": "363768e23f58b7212b12b6e0e903887f9aa631cf",
+        "rev": "dec633b908afeafeaf62bab457a92e2bf873745a",
         "type": "github"
       }
     },

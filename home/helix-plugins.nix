@@ -143,7 +143,7 @@ let
       substituteInPlace Cargo.toml \
         --replace-fail \
         'git = "https://github.com/mattwparas/steel.git"' \
-        'git = "https://github.com/mattwparas/steel.git", rev = "363768e23f58b7212b12b6e0e903887f9aa631cf"'
+        'git = "https://github.com/mattwparas/steel.git", rev = "dec633b908afeafeaf62bab457a92e2bf873745a"'
     '';
   };
 

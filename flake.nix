@@ -31,7 +31,7 @@
       inputs.rust-overlay.follows = "rust-overlay";
     };
     steel = {
-      url = "github:mattwparas/steel/363768e23f58b7212b12b6e0e903887f9aa631cf";
+      url = "github:mattwparas/steel/dec633b908afeafeaf62bab457a92e2bf873745a";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     scooter-hx = {
@@ -132,9 +132,9 @@
     }:
     let
       opencodePin = {
-        version = "1.17.7";
-        srcHash = "sha256-rTeJuwqc11r6Xiksfg5IoTezK2ZtG3GlenQCxTW04P4=";
-        nodeModulesHash = "sha256-DntnRo2N32nhjv8YxedIbRMtEkSsXAOrpFmK6six/g4=";
+        version = "1.17.10";
+        srcHash = "sha256-QWdAKbyu/fV6Ejh+x63xDZMPVDoWDha0vk298Fv8IDc=";
+        nodeModulesHash = "sha256-oghFxwumzX5Q2dZ/Zpic58hfK37QMYb+R0hdNtE9WzU=";
       };
       supportedSystems = [
         "x86_64-linux"
