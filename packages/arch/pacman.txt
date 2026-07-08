@@ -1,0 +1,4 @@
+# Official Arch repository packages managed by setup.sh when pacman is present.
+
+# Required by the CUPS universal filter for driverless printing.
+qpdf

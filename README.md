@@ -66,6 +66,7 @@ Currently managed:
 - developer tooling: `cargo`, `task`, `goto`, `ssh`, `yazi`
 - JavaScript tooling: `bun` globally; use project-local Nix for Node.js when needed
 - OpenCode config, commands, skills, agents, and plugins
+- Arch system packages from `packages/arch/pacman.txt` when `pacman` is present
 - macOS LaunchAgents (`Library/LaunchAgents/*.plist`)
 
 See [`docs/nodejs.md`](docs/nodejs.md) for the Bun-first JavaScript workflow and project-local
@@ -73,6 +74,16 @@ Node.js fallback options.
 
 Linux-only modules are gated with `lib.mkIf pkgs.stdenv.isLinux`, so importing
 this flake on macOS leaves them as no-ops automatically.
+
+## Arch workflow
+
+On Arch Linux, `setup.sh` detects `pacman` and installs missing official repo
+packages declared in `packages/arch/pacman.txt` with `sudo pacman -S --needed`.
+To inspect missing packages without installing them, run:
+
+```bash
+scripts/arch-packages.sh --check
+```
 
 ## macOS workflow
 

@@ -306,6 +306,7 @@
         );
 
         bootstrapKeysCheck = import ./scripts/bootstrap-keys.test.nix { inherit pkgs lib; };
+        archPackagesCheck = import ./scripts/arch-packages.test.nix { inherit pkgs lib; };
         brewCleanupCheck = import ./scripts/brew-cleanup.test.nix { inherit pkgs lib; };
         mergeDirsCheck = import ./home/lib/merge-dirs.test.nix { inherit pkgs lib; };
         concatTomlFilesCheck = import ./home/lib/concat-toml-files.test.nix { inherit pkgs lib; };
@@ -452,6 +453,7 @@
               ;
             lib-runTests = libRunTestsCheck;
             bootstrap-keys-test = bootstrapKeysCheck;
+            arch-packages-test = archPackagesCheck;
             brew-cleanup-test = brewCleanupCheck;
             concat-toml-files-test = concatTomlFilesCheck;
             merge-dirs-test = mergeDirsCheck;

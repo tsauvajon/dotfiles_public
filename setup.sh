@@ -14,7 +14,9 @@
 #    rules) without absolute symlinks that break Nix purity.
 # 5. Bootstraps missing per-machine GPG/SSH keys from the private git
 #    identity and fills git.signingKey when it can do so safely.
-# 6. Builds homeConfigurations.<host>.activationPackage from this
+# 6. Installs missing Arch packages from packages/arch/pacman.txt when
+#    pacman is available.
+# 7. Builds homeConfigurations.<host>.activationPackage from this
 #    flake (with --override-input private "path:..." so the working
 #    tree of the private overlay is used, including the staged
 #    imports tree which is gitignored) and runs the resulting
@@ -225,6 +227,10 @@ if [ -f "$private_ref/pre-build.sh" ]; then
 fi
 
 "$DOTFILES/scripts/bootstrap-keys.sh"
+
+if command -v pacman >/dev/null 2>&1; then
+  "$DOTFILES/scripts/arch-packages.sh" --install
+fi
 
 printf '==> Building home-manager generation for %s\n' "$host"
 # `--max-jobs auto --cores 0` parallelises the very first build, before
