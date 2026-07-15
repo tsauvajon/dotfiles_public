@@ -97,7 +97,7 @@
         # rules, and opencode.*.json fragments. setup.sh syncs each
         # source into ./opencode-imports/<name>/ before the build.
         #
-        # Schema (see AGENTS.md > "External imports" for full details):
+        # Import schema:
         #   { name    = "...";          # required, staging dir name
         #     source  = "~/path/to/repo";   # required, supports leading ~
         #
