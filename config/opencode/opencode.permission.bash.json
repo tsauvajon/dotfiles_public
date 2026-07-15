@@ -139,6 +139,7 @@
       "mv *": "allow",
       "nix develop *": "allow",
       "nix instantiate *": "allow",
+      "nix log *": "allow",
       "nix-daemon *": "allow",
       "nix-env *": "allow",
       "nixfmt *": "allow",
