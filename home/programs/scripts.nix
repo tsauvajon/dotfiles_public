@@ -84,6 +84,21 @@
       '';
     })
 
+    (pkgs.writeShellApplication {
+      name = "opencode-permission-monitor";
+      runtimeInputs = [
+        pkgs.bash
+        pkgs.coreutils
+        pkgs.curl
+        pkgs.gawk
+        pkgs.gnugrep
+        pkgs.jq
+      ];
+      text = ''
+        exec bash ${../../scripts/opencode-permission-monitor.sh} "$@"
+      '';
+    })
+
     # Force Chromium's macOS window surface to repaint after it gets stuck
     # showing stale pixels while tab/browser state continues to update.
     (pkgs.writeShellApplication {

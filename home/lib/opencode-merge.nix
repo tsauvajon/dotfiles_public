@@ -14,6 +14,110 @@ let
   listFilesIn = import ./list-files-in.nix { inherit lib; };
   readJsonOr = import ./read-json-or.nix;
 
+  # Remove disabled providers and rewrite every model assignment that
+  # references one of them. Fallbacks are deliberately exact and
+  # provider-local so adding a new model cannot silently select an
+  # unrelated replacement.
+  applyProviderGates =
+    {
+      config,
+      providerGates,
+    }:
+    let
+      disabledGates = lib.filterAttrs (_: gate: !gate.enable) providerGates;
+      disabledProviderNames = builtins.attrNames disabledGates;
+
+      rewriteModelReference =
+        model:
+        if !builtins.isString model then
+          {
+            value = model;
+            rewritten = false;
+            variantFallbacks = { };
+          }
+        else
+          let
+            providerName = lib.findFirst (name: lib.hasPrefix "${name}/" model) null disabledProviderNames;
+          in
+          if providerName == null then
+            {
+              value = model;
+              rewritten = false;
+              variantFallbacks = { };
+            }
+          else
+            let
+              modelId = lib.removePrefix "${providerName}/" model;
+              fallback = disabledGates.${providerName}.modelFallbacks.${modelId} or null;
+            in
+            if fallback == null then
+              throw ''
+                OpenCode provider gate "${providerName}" is disabled, but model
+                reference "${model}" has no fallback. Add
+                programs.opencode.providerGates.${providerName}.modelFallbacks."${modelId}".
+              ''
+            else
+              {
+                value = fallback.direct;
+                rewritten = true;
+                variantFallbacks = fallback.variantFallbacks or { };
+              };
+
+      rewriteValue =
+        name: value:
+        if name == "model" || name == "small_model" then
+          (rewriteModelReference value).value
+        else
+          rewrite value;
+
+      rewrite =
+        value:
+        if builtins.isAttrs value then
+          let
+            modelAssignment =
+              if value ? model then
+                rewriteModelReference value.model
+              else if value ? small_model then
+                rewriteModelReference value.small_model
+              else
+                null;
+            rewritten = lib.mapAttrs rewriteValue value;
+            shouldRewriteVariant =
+              value ? variant
+              && modelAssignment != null
+              && modelAssignment.rewritten
+              && builtins.isString value.variant
+              && builtins.hasAttr value.variant modelAssignment.variantFallbacks;
+          in
+          if shouldRewriteVariant then
+            rewritten // { variant = modelAssignment.variantFallbacks.${value.variant}; }
+          else
+            rewritten
+        else if builtins.isList value then
+          map rewrite value
+        else
+          value;
+
+      configWithoutProviders =
+        if !(config ? provider) then
+          config
+        else
+          let
+            remainingProviders = builtins.removeAttrs config.provider disabledProviderNames;
+          in
+          if remainingProviders == { } then
+            builtins.removeAttrs config [ "provider" ]
+          else
+            config // { provider = remainingProviders; };
+
+      gatedConfig = configWithoutProviders // {
+        disabled_providers = lib.unique (
+          (configWithoutProviders.disabled_providers or [ ]) ++ disabledProviderNames
+        );
+      };
+    in
+    if disabledProviderNames == [ ] then config else rewrite gatedConfig;
+
   # List `opencode.*.json` fragment files in `dir`, sorted by filename
   # bytes (LC_ALL=C). Excludes the bare `opencode.json` so the
   # private overlay file (tier 4) can be handled separately. Returns
@@ -140,6 +244,7 @@ let
 in
 {
   inherit
+    applyProviderGates
     jsonFragmentsIn
     mkMergedOpencodeJson
     mkMergedPackage

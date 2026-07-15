@@ -1,5 +1,9 @@
 # Cursor Agent Bridge
 
+For normal Composer use in OpenCode, prefer the upstream API for Cursor app and
+the `cursorapi/*` provider documented in [API for Cursor](API%20for%20Cursor.md).
+The bridge below is kept as an explicit fallback for the Cursor Agent CLI path.
+
 The Cursor Agent bridge is disabled by default. Opt in from the private flake
 overlay with a Home Manager module:
 

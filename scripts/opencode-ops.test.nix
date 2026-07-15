@@ -4,6 +4,7 @@
 let
   statusHelper = ./opencode-server-status.sh;
   reapHelper = ./opencode-reap.sh;
+  permissionMonitor = ./opencode-permission-monitor.sh;
   procLib = ./lib/opencode-procs.sh;
 in
 pkgs.runCommand "opencode-ops-test"
@@ -12,10 +13,12 @@ pkgs.runCommand "opencode-ops-test"
       pkgs.bash
       pkgs.coreutils
       pkgs.curl
+      pkgs.gawk
       pkgs.gnugrep
       pkgs.gnused
+      pkgs.jq
     ];
-    inherit statusHelper reapHelper procLib;
+    inherit statusHelper reapHelper permissionMonitor procLib;
   }
   ''
         set -eu
@@ -26,9 +29,11 @@ pkgs.runCommand "opencode-ops-test"
         mkdir -p "$script_dir/lib"
         install -m 0755 "$statusHelper" "$script_dir/opencode-server-status.sh"
         install -m 0755 "$reapHelper" "$script_dir/opencode-reap.sh"
+        install -m 0755 "$permissionMonitor" "$script_dir/opencode-permission-monitor.sh"
         install -m 0644 "$procLib" "$script_dir/lib/opencode-procs.sh"
         statusHelper="$script_dir/opencode-server-status.sh"
         reapHelper="$script_dir/opencode-reap.sh"
+        permissionMonitor="$script_dir/opencode-permission-monitor.sh"
 
         ps_fixture="$TMPDIR/processes.txt"
         cat > "$ps_fixture" <<'EOF'
@@ -159,6 +164,67 @@ pkgs.runCommand "opencode-ops-test"
         set -e
         [ "$rc" -eq 0 ] || fail "empty reap should exit 0, got $rc: $output"
         echo "$output" | grep -q 'no stale orphaned attach clients found' || fail "empty result message missing: $output"
+
+        bash -n "$permissionMonitor" || fail "permission monitor should be syntactically valid"
+        : > "$TMPDIR/permission-processes.txt"
+
+        OPENCODE_PERMISSION_MONITOR_LOG="$TMPDIR/source-log.md" \
+          OPENCODE_PERMISSION_MONITOR_STATE="$TMPDIR/source-state" \
+          OPENCODE_PERMISSION_MONITOR_PROCESS_FILE="$TMPDIR/permission-processes.txt" \
+          OPENCODE_PERMISSION_MONITOR_SOURCE_ONLY=1 \
+          . "$permissionMonitor"
+
+        [ "$INTERVAL" = "15" ] || fail "permission monitor default interval should be 15 seconds, got $INTERVAL"
+
+        assert_legacy_decision() {
+          expected=$1
+          request=$2
+          output=$(decide_legacy "$request")
+          actual=''${output%%$'\t'*}
+          [ "$actual" = "$expected" ] || fail "expected $expected for $request, got $output"
+        }
+
+        assert_legacy_decision always '{"permission":"bash","patterns":["mdimport -t \"$HOME/Applications/Nix Apps/API for Cursor.app\""],"metadata":{"command":"mdimport -t \"$HOME/Applications/Nix Apps/API for Cursor.app\""},"always":["mdimport *"]}'
+        assert_legacy_decision reject '{"permission":"bash","patterns":["/bin/rm -rf /tmp/example"],"metadata":{"command":"/bin/rm -rf /tmp/example"},"always":["rm *"]}'
+        assert_legacy_decision reject '{"permission":"bash","patterns":["rm -r -f /tmp/example"],"metadata":{"command":"rm -r -f /tmp/example"},"always":["rm *"]}'
+        assert_legacy_decision reject '{"permission":"bash","patterns":["find . -delete"],"metadata":{"command":"find . -delete"},"always":["find *"]}'
+        assert_legacy_decision reject '{"permission":"bash","patterns":["git clean -fdx"],"metadata":{"command":"git clean -fdx"},"always":["git clean *"]}'
+        assert_legacy_decision reject '{"permission":"bash","patterns":["cat .env"],"metadata":{"command":"cat .env"},"always":["cat *"]}'
+        assert_legacy_decision reject '{"permission":"external_directory","patterns":["~/.ssh/*"],"metadata":{},"always":["~/.ssh/*"]}'
+
+        redacted=$(printf '%s\n' '{"value":"API_KEY=secret Bearer abc.def op://Vault/Item"}' | redact)
+        ! echo "$redacted" | grep -q 'secret\|abc\.def\|Vault/Item\|\\1' || fail "redaction leaked or produced malformed output: $redacted"
+        echo "$redacted" | grep -q 'API_KEY=\[REDACTED\]' || fail "redaction should preserve key name: $redacted"
+
+        log_request='{"permission":"bash","patterns":["TOKEN=secret mdimport /tmp/app"],"metadata":{"command":"TOKEN=secret mdimport /tmp/app"},"always":["mdimport *"]}'
+        append_log v1 /tmp/project "$log_request" always 'routine shell command' 200
+        ! grep -q '^### .* - v1$' "$TMPDIR/source-log.md" || fail "permission log heading should not include API kind: $(cat "$TMPDIR/source-log.md")"
+        grep -q '^- Command:$' "$TMPDIR/source-log.md" || fail "permission log should include a command heading: $(cat "$TMPDIR/source-log.md")"
+        grep -q '^TOKEN=\[REDACTED\] mdimport /tmp/app$' "$TMPDIR/source-log.md" || fail "permission log should include redacted command text: $(cat "$TMPDIR/source-log.md")"
+
+        legacy_requests() {
+          printf '%s\n' '[{"id":"per_test","sessionID":"ses_test","permission":"bash","patterns":["true"],"metadata":{"command":"true"},"always":["true *"]}]'
+        }
+        DRY_RUN=1
+        output=$(process_legacy_location /tmp/project)
+        DRY_RUN=0
+        echo "$output" | grep -q 'v1 /tmp/project per_test -> always' || fail "permission monitor should label the classic API as v1: $output"
+        ! echo "$output" | grep -q 'legacy /tmp/project' || fail "permission monitor should not expose the old legacy label: $output"
+
+        set +e
+        output=$(OPENCODE_PERMISSION_MONITOR_URL=http://127.0.0.1:1 \
+          OPENCODE_PERMISSION_MONITOR_LOG="$TMPDIR/permission-decisions.md" \
+          OPENCODE_PERMISSION_MONITOR_STATE="$TMPDIR/permission-monitor.seen" \
+          OPENCODE_PERMISSION_MONITOR_PROCESS_FILE="$TMPDIR/permission-processes.txt" \
+          OPENCODE_PERMISSION_MONITOR_LIST_TIMEOUT=1 \
+          OPENCODE_PERMISSION_MONITOR_DATE=2026-07-13 \
+          bash "$permissionMonitor" --once --dry-run 2>&1)
+        rc=$?
+        set -e
+        [ "$rc" -eq 0 ] || fail "permission monitor dry-run should exit 0, got $rc: $output"
+        echo "$output" | grep -q 'starting dry-run' || fail "permission monitor dry-run banner missing: $output"
+        echo "$output" | grep -q 'poll complete' || fail "permission monitor poll completion missing: $output"
+        grep -q '^title: OpenCode permission decisions$' "$TMPDIR/permission-decisions.md" || fail "permission monitor should create a frontmatter log"
 
         echo "all opencode ops assertions passed"
         touch "$out"

@@ -1,2 +1,9 @@
 # Managed by dotfiles. Keep this file lightweight: zsh reads it for every
 # invocation, including non-interactive commands.
+
+# OpenCode runs tool commands through non-interactive zsh. Source Home
+# Manager's env-only startup so those commands inherit the same PATH contract as
+# normal terminals without loading interactive shell config.
+if [[ -n "${HOME:-}" && -r "$HOME/.nix-profile/etc/profile.d/hm-session-vars.sh" ]]; then
+  source "$HOME/.nix-profile/etc/profile.d/hm-session-vars.sh"
+fi

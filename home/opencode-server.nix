@@ -9,11 +9,38 @@ let
   cfg = config.programs.opencode.sharedServer;
   opencodePackage = pkgs.opencode;
   opencodeBin = "${opencodePackage}/bin/opencode";
+  opBin = "${pkgs._1password-cli}/bin/op";
   port = toString cfg.port;
   url = "http://${cfg.host}:${port}";
   label = "dev.opencode.server";
   systemdService = "opencode-server.service";
   defaultPath = import ./lib/service-path.nix { inherit config lib pkgs; };
+  onePasswordEnvFile = pkgs.writeText "opencode-onepassword-env" (
+    lib.concatStringsSep "\n" (
+      lib.mapAttrsToList (name: reference: "${name}=${reference}") cfg.onePasswordEnv
+    )
+    + "\n"
+  );
+  serveArguments = [
+    opencodeBin
+    "serve"
+    "--hostname"
+    cfg.host
+    "--port"
+    port
+  ];
+  serviceProgramArguments =
+    if cfg.onePasswordEnv == { } then
+      serveArguments
+    else
+      [
+        opBin
+        "run"
+        "--env-file"
+        "${onePasswordEnvFile}"
+        "--"
+      ]
+      ++ serveArguments;
 
   serviceEnvironment =
     lib.mapAttrs (_: toString) config.home.sessionVariables
@@ -24,7 +51,7 @@ let
     // cfg.environment;
 
   serviceFingerprint = builtins.toJSON {
-    inherit opencodeBin port serviceEnvironment;
+    inherit port serviceEnvironment serviceProgramArguments;
     host = cfg.host;
   };
 
@@ -75,20 +102,25 @@ in
         variables supplied by this module.
       '';
     };
+
+    onePasswordEnv = lib.mkOption {
+      type = lib.types.attrsOf lib.types.str;
+      default = { };
+      description = ''
+        Environment variables resolved through 1Password CLI secret
+        references when the shared OpenCode server starts. Values are
+        written as op:// references and resolved by `op run`, so the
+        plaintext secrets are never stored in the generated launchd or
+        systemd service definitions.
+      '';
+    };
   };
 
   config = lib.mkIf cfg.enable (managedUserService {
     activationName = "opencodeSharedServer";
     activationAfter = [ "opencodeBunInstall" ];
     changedMessage = "OpenCode shared server inputs changed; restarting service";
-    darwinProgramArguments = [
-      opencodeBin
-      "serve"
-      "--hostname"
-      cfg.host
-      "--port"
-      port
-    ];
+    darwinProgramArguments = serviceProgramArguments;
     deferredFollowup = "Run setup.sh from a normal shell to restart the shared server safely";
     deferredMessage = "OpenCode shared server inputs changed; restart deferred because setup is running under an OpenCode agent";
     description = "OpenCode shared local server";
@@ -101,7 +133,7 @@ in
       url
       serviceFingerprint
       ;
-    linuxExecStart = "${opencodeBin} serve --hostname ${cfg.host} --port ${port}";
+    linuxExecStart = lib.escapeShellArgs serviceProgramArguments;
     linuxService.TimeoutStopSec = "15s";
     logFile = cfg.logFile;
     markerFile = "${config.xdg.cacheHome}/dotfiles/opencode-server.sha256";

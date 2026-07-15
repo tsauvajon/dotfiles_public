@@ -132,9 +132,9 @@
     }:
     let
       opencodePin = {
-        version = "1.17.10";
-        srcHash = "sha256-QWdAKbyu/fV6Ejh+x63xDZMPVDoWDha0vk298Fv8IDc=";
-        nodeModulesHash = "sha256-oghFxwumzX5Q2dZ/Zpic58hfK37QMYb+R0hdNtE9WzU=";
+        version = "1.17.15";
+        srcHash = "sha256-SBAKl0bsiSUDwvi+XCCgDL2SuP7NZAqx4iGyaMZz5N4=";
+        nodeModulesHash = "sha256-9oSXcvvISB6WAqI6f/GBZ3i9IBwYrRQvKs82SLibJNo=";
       };
       supportedSystems = [
         "x86_64-linux"
@@ -153,6 +153,7 @@
           };
         in
         {
+          api-for-cursor = final.callPackage ./pkgs/api-for-cursor { };
           cargo-coupling = final.callPackage ./pkgs/cargo-coupling { };
           dumap = final.callPackage ./pkgs/dumap { };
           glim = final.callPackage ./pkgs/glim { };
@@ -277,7 +278,8 @@
         # cases, which we convert into a 0/non-zero exit by writing
         # `$out` only when the list is empty.
         libRunTestsCases =
-          (import ./home/lib/deep-merge-json.test.nix { inherit lib; })
+          (import ./flake.test.nix { inherit lib; })
+          // (import ./home/lib/deep-merge-json.test.nix { inherit lib; })
           // (import ./home/lib/concat-files.test.nix { inherit lib; })
           // (import ./home/lib/goto-enabled.test.nix { inherit lib; })
           // (import ./home/lib/list-files-in.test.nix { inherit lib; })
@@ -287,6 +289,12 @@
           // (import ./home/lib/rust-toolchain.test.nix { inherit lib; })
           // (import ./home/default.test.nix { inherit lib; })
           // (import ./home/bootstrap.test.nix { inherit lib; })
+          // (import ./home/darwin-apps.test.nix {
+            inherit lib;
+            homeManagerLib = home-manager.lib;
+            supportedPkgs = pkgsFor.aarch64-darwin;
+            unsupportedPkgs = pkgsFor.x86_64-linux;
+          })
           // (import ./home/programs/cross-shell-aliases.test.nix { inherit lib; });
         libRunTestsFailures = lib.runTests libRunTestsCases;
         libRunTestsCheck = pkgs.runCommand "lib-runTests" { } (
@@ -431,6 +439,9 @@
             tsql
             weave
             ;
+        }
+        // lib.optionalAttrs (system == "aarch64-darwin") {
+          inherit (pkgs) api-for-cursor;
         };
         checks =
           builtins.listToAttrs (
@@ -439,6 +450,9 @@
               value = homeConfigurations.${h}.activationPackage;
             }) hosts
           )
+          // lib.optionalAttrs (system == "aarch64-darwin") {
+            inherit (pkgs) api-for-cursor;
+          }
           // {
             inherit (pkgs)
               cargo-coupling

@@ -13,9 +13,38 @@ deferral in `home/opencode-server.nix`.
 
 | Item | State | Trigger Met? | Next Step |
 | --- | --- | --- | --- |
-| Memory watchdog | Deferred | Not yet | Collect RSS/client-count data with `opencode-server-status` |
+| Memory watchdog | Evidence collected | Yes | Add report-only CPU/RSS/client warnings |
 | Session and disk hygiene | Report-only | Not yet | Build a safe inventory before any destructive cleanup |
-| Upstream evidence | Deferred | Not yet | Reproduce on the pinned/current OpenCode version first |
+| Upstream evidence | Reproduced | Yes | Track matching upstream issues and retest future pins |
+
+## 2026-07-13 Performance Evidence
+
+A read-only investigation reproduced the shared-server trigger on OpenCode
+`1.17.15` during active parallel work. Sanitized observations:
+
+- Attached TUI count increased from four to eight while several sessions were
+  active.
+- `ps` reported about 3 GiB RSS for the shared server and roughly 0.6-0.8 GiB
+  RSS for each attach client. Aggregate OpenCode CPU was regularly above 200%.
+- One root session launched six subagents while another long-running session was
+  already emitting frequent tool and model events.
+- Every active TUI showed CPU activity, including clients not responsible for
+  the busy root session. This matches process-global event fan-out.
+- `shared-server-error.log` contained repeated `MaxListenersExceededWarning`
+  stacks for event listeners.
+- The shared health endpoint still returned successfully in about 130 ms. A
+  healthy endpoint alone therefore does not prove that the server is operating
+  efficiently.
+- A local MCP endpoint responded in about 2 ms, ruling it out as the source of
+  the sustained CPU load. Standalone remote MCP discovery took about 12 seconds,
+  which is a separate startup cost.
+- A configured local helper provider was unavailable or locked and generated
+  repeated failures on OpenCode's 30-second retry cadence. That amplified prompt
+  latency but did not explain the sustained per-TUI CPU by itself.
+
+Use the `Shared Server Feels Slow` procedure in `docs/OpenCode Debug.md` for
+immediate recovery. Restarting clears accumulated state but is not a durable
+fix.
 
 ## Memory Watchdog
 
@@ -47,6 +76,11 @@ Acceptance criteria:
 
 Likely first implementation: add a status-only warning threshold to
 `opencode-server-status`; do not add a timer until the warning has proven useful.
+
+The status warning should report server and attach-client CPU as well as RSS.
+Client count alone is insufficient because event volume determines the fan-out
+cost. Keep any automatic restart disabled until repeated measurements establish
+a safe threshold and active-session detection is reliable.
 
 ## Session And Disk Hygiene
 
@@ -109,6 +143,21 @@ Acceptance criteria:
 Likely first implementation: add a short evidence collection script or checklist
 once `opencode-server-status` output has shown a reproducible threshold.
 
+Matching upstream reports, verified on 2026-07-13:
+
+- [#36441](https://github.com/anomalyco/opencode/issues/36441): process-global
+  event fan-out sends every event to every TUI and scales CPU with client count.
+- [#36445](https://github.com/anomalyco/opencode/issues/36445): reconnect cleanup
+  can retain the prior HTTP event stream and listener.
+- [#29204](https://github.com/anomalyco/opencode/issues/29204): repeated attach
+  reconnects produce listener warnings and large memory growth.
+- [#34574](https://github.com/anomalyco/opencode/issues/34574): matching Effect
+  event-listener warning and multi-gigabyte RSS growth.
+
+As of 2026-07-13, the `1.17.16` through `1.17.18` release notes did not document
+a fix for this behavior. Retest pin updates, but do not treat an upgrade alone
+as the current mitigation.
+
 ## References
 
 - `home/opencode-server.nix`: shared-server service, restart deferral, pending
@@ -118,5 +167,7 @@ once `opencode-server-status` output has shown a reproducible threshold.
 - `home/opencode.test/server-activation.nix`: restart-deferral regression tests.
 - `scripts/opencode-ops.test.nix`: status and reap integration tests.
 - `docs/OpenCode Versioning.md`: channel and DB selection notes.
+- `docs/OpenCode Debug.md`: first-response diagnosis and safe recovery.
+- `docs/API for Cursor.md`: local provider health and retry troubleshooting.
 - `docs/OpenCode Cargo Cache.md`: per-session Cargo target isolation and cache
   cleanup notes.

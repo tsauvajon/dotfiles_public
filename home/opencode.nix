@@ -33,6 +33,7 @@ let
 
   mergeDirs = import ./lib/merge-dirs.nix { inherit pkgs lib; };
   inherit (import ./lib/opencode-merge.nix { inherit lib; })
+    applyProviderGates
     mkMergedOpencodeJson
     mkMergedPackage
     mkAgentsContent
@@ -192,7 +193,7 @@ let
     inherit publicRoot importsDirs privateOpencodeDir;
     inherit privateConfigFile;
   };
-  mergedJson =
+  mergedJsonWithoutCursorAgent =
     if cfg.cursorAgentBridge.enable || !(mergedJsonWithCursorProvider ? provider) then
       mergedJsonWithCursorProvider
     else
@@ -203,6 +204,10 @@ let
         builtins.removeAttrs mergedJsonWithCursorProvider [ "provider" ]
       else
         mergedJsonWithCursorProvider // { provider = providerWithoutCursor; };
+  mergedJson = applyProviderGates {
+    config = mergedJsonWithoutCursorAgent;
+    providerGates = cfg.providerGates;
+  };
 
   # package.json: public manifest + injected `@opencode-ai/plugin` pin
   # (from the installed OpenCode package version, i.e. `opencodePin` in
@@ -239,6 +244,43 @@ let
 in
 {
   options.programs.opencode = {
+    providerGates = lib.mkOption {
+      type = lib.types.attrsOf (
+        lib.types.submodule {
+          options = {
+            enable = lib.mkOption {
+              type = lib.types.bool;
+              default = true;
+              description = "Whether this OpenCode provider and its model assignments remain enabled.";
+            };
+
+            modelFallbacks = lib.mkOption {
+              type = lib.types.attrsOf (
+                lib.types.submodule {
+                  options = {
+                    direct = lib.mkOption {
+                      type = lib.types.str;
+                      description = "Direct provider/model replacement used when the provider gate is disabled.";
+                    };
+
+                    variantFallbacks = lib.mkOption {
+                      type = lib.types.attrsOf lib.types.str;
+                      default = { };
+                      description = "Variant replacements applied alongside this model fallback.";
+                    };
+                  };
+                }
+              );
+              default = { };
+              description = "Fallbacks keyed by provider-local model ID.";
+            };
+          };
+        }
+      );
+      default = { };
+      description = "Provider availability gates and exact model fallbacks for generated OpenCode config.";
+    };
+
     rulesMode = lib.mkOption {
       type = lib.types.enum [
         "merged"

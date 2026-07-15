@@ -146,11 +146,12 @@
       "text": "tool-habit",
       "format": "{result}"
     },
-    {
-      "type": "packages",
-      "key": "Packages",
-      "keyColor": "36"
-    },
+    // Disabled because gathering package counts is slow on startup.
+    // {
+    //   "type": "packages",
+    //   "key": "Packages",
+    //   "keyColor": "36"
+    // },
     {
       "type": "command",
       "key": "OpenCode",

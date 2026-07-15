@@ -5,6 +5,7 @@ let
   config = {
     home.homeDirectory = "/home/example";
     home.profileDirectory = "/home/example/.nix-profile";
+    home.sessionPath = [ ];
   };
 in
 {
