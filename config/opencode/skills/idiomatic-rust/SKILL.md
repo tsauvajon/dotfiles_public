@@ -1,15 +1,17 @@
 ---
 name: idiomatic-rust
-description: Guide for writing idiomatic Rust. Use when authoring, reviewing, or refactoring Rust code to apply project conventions - strong types over strings, enum parsing, impl Display, self-documenting code without comments, extracting functions, splitting big files into modules, early returns, boundary types, re-exports, and named arguments.
+description: Guide for writing idiomatic Rust. Use when authoring, reviewing, or refactoring Rust code.
 compatibility: opencode
 metadata:
-  status: experimental
-  version: "0.1.0"
+  status: stable
+  version: "1.0.0"
 ---
 
 # Idiomatic Rust
 
 Style and structure rules to apply when writing or reviewing Rust. This skill is a style layer - it does not override project-specific conventions. Before applying any rule, read `Cargo.toml` and the surrounding module to confirm the change fits existing patterns.
+
+`Before` snippets intentionally show discouraged code and are not expected to be lint-clean. `After` snippets should compile in suitable surrounding context and satisfy the project's hardened lint policy, including `-D warnings` and missing-docs checks.
 
 ## Principles
 
@@ -26,10 +28,12 @@ fn load_profile(user: String, workspace: String) -> Profile { ... }
 
 After:
 ```rust
-pub struct UserId(u64);
-pub struct WorkspaceName(String);
+struct UserId(u64);
+struct WorkspaceName(String);
 
-fn load_profile(user: UserId, workspace: WorkspaceName) -> Profile { ... }
+fn load_profile(user: &UserId, workspace: &WorkspaceName) -> Profile {
+    Profile::load(user, workspace)
+}
 ```
 
 #### 2. Enums over string parsing
@@ -49,11 +53,16 @@ After:
 ```rust
 #[derive(strum::EnumString)]
 #[strum(serialize_all = "lowercase")]
-pub enum ExportFormat { Json, Csv }
+enum ExportFormat {
+    Json,
+    Csv,
+}
 
-match format {
-    ExportFormat::Json => export_json(),
-    ExportFormat::Csv  => export_csv(),
+fn export(format: &ExportFormat) -> Document {
+    match format {
+        ExportFormat::Json => export_json(),
+        ExportFormat::Csv => export_csv(),
+    }
 }
 ```
 
@@ -79,7 +88,10 @@ After:
 ```rust
 #[derive(strum::EnumString, strum::Display)]
 #[strum(serialize_all = "lowercase")]
-pub enum Role { Admin, Viewer }
+enum Role {
+    Admin,
+    Viewer,
+}
 ```
 
 #### 4. `impl Display` over ad-hoc string building
@@ -94,17 +106,18 @@ log::info!("cache miss for {}:{}:{}", workspace.id, project.slug, job.id);
 
 After:
 ```rust
-impl fmt::Display for CacheKey {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl std::fmt::Display for CacheKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}:{}:{}", self.workspace, self.project, self.job)
     }
 }
 
-let key = CacheKey { workspace, project, job };
-log::info!("cache miss for {key}");
+fn log_cache_miss(key: &CacheKey) {
+    log::info!("cache miss for {key}");
+}
 ```
 
-### B. Extract aggressively
+### B. Express intent and separate concerns
 
 #### 5. No code comments - prefer strong types, names, and extracted functions
 
@@ -123,61 +136,75 @@ let display = bytes as f64 / 1_000_000.0;
 
 After:
 ```rust
-if exceeds_workspace_quota(upload_size, &workspace) {
-    return Err(Error::QuotaExceeded);
+fn validate_upload(upload_size: UploadSize, workspace: &Workspace) -> Result<(), Error> {
+    if exceeds_workspace_quota(upload_size, workspace) {
+        return Err(Error::QuotaExceeded);
+    }
+
+    Ok(())
 }
 
-let display = Megabytes::from(bytes);
+fn display_size(bytes: Bytes) -> Megabytes {
+    Megabytes::from(bytes)
+}
 ```
 
-#### 6. Inline calculations - extract a function or a strong type
+#### 6. Prefer named iterator and collection operations
 
-`for` loops with counters, accumulators, or running state hide logic. Lift them into a named function, or a small type with a method.
+Use an iterator or collection operation when it expresses the objective more directly. Keep an explicit loop when it makes state, control flow, side effects, or error handling clearer.
 
 Before:
 ```rust
-let mut total = 0;
-let mut count = 0;
-for tx in txs {
-    if tx.is_settled() {
-        total += tx.amount;
-        count += 1;
+fn search<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {
+    let mut results = Vec::new();
+
+    for line in contents.lines() {
+        if line.contains(query) {
+            results.push(line);
+        }
     }
+
+    results
 }
-let avg = total / count;
 ```
 
 After:
 ```rust
-fn settled_average(txs: &[Tx]) -> u64 {
-    let settled: Vec<_> = txs.iter().filter(|t| t.is_settled()).collect();
-    settled.iter().map(|t| t.amount).sum::<u64>() / settled.len() as u64
+fn search<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {
+    contents
+        .lines()
+        .filter(|line| line.contains(query))
+        .collect()
 }
 ```
 
 #### 7. Long functions doing multiple things - extract helpers
 
-If a function has distinct steps (validate, fetch, format), each step becomes its own function. The top-level function reads as a short summary of what it does.
+If a function has distinct steps (validate, fetch, format), each step becomes its own function. Validation failures return `Err` immediately, and the top-level function reads as a short summary of what it does.
 
 Before:
 ```rust
-fn handle(req: Request) -> Response {
-    if req.user.is_empty() { return Response::bad(); }
-    if req.workspace.is_empty() { return Response::bad(); }
+fn handle(req: Request) -> Result<Response, Error> {
+    if req.user.is_empty() {
+        return Err(Error::InvalidUser);
+    }
+    if req.workspace.is_empty() {
+        return Err(Error::InvalidWorkspace);
+    }
 
     let user = db.get(&req.user)?;
     let profile = directory.profile(&req.workspace, &user)?;
 
-    Response::ok(format!("{profile}"))
+    Ok(Response::ok(profile.to_string()))
 }
 ```
 
 After:
 ```rust
-fn handle(req: Request) -> Response {
+fn handle(req: Request) -> Result<Response, Error> {
     let req = validate(req)?;
     let profile = fetch_profile(&req)?;
-    Response::ok(format!("{profile}"))
+    Ok(Response::ok(profile.to_string()))
 }
 ```
 
@@ -202,25 +229,43 @@ pub enum ProxyError { ... }
 After:
 ```rust
 // src/proxy/mod.rs
-mod parsing;
 mod dispatch;
 mod errors;
+mod parsing;
 
-pub use dispatch::dispatch;
-pub use errors::ProxyError;
+use self::{dispatch::dispatch, errors::ProxyError};
+use crate::Response;
+
+fn proxy(input: &[u8]) -> Result<Response, ProxyError> {
+    let request = parsing::request(input)?;
+    dispatch(request)
+}
 ```
 ```rust
 // src/proxy/parsing.rs
-pub fn request(...) { ... }
-pub fn header(...)  { ... }
+use super::ProxyError;
+
+pub(super) fn request(input: &[u8]) -> Result<(u8, &[u8]), ProxyError> {
+    let (header, body) = input.split_first().ok_or(ProxyError::MissingHeader)?;
+    Ok((*header, body))
+}
 ```
 ```rust
 // src/proxy/dispatch.rs
-pub fn dispatch(...) { ... }
+use super::{ProxyError, Response};
+
+pub(super) fn dispatch(request: (u8, &[u8])) -> Result<Response, ProxyError> {
+    let (header, body) = request;
+    Response::from_parts(header, body).ok_or(ProxyError::InvalidResponse)
+}
 ```
 ```rust
 // src/proxy/errors.rs
-pub enum ProxyError { ... }
+#[derive(Debug)]
+pub(super) enum ProxyError {
+    MissingHeader,
+    InvalidResponse,
+}
 ```
 
 ### C. Control flow
@@ -246,9 +291,16 @@ fn process(opt: Option<Req>) -> Result<Res, Error> {
 After:
 ```rust
 fn process(opt: Option<Req>) -> Result<Res, Error> {
-    let Some(req) = opt else { return Err(Error::Skip); };
-    if !req.is_valid() { return Err(Error::Skip); }
-    let Some(user) = lookup(&req.user) else { return Err(Error::Skip); };
+    let Some(req) = opt else {
+        return Err(Error::Skip)
+    };
+    if !req.is_valid() {
+        return Err(Error::Skip)
+    }
+    let Some(user) = lookup(&req.user) else {
+        return Err(Error::Skip)
+    };
+
     Ok(Res::new(user, req))
 }
 ```
@@ -272,20 +324,20 @@ fn handler(b: Body) {
 
 After:
 ```rust
-#[derive(Deserialize)]
+#[derive(serde::Deserialize)]
 struct Body {
-    workspace: WorkspaceName, // WorkspaceName has a Deserialize that validates
-    user:      UserId,
+    workspace: WorkspaceName,
+    user: UserId,
 }
 
-fn handler(b: Body) {
-    // invalid workspaces and users were rejected at deserialize time
+fn handler(body: &Body) -> Response {
+    Response::for_user(&body.workspace, &body.user)
 }
 ```
 
-#### 11. Re-exports over new dependencies
+#### 11. Stable framework re-exports for framework-only types
 
-Before adding a direct dependency, check whether an existing dependency re-exports the type you need. Prefer the re-export when it is part of that dependency's public API, so your crate stays aligned with the version used by the framework or client library.
+Before adding a direct dependency, check whether the framework exposes a documented, stable re-export of the type. Prefer that re-export when the type is used only through the framework, so the crate stays aligned with the framework's version. Keep the direct dependency when the type is also used independently or the re-export is not a documented, stable part of the framework's public API.
 
 Before:
 ```toml
@@ -306,6 +358,14 @@ axum = "0.8"
 ```
 ```rust
 use axum::http::{HeaderMap, StatusCode};
+
+fn status_for(headers: &HeaderMap) -> StatusCode {
+    if headers.is_empty() {
+        return StatusCode::NO_CONTENT;
+    }
+
+    StatusCode::OK
+}
 ```
 
 #### 12. Avoid positional arguments
@@ -321,17 +381,27 @@ send(a, b, 100, true, false); // which bool is which?
 
 After:
 ```rust
-pub struct SendArgs {
-    pub from:    Address,
-    pub to:      Address,
-    pub amount:  Amount,
-    pub dry_run: bool,
-    pub retry:   bool,
+struct SendArgs {
+    from: Address,
+    to: Address,
+    amount: Amount,
+    dry_run: bool,
+    retry: bool,
 }
 
-fn send(args: SendArgs) { ... }
+fn send(args: &SendArgs) -> Result<Receipt, Error> {
+    execute(args)
+}
 
-send(SendArgs { from, to, amount, dry_run: true, retry: false });
+fn send_payment(payment: Payment) -> Result<Receipt, Error> {
+    send(&SendArgs {
+        from: payment.from,
+        to: payment.to,
+        amount: payment.amount,
+        dry_run: true,
+        retry: false,
+    })
+}
 ```
 
 #### 13. `SomeType::from(x)` over `x.into()`
@@ -347,9 +417,11 @@ return Err(err.into());
 
 After:
 ```rust
-let port = Port::from(config.port);
-let body = RequestBody::from(payload);
-return Err(ApiError::from(err));
+fn build_request(config: &Config, payload: Payload) -> Result<Request, ApiError> {
+    let port = Port::from(config.port);
+    let body = RequestBody::from(payload);
+    Request::try_new(port, body).map_err(ApiError::from)
+}
 ```
 
 ## Review checklist
@@ -361,12 +433,12 @@ Run this pass against existing Rust. Cite rule numbers in review comments.
 - [ ] Hand-rolled `FromStr` / `Display` for a plain enum -> rule 3
 - [ ] `format!` building a domain representation at a call site -> rule 4
 - [ ] Comment describing *what* the next line or block does -> rule 5
-- [ ] `for` loop mutating counters/accumulators outside the loop -> rule 6
+- [ ] Filtering and collection loop whose objective is clearer as an iterator pipeline -> rule 6
 - [ ] Function with distinct steps (validate / fetch / format) in one body -> rule 7
 - [ ] `// --- foo ---` or `// ===== foo =====` banners inside a single file -> rule 8
 - [ ] `if let Some(x) = a { if let Some(y) = b { ... } }` -> rule 9
 - [ ] `Deserialize` struct carrying raw `String` for a validated domain -> rule 10
-- [ ] New direct dependency where a transitive re-export exists -> rule 11
+- [ ] New direct dependency for a type used only through a framework that has a documented, stable re-export -> rule 11
 - [ ] `fn(bool, bool, ...)`, `fn(String, String, ...)`, or 3+ positional params -> rule 12
 - [ ] `x.into()` where the target type is not visible at the call site -> rule 13
 
@@ -376,11 +448,11 @@ When refactoring an existing file, apply rules in this order so each step compil
 
 1. Introduce strong types and enums (rules 1, 2).
 2. Add `Display` / `Deserialize` / derive impls (rules 3, 4, 10).
-3. Drop explanatory comments, extract helpers, split big files into modules (rules 5, 6, 7, 8).
+3. Drop explanatory comments, use clear iterator operations, extract helpers, and split big files into modules (rules 5, 6, 7, 8).
 4. Flatten control flow (rule 9).
 5. Swap positional calls for named / struct args last - this touches call sites (rule 12).
 6. Replace `.into()` with `T::from(x)` at call sites where the target type is not obvious (rule 13).
-7. Drop redundant dependencies last (rule 11), after the code compiles on the re-export.
+7. Drop framework-only redundant dependencies last (rule 11), after the code compiles on the documented, stable re-export.
 
 ## Constraints
 
@@ -388,4 +460,4 @@ When refactoring an existing file, apply rules in this order so each step compil
 - Do not mix style refactors with behavior changes in the same commit.
 - Preserve existing project conventions when they conflict with these rules.
 - Never disable tests to satisfy a style rule.
-- Run `cargo fmt`, `cargo clippy --all-targets --all-features -- -D warnings`, and `cargo test` before committing.
+- Follow the repository's `/pre-commit` skill and run relevant tests before committing.
