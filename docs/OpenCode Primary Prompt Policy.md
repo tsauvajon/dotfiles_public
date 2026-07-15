@@ -161,7 +161,7 @@ json`, and the configured `share`/`snapshot` fields behave as this runbook
 expects. Stop if any surface differs.
 
 1. Create a temporary directory with `mktemp -d
-   "${TMPDIR:-/tmp}/opencode-compact-build.XXXXXX"`.
+"${TMPDIR:-/tmp}/opencode-compact-build.XXXXXX"`.
 2. Put the candidate prompt in `$experiment_dir/compact-build.txt`.
 3. Put the following overlay in `$experiment_dir/opencode.json`, replacing the
    absolute prompt path and copying the current production model and variant:

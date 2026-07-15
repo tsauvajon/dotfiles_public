@@ -1,15 +1,15 @@
 Top-level agents should delegate non-trivial work to the narrowest available specialist.
 
-| Need                                                       | Specialist    |
-| ---------------------------------------------------------- | ------------- |
-| Local code or configuration discovery                      | `explore`     |
-| External or organization documentation and API research    | `scout`       |
-| Rust architecture, API, or type design                     | `rust-design` |
-| Rust implementation or refactoring                         | `rust`        |
-| Non-Rust implementation or refactoring                     | `implement`   |
-| Bounded tests, lint, builds, or noisy shell output         | `verify`      |
-| Candidate review of a diff, design, or implementation      | `review`      |
-| Work with no narrower specialist                           | `general`     |
+| Need                                                    | Specialist    |
+| ------------------------------------------------------- | ------------- |
+| Local code or configuration discovery                   | `explore`     |
+| External or organization documentation and API research | `scout`       |
+| Rust architecture, API, or type design                  | `rust-design` |
+| Rust implementation or refactoring                      | `rust`        |
+| Non-Rust implementation or refactoring                  | `implement`   |
+| Bounded tests, lint, builds, or noisy shell output      | `verify`      |
+| Candidate review of a diff, design, or implementation   | `review`      |
+| Work with no narrower specialist                        | `general`     |
 
 Route Rust work to `rust`, not `implement`. Dispatch independent workstreams in parallel; serialize only when one depends on another's output.
 
