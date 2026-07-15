@@ -37,6 +37,7 @@ let
     mkMergedOpencodeJson
     mkMergedPackage
     mkAgentsContent
+    toCompactJson
     ;
 
   publicRoot = ../config/opencode;
@@ -104,18 +105,8 @@ let
   importPluginsDirs = importDirsFor "plugins";
   importRulesDirs = importDirsFor "rules";
 
-  # Pretty-print a JSON-shaped attrset to a file (sorted keys, 2-space
-  # indent — jq's default). Matches serde_json structurally.
-  prettyJson =
-    name: value:
-    pkgs.runCommand name
-      {
-        jsonContent = builtins.toJSON value;
-        nativeBuildInputs = [ pkgs.jq ];
-      }
-      ''
-        echo "$jsonContent" | jq . > $out
-      '';
+  # Keep committed JSON readable while writing compact merged output.
+  compactJsonFile = name: value: pkgs.writeText name (toCompactJson value);
 
   # Build commands / skills / agents / plugins merged dirs. The private
   # flake exposes paths by name; the public root mirrors the same
@@ -306,7 +297,7 @@ in
         "opencode/plugins".source = mergedPlugins;
         "opencode/themes/catppuccin-mocha-lavender.json".source =
           "${inputs.catppuccin-opencode}/themes/mocha/catppuccin-mocha-lavender.json";
-        "opencode/opencode.json".source = prettyJson "opencode.json" mergedJson;
+        "opencode/opencode.json".source = compactJsonFile "opencode.json" mergedJson;
         # tui.json is a separate OpenCode file (different $schema) — not
         # part of the opencode.json deep-merge. Symlinked verbatim from
         # the public source.
@@ -319,7 +310,7 @@ in
         # The public package.json is committed and non-empty, so
         # mergedPackage always has content. Always emit the file and
         # always run the bun-install activation.
-        "opencode/package.json".source = prettyJson "opencode-package.json" mergedPackage;
+        "opencode/package.json".source = compactJsonFile "opencode-package.json" mergedPackage;
       }
     ];
 

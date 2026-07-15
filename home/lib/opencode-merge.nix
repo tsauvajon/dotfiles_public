@@ -14,6 +14,11 @@ let
   listFilesIn = import ./list-files-in.nix { inherit lib; };
   readJsonOr = import ./read-json-or.nix;
 
+  # Serialize generated JSON without formatting whitespace. Source JSON stays
+  # human-readable; only the merged files written to ~/.config/opencode use
+  # this compact representation.
+  toCompactJson = builtins.toJSON;
+
   # Remove disabled providers and rewrite every model assignment that
   # references one of them. Fallbacks are deliberately exact and
   # provider-local so adding a new model cannot silently select an
@@ -146,7 +151,7 @@ let
   #
   # The merge fails fast (via assertMsg) if `publicRoot` contains a
   # bare `opencode.json`, since that would be silently ignored by the
-  # fragment filter and shadow the contract documented in AGENTS.md.
+  # fragment filter and violate the contract implemented below.
   mkMergedOpencodeJson =
     {
       publicRoot,
@@ -173,7 +178,8 @@ let
       The public side is fragment-only — split content into per-scope
       `opencode.<scope>.json` partials (for example meta, watcher,
       permission.*, agent, provider.*, experimental.*).
-      See AGENTS.md > "opencode.json (4-tier deep merge)" for details.
+      See `mkMergedOpencodeJson` in home/lib/opencode-merge.nix and the
+      fragments under config/opencode/ for the canonical merge contract.
     '';
     deepMergeAll (repoFragments ++ importFragments ++ privateFragments ++ [ privateOverlay ]);
 
@@ -249,5 +255,6 @@ in
     mkMergedOpencodeJson
     mkMergedPackage
     mkAgentsContent
+    toCompactJson
     ;
 }

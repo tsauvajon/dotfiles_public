@@ -9,6 +9,7 @@
 let
   cases =
     (import ./merge-precedence.nix { inherit lib; })
+    // (import ./generated-json.nix { inherit lib; })
     // (import ./filename-sort.nix { inherit lib; })
     // (import ./rules-modes.nix { inherit lib; })
     // (import ./missing-private.nix { inherit lib; })
