@@ -14,13 +14,14 @@
 
 let
   version = "0.1.10";
-  build = "12";
+  build = "13";
 
   src = fetchFromGitHub {
-    owner = "standardagents";
+    # Unreleased lifecycle fix from https://github.com/standardagents/composer-api/pull/27.
+    owner = "wbugitlab1";
     repo = "composer-api";
-    tag = "v${version}";
-    hash = "sha256-bfLu4dXk1Wg16kkQ8YFSVtglE1ZFGmM5DJgewQU11sk=";
+    rev = "5a0bb719e40529d6182371f48ef2578e4542ea15";
+    hash = "sha256-IikBnUOOvRbYWgMeYNJJzrPxvwcZTrfcJ/E+tglfjU8=";
   };
 
   generated = swiftpm2nix.helpers ./generated;
