@@ -131,6 +131,48 @@ or override the provider in a private fragment such as
 }
 ```
 
+If the app itself accidentally gets saved with a different listener port, OpenCode
+will keep trying `http://127.0.0.1:8787/v1` while the app listens somewhere else,
+commonly `127.0.0.1:8788`. Confirm the mismatch with:
+
+```sh
+lsof -nP -iTCP -sTCP:LISTEN | rg 'API|8787|8788|8792'
+curl --fail --silent http://127.0.0.1:8787/v1/models >/dev/null
+curl --fail --silent http://127.0.0.1:8788/v1/models >/dev/null
+```
+
+To reset the app back to `8787`, stop it before changing preferences. The app
+writes its current settings back on quit, so editing the preference while it is
+running can be overwritten by the shutdown save:
+
+```sh
+osascript -e 'tell application id "ai.standardagents.cursorapi" to quit' || \
+  pkill -f '/API for Cursor.app/Contents/MacOS/API for Cursor'
+
+settings_json='{
+  "backendBaseURL" : "",
+  "clientVersion" : "sdk-1.0.13",
+  "cursorAPIBaseURL" : "",
+  "cursorAPIKey" : "",
+  "launchAtLogin" : false,
+  "localAgentEndpoint" : "",
+  "menuBarOnly" : false,
+  "port" : 8787
+}'
+defaults write ai.standardagents.cursorapi CursorAPI.settings.v1 \
+  -data "$(printf '%s' "$settings_json" | xxd -p -c 256)"
+killall cfprefsd || true
+open -a "$HOME/Applications/API for Cursor.app"
+```
+
+Then verify both the OpenAI-compatible listener and the separate SDK bridge:
+
+```sh
+lsof -nP -iTCP:8787 -sTCP:LISTEN
+curl --fail --silent http://127.0.0.1:8787/v1/models
+curl --fail --silent http://127.0.0.1:8792/health
+```
+
 ## Legacy Bridge
 
 This replaces the default workflow for Composer in OpenCode. The older
