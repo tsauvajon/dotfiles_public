@@ -27,6 +27,7 @@ let
     "wt_dir"
     "detached_dir"
     "editor"
+    "opencode"
   ];
   unknownPublicKeys = lib.subtractLists recognizedPublicKeys (builtins.attrNames publicConfig);
 
@@ -72,6 +73,7 @@ assert lib.assertMsg (unknownPublicKeys == [ ]) ''
     wtDir = publicConfig.wt_dir or "~/dev/wt";
     detachedDir = publicConfig.detached_dir or "~/dev/detached";
     editor = publicConfig.editor or "helix";
+    opencodeCommand = publicConfig.opencode.command or "opencode-shared";
     inherit extraConfig;
   };
 
