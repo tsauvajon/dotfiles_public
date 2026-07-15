@@ -11,17 +11,22 @@
     "external_directory": {
       "~/.cargo/*": "allow",
       "~/.config/*": "allow",
+      "~/.cursor/projects/*": "allow",
+      "~/.local/*": "allow",
       "~/.local/cache/*": "allow",
       "~/.local/share/*": "allow",
       "~/.profile/*": "allow",
       "~/dev/*": "allow",
       "~/dev/dotfiles/*": "allow",
+      "~/Applications/*": "allow",
       "~/Documents/Obsidian/*": "allow",
-      "~/Library/Logs": "allow",
+      "~/Library/Logs/*": "allow",
+      "~/Library/Preferences/*": "allow",
       "/mnt/linux/dev/*": "allow",
       "/mnt/linux/dotfiles/*": "allow",
       "/nix/store/*": "allow",
       "/private/var/*/opencode/*": "allow",
+      "/var/folders/*": "allow",
       "/tmp/*": "allow"
     }
   }
