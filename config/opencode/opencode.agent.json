@@ -6,6 +6,7 @@
       "permission": {
         "task": {
           "*": "deny",
+          "collaboration": "allow",
           "explore": "allow",
           "general": "allow",
           "implement": "allow",
@@ -22,6 +23,7 @@
       "permission": {
         "task": {
           "*": "deny",
+          "collaboration": "deny",
           "explore": "allow",
           "review": "allow",
           "rust-design": "allow",
