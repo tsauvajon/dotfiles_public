@@ -105,6 +105,14 @@ let
     "cargo tree --config net.git-fetch-with-cli=true"
     "env CARGO_TARGET_DIR=/tmp/opencode-target cargo check"
   ];
+
+  verifyGitCCommands = [
+    "git -C /tmp/repo diff --check"
+    "git -C /tmp/repo log -5"
+    "git -C /tmp/repo rev-parse --show-toplevel"
+    "git -C /tmp/repo show HEAD:README.md"
+    "git -C /tmp/repo status --short"
+  ];
 in
 {
   testGlobalCargoCacheOverrideDenies = {
@@ -145,5 +153,15 @@ in
   testVerifyAgentCargoCacheOverrideDenies = {
     expr = actionsFor (agentRules "verify") agentDeniedCargoCommands;
     expected = expectedActions "deny" agentDeniedCargoCommands;
+  };
+
+  testVerifyAgentGitCReadCommandsAllow = {
+    expr = actionsFor (agentRules "verify") verifyGitCCommands;
+    expected = expectedActions "allow" verifyGitCCommands;
+  };
+
+  testVerifyAgentGitCWriteCommandsDeny = {
+    expr = lastMatchingAction (agentRules "verify") "git -C /tmp/repo commit -m test";
+    expected = "deny";
   };
 }
