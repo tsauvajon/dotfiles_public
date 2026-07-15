@@ -1,6 +1,6 @@
 ---
 name: aggressive-testing
-description: Maximize meaningful test coverage quickly by parallelizing across modules, refactoring aggressively for testability within module boundaries, and producing a structured coverage report.
+description: Maximize meaningful test coverage across modules. Use when the user requests aggressive parallel testing or a coverage report.
 compatibility: opencode
 metadata:
   status: experimental

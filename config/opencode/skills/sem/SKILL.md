@@ -1,6 +1,6 @@
 ---
 name: sem
-description: Use sem for semantic Git analysis: entity-level diffs, blame, history, impact, and focused code context before editing, reviewing, or committing code.
+description: Analyze Git history and code with sem. Use for semantic diffs, blame, impact, and focused context.
 ---
 
 # sem

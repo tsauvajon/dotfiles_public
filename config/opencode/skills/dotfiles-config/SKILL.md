@@ -1,6 +1,6 @@
 ---
 name: dotfiles-config
-description: Use when editing this dotfiles repo, Home Manager-managed config, OpenCode config, AGENTS.md, opencode.json, commands, skills, agents, plugins, MCP servers, or permission rules.
+description: Edit dotfiles, Home Manager, and OpenCode config. Use for AGENTS.md, opencode.json, skills, agents, plugins, MCP servers, or permissions.
 ---
 
 # Dotfiles Config

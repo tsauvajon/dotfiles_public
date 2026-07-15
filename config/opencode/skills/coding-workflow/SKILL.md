@@ -1,6 +1,6 @@
 ---
 name: coding-workflow
-description: Use for non-trivial design, implementation, refactoring, debugging, or testing work. Provides a pragmatic engineering workflow for planning, code changes, verification, quality gates, and recovery when stuck.
+description: Guide non-trivial design, implementation, refactoring, debugging, and testing. Use for multi-step coding work.
 compatibility: opencode
 metadata:
   status: stable

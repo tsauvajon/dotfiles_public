@@ -1,6 +1,6 @@
 ---
 name: excalidraw-diagrams
-description: Use when creating or editing Obsidian Excalidraw diagrams, `.excalidraw` files, `.excalidraw.md` files, compressed-json drawing blocks, or programmatically generated Excalidraw scenes.
+description: Create or edit Obsidian Excalidraw diagrams. Use for .excalidraw, .excalidraw.md, or generated Excalidraw scenes.
 compatibility: opencode
 metadata:
   status: experimental
