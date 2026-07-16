@@ -4,3 +4,4 @@
 (require "helix-file-watcher/file-watcher.scm")
 
 (install-fake-warp!)
+(spawn-watcher)

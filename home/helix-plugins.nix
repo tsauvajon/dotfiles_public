@@ -144,6 +144,10 @@ let
         --replace-fail \
         'git = "https://github.com/mattwparas/steel.git"' \
         'git = "https://github.com/mattwparas/steel.git", rev = "dec633b908afeafeaf62bab457a92e2bf873745a"'
+      substituteInPlace file-watcher.scm \
+        --replace-fail \
+        '(when (system-time<? helix-doc-last-saved file-last-modified)' \
+        '(when (and (not (editor-document-dirty? doc-id)) (system-time<? helix-doc-last-saved file-last-modified))'
     '';
   };
 
