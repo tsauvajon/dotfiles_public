@@ -5,6 +5,7 @@
         "task": {
           "*": "deny",
           "collaboration": "allow",
+          "daily-note": "allow",
           "explore": "allow",
           "general": "allow",
           "implement": "allow",
