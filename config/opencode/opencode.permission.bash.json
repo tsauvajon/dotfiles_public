@@ -6,6 +6,7 @@
       "./pleasew *": "allow",
       "./scripts/*.sh *": "allow",
       "./setup.sh *": "allow",
+      "/usr/bin/time -p nix flake check *": "allow",
       "asdf *": "allow",
       "awk *": "allow",
       "bash *": "allow",
