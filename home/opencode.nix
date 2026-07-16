@@ -86,6 +86,7 @@ let
   privateAgentsDir = privatePaths.agentsDir or (defaultPrivateSubpath "agents");
   privatePluginsDir = privatePaths.pluginsDir or (defaultPrivateSubpath "plugins");
   privateRulesDir = privatePaths.rulesDir or (defaultPrivateSubpath "rules");
+  privatePrimaryRulesDir = privatePaths.primaryRulesDir or (defaultPrivateSubpath "primary-rules");
   privateConfigFile = privatePaths.configFile or (defaultPrivateSubpath "opencode.json");
   privatePackageFile = privatePaths.packageFile or (defaultPrivateSubpath "package.json");
 
@@ -104,6 +105,7 @@ let
   importAgentsDirs = importDirsFor "agents";
   importPluginsDirs = importDirsFor "plugins";
   importRulesDirs = importDirsFor "rules";
+  importPrimaryRulesDirs = importDirsFor "primary-rules";
 
   # Keep committed JSON readable while writing compact merged output.
   compactJsonFile = name: value: pkgs.writeText name (toCompactJson value);
@@ -119,9 +121,11 @@ let
       name,
       privatePath,
       importDirs ? [ ],
+      excludeNames ? [ ],
     }:
     mergeDirs {
       name = "opencode-${name}";
+      inherit excludeNames;
       sources = [
         (publicRoot + "/${name}")
       ]
@@ -133,11 +137,13 @@ let
     name = "commands";
     privatePath = privateCommandsDir;
     importDirs = importCommandsDirs;
+    excludeNames = cfg.excludedCommands;
   };
   mergedSkills = mkMergedDir {
     name = "skills";
     privatePath = privateSkillsDir;
     importDirs = importSkillsDirs;
+    excludeNames = cfg.excludedSkills;
   };
   mergedAgents = mkMergedDir {
     name = "agents";
@@ -173,6 +179,13 @@ let
     publicRulesDir = publicRoot + "/rules";
     inherit importRulesDirs;
     inherit privateRulesDir;
+  };
+
+  primaryAgentsContent = mkAgentsContent {
+    rulesMode = cfg.rulesMode;
+    publicRulesDir = publicRoot + "/primary-rules";
+    importRulesDirs = importPrimaryRulesDirs;
+    privateRulesDir = privatePrimaryRulesDir;
   };
 
   # opencode.json: 4-tier deep merge. The pure merge logic (including
@@ -224,6 +237,7 @@ let
     "package-lock.json"
     "package.json"
     "plugins"
+    "primary-context.md"
     "skills"
     "themes"
     "tui.json"
@@ -286,6 +300,18 @@ in
         - disabled: do not manage AGENTS.md.
       '';
     };
+
+    excludedCommands = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ ];
+      description = "Top-level OpenCode command filenames to omit from the generated commands directory.";
+    };
+
+    excludedSkills = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ ];
+      description = "Top-level OpenCode skill directory names to omit from the generated skills directory.";
+    };
   };
 
   config = {
@@ -305,6 +331,7 @@ in
       }
       (lib.mkIf (cfg.rulesMode != "disabled") {
         "opencode/AGENTS.md".text = agentsContent;
+        "opencode/primary-context.md".text = primaryAgentsContent;
       })
       {
         # The public package.json is committed and non-empty, so
@@ -325,6 +352,42 @@ in
     # because HM activation runs with a minimal PATH that does not yet
     # include the user profile's bin dir.
     home.activation = {
+      opencodeCheckDuplicateSkillNames = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+        skills_dir="${config.xdg.configHome}/opencode/skills"
+        if [ -d "$skills_dir" ]; then
+          names_file="$(${pkgs.coreutils}/bin/mktemp)"
+          trap '${pkgs.coreutils}/bin/rm -f "$names_file"' EXIT
+
+          while IFS= read -r skill_file; do
+            name="$(${pkgs.gawk}/bin/awk '
+              BEGIN { in_frontmatter = 0 }
+              NR == 1 && $0 == "---" { in_frontmatter = 1; next }
+              in_frontmatter && $0 == "---" { exit }
+              in_frontmatter && $0 ~ /^name:[[:space:]]*/ {
+                sub(/^name:[[:space:]]*/, "")
+                gsub(/^"|"$/, "")
+                print
+                exit
+              }
+            ' "$skill_file")"
+            [ -n "$name" ] || continue
+            printf '%s\t%s\n' "$name" "$skill_file" >>"$names_file"
+          done < <(${pkgs.findutils}/bin/find -L "$skills_dir" -mindepth 2 -maxdepth 2 -name SKILL.md -type f)
+
+          duplicates="$(${pkgs.coreutils}/bin/cut -f1 "$names_file" | ${pkgs.coreutils}/bin/sort | ${pkgs.coreutils}/bin/uniq -d)"
+          if [ -n "$duplicates" ]; then
+            printf '%s\n' "Duplicate OpenCode skill names detected:" >&2
+            while IFS= read -r duplicate; do
+              [ -n "$duplicate" ] || continue
+              ${pkgs.gnugrep}/bin/grep -F "''${duplicate}$(printf '\t')" "$names_file" >&2 || true
+            done <<EOF
+$duplicates
+EOF
+            exit 1
+          fi
+        fi
+      '';
+
       opencodeCheckUnmanaged = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
         dir="${config.xdg.configHome}/opencode"
         unmanaged=""

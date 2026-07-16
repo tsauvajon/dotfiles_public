@@ -14,17 +14,29 @@
 {
   name,
   sources,
+  excludeNames ? [ ],
 }:
 
 let
   existingSources = builtins.filter builtins.pathExists sources;
+  excludeCases =
+    if excludeNames == [ ] then
+      "          __merge_dirs_no_exclusions__) : ;;"
+    else
+      lib.concatMapStringsSep "\n" (entry: "          ${lib.escapeShellArg entry}) continue ;;") excludeNames;
 in
 pkgs.runCommand name { } ''
   mkdir -p "$out"
   ${lib.concatMapStringsSep "\n" (src: ''
     if [ -d "${src}" ]; then
-      find "${src}" -mindepth 1 -maxdepth 1 \
-        -exec ln -sfn {} "$out/" \;
+      for entry in "${src}"/* "${src}"/.[!.]* "${src}"/..?*; do
+        [ -e "$entry" ] || [ -L "$entry" ] || continue
+        entry_name="''${entry##*/}"
+        case "$entry_name" in
+${excludeCases}
+        esac
+        ln -sfn "$entry" "$out/"
+      done
     fi
   '') existingSources}
 ''

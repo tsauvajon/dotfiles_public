@@ -48,8 +48,8 @@ ones before the surviving fragments are appended.
 
 - Read [`docs/Dependency Updates.md`](docs/Dependency%20Updates.md) before
   dependency bumps; `nix flake update` does not cover every managed dependency.
-- Load `dotfiles-config` for normal config/OpenCode edits and
-  `dotfiles-nix-debug` for flake, activation, platform, or symlink failures.
-- Load `dotfiles-setup` for setup/private-overlay workflows and `task` for the
-  managed repository/worktree configuration.
+- Load `dotfiles-config` for normal config/OpenCode edits, setup/private-overlay
+  workflows, and Home Manager activation.
+- Load `dotfiles-nix-debug` for flake, activation, platform, or symlink failures.
+- Load `task` for the managed repository/worktree configuration.
 - Do not introduce tools that are not already provided by this repo.

@@ -406,6 +406,9 @@
         cargoBuildEnvCheck = import ./config/opencode/plugin-tests/cargo-build-env.test.nix {
           inherit pkgs;
         };
+        primaryContextCheck = import ./config/opencode/plugin-tests/primary-context.test.nix {
+          inherit pkgs;
+        };
         cursorAgentBridgeModuleTests = lib.runTests (
           import ./home/cursor-agent-bridge.test.nix { inherit lib; }
         );
@@ -482,6 +485,7 @@
             yazi-live-search-test = yaziLiveSearchCheck;
             cursor-agent-bridge-test = cursorAgentBridgeCheck;
             cargo-build-env-test = cargoBuildEnvCheck;
+            primary-context-test = primaryContextCheck;
             cursor-agent-bridge-module-test = cursorAgentBridgeModuleCheck;
           };
       }

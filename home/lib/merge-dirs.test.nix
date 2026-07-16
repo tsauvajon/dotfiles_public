@@ -36,10 +36,27 @@ let
       /nonexistent/merge-dirs-source
     ];
   };
+
+  withExclusions = mergeDirs {
+    name = "merge-dirs-test-exclusions";
+    sources = [
+      ./merge-dirs.test/public
+      ./merge-dirs.test/private
+    ];
+    excludeNames = [
+      "b.txt"
+      "sub"
+    ];
+  };
 in
 pkgs.runCommand "merge-dirs-test"
   {
-    inherit singleSource withCollision withMissingSource;
+    inherit
+      singleSource
+      withCollision
+      withMissingSource
+      withExclusions
+      ;
   }
   ''
     set -eu
@@ -91,6 +108,15 @@ pkgs.runCommand "merge-dirs-test"
     # exist on a given machine.
     [ -L "$withMissingSource/a.txt" ]                            || fail "missing-source: a.txt missing"
     [ "$(cat "$withMissingSource/a.txt")" = "public-a" ]         || fail "missing-source: a.txt content"
+
+    # --- Test 4: explicit top-level exclusions ------------------------
+    # Exclusions apply by top-level entry name across all sources. They
+    # are used by OpenCode to hide machine-local commands/skills without
+    # disabling an entire overlay tier.
+    [ -L "$withExclusions/a.txt" ]      || fail "exclusions: a.txt should remain"
+    [ -L "$withExclusions/d.txt" ]      || fail "exclusions: d.txt should remain"
+    [ ! -e "$withExclusions/b.txt" ]    || fail "exclusions: b.txt should be omitted"
+    [ ! -e "$withExclusions/sub" ]      || fail "exclusions: sub should be omitted"
 
     echo "all merge-dirs assertions passed"
     touch "$out"
