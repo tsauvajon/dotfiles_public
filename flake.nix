@@ -174,6 +174,10 @@
               version = opencodePin.version;
               src = opencodeSrc;
 
+              patches = (old.patches or [ ]) ++ [
+                ./pkgs/opencode/concise-static-permission-denial.patch
+              ];
+
               node_modules = old.node_modules.overrideAttrs (_: {
                 version = opencodePin.version;
                 src = opencodeSrc;
