@@ -1,0 +1,32 @@
+diff --git a/scripts/cursor-sdk-local-agent-bridge.mjs b/scripts/cursor-sdk-local-agent-bridge.mjs
+index 791fb07..5073770 100755
+--- a/scripts/cursor-sdk-local-agent-bridge.mjs
++++ b/scripts/cursor-sdk-local-agent-bridge.mjs
+@@ -16,7 +16,7 @@ const host = process.env.CURSOR_SDK_BRIDGE_HOST || "127.0.0.1";
+ const host = process.env.CURSOR_SDK_BRIDGE_HOST || "127.0.0.1";
+ const port = parseInteger(process.env.CURSOR_SDK_BRIDGE_PORT, 8792);
+ const bridgeToken = process.env.CURSOR_SDK_BRIDGE_TOKEN || "";
+-const maxJsonBytes = parseInteger(process.env.CURSOR_SDK_BRIDGE_MAX_JSON_BYTES, 1024 * 1024);
++const maxJsonBytes = parseInteger(process.env.CURSOR_SDK_BRIDGE_MAX_JSON_BYTES, @bridgeMaxJsonBytes@);
+ const maxAgents = parseInteger(process.env.CURSOR_SDK_BRIDGE_MAX_AGENTS, 128);
+ const runTimeoutMs = parseInteger(process.env.CURSOR_SDK_BRIDGE_RUN_TIMEOUT_MS, 180 * 1000);
+ const maxRunRetries = parseInteger(process.env.CURSOR_SDK_BRIDGE_MAX_RUN_RETRIES, 3);
+@@ -2129,9 +2129,15 @@ async function readJsonBody(request) {
+ async function readJsonBody(request) {
+-  let body = "";
++  const chunks = [];
++  let bodyBytes = 0;
+   for await (const chunk of request) {
+-    body += chunk;
+-    if (body.length > maxJsonBytes) throw new HttpError("Request body too large", 413, "request_too_large");
++    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
++    chunks.push(buffer);
++    bodyBytes += buffer.length;
++    if (bodyBytes > maxJsonBytes) {
++      throw new HttpError(`Request body too large (${bodyBytes} bytes; maximum ${maxJsonBytes})`, 413, "request_too_large");
++    }
+   }
++  const body = Buffer.concat(chunks, bodyBytes).toString("utf8");
+   if (!body.trim()) return {};
+   try {
+     return JSON.parse(body);

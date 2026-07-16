@@ -1,5 +1,6 @@
 {
   apple-sdk,
+  bridgeMaxJsonBytes ? 16 * 1024 * 1024,
   buildNpmPackage,
   fetchFromGitHub,
   fetchzip,
@@ -11,6 +12,10 @@
   swiftpm,
   swiftpm2nix,
 }:
+
+assert lib.assertMsg (
+  builtins.isInt bridgeMaxJsonBytes && bridgeMaxJsonBytes > 0
+) "api-for-cursor: bridgeMaxJsonBytes must be a positive integer";
 
 let
   version = "0.1.10";
@@ -55,6 +60,8 @@ swiftPackages.stdenv.mkDerivation {
   pname = "api-for-cursor";
   inherit version src;
 
+  patches = [ ./bridge-request-size.patch ];
+
   nativeBuildInputs = [
     nodejs_22
     libicns
@@ -65,6 +72,8 @@ swiftPackages.stdenv.mkDerivation {
   buildInputs = [ apple-sdk ];
 
   postPatch = ''
+    substituteInPlace scripts/cursor-sdk-local-agent-bridge.mjs \
+      --replace-fail '@bridgeMaxJsonBytes@' '${toString bridgeMaxJsonBytes}'
     substituteInPlace macos/CursorAPI/Package.swift \
       --replace-fail "// swift-tools-version: 6.0" "// swift-tools-version: 5.10"
     substituteInPlace macos/CursorAPI/Sources/CursorAPICore/CursorSDKBridgeServer.swift \
@@ -251,6 +260,11 @@ swiftPackages.stdenv.mkDerivation {
     test -x "$contents/MacOS/API for Cursor"
     test -x "$out/bin/api-for-cursor"
     /bin/sh -n "$out/bin/api-for-cursor"
+    ${nodejs_22}/bin/node --check "$contents/Resources/cursor-sdk-local-agent-bridge.mjs"
+    grep -F -q 'const maxJsonBytes = parseInteger(process.env.CURSOR_SDK_BRIDGE_MAX_JSON_BYTES, ${toString bridgeMaxJsonBytes});' \
+      "$contents/Resources/cursor-sdk-local-agent-bridge.mjs"
+    grep -F -q 'const body = Buffer.concat(chunks, bodyBytes).toString("utf8");' \
+      "$contents/Resources/cursor-sdk-local-agent-bridge.mjs"
     ! otool -L "$contents/MacOS/API for Cursor" | grep -E -q '/nix/store/.*-swift.*-lib/lib/swift/macosx/libswift.*\.dylib'
     otool -L "$contents/MacOS/API for Cursor" \
       | awk '/@rpath\/libswift.*\.dylib/ { print $1 }' \
@@ -263,6 +277,10 @@ swiftPackages.stdenv.mkDerivation {
 
     runHook postInstallCheck
   '';
+
+  passthru = {
+    inherit bridgeMaxJsonBytes;
+  };
 
   meta = {
     description = "Local OpenAI-compatible API server for Cursor models";

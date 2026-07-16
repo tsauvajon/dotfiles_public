@@ -52,6 +52,7 @@ in
         };
         limit = {
           context = 200000;
+          input = 90000;
           output = 65536;
         };
       };
@@ -63,6 +64,7 @@ in
         };
         limit = {
           context = 200000;
+          input = 90000;
           output = 65536;
         };
       };
@@ -74,6 +76,7 @@ in
         };
         limit = {
           context = 200000;
+          input = 90000;
           output = 65536;
         };
       };
@@ -85,6 +88,7 @@ in
         };
         limit = {
           context = 200000;
+          input = 90000;
           output = 65536;
         };
       };

@@ -22,6 +22,9 @@
 let
   cfg = config.programs.apiForCursor;
   apiForCursorSupported = pkgs.stdenv.hostPlatform.system == "aarch64-darwin";
+  apiForCursorPackage = pkgs.api-for-cursor.override {
+    bridgeMaxJsonBytes = cfg.maxBridgeRequestBytes;
+  };
   fontPackages = [
     pkgs.nerd-fonts.jetbrains-mono
     pkgs.nerd-fonts.meslo-lg
@@ -45,7 +48,7 @@ let
 
   apiForCursorLauncher = pkgs.stdenv.mkDerivation {
     pname = "api-for-cursor-launcher-app";
-    version = pkgs.api-for-cursor.version;
+    version = apiForCursorPackage.version;
     dontUnpack = true;
 
     installPhase = ''
@@ -95,7 +98,7 @@ let
         }
 
         args[0] = "/usr/bin/open";
-        args[1] = "${pkgs.api-for-cursor}/Applications/API for Cursor.app";
+        args[1] = "${apiForCursorPackage}/Applications/API for Cursor.app";
         for (int i = 1; i < argc; i++) {
           args[i + 1] = argv[i];
         }
@@ -106,7 +109,7 @@ let
       C
       cc launcher.c -o "$app/Contents/MacOS/API for Cursor"
 
-      cp "${pkgs.api-for-cursor}/Applications/API for Cursor.app/Contents/Resources/APIForCursor.icns" \
+      cp "${apiForCursorPackage}/Applications/API for Cursor.app/Contents/Resources/APIForCursor.icns" \
         "$app/Contents/Resources/APIForCursor.icns"
 
       runHook postInstall
@@ -167,7 +170,14 @@ let
   '';
 in
 {
-  options.programs.apiForCursor.enable = lib.mkEnableOption "API for Cursor";
+  options.programs.apiForCursor = {
+    enable = lib.mkEnableOption "API for Cursor";
+    maxBridgeRequestBytes = lib.mkOption {
+      type = lib.types.ints.positive;
+      default = 16 * 1024 * 1024;
+      description = "Maximum JSON request size accepted by the internal Cursor SDK bridge, in bytes.";
+    };
+  };
 
   config = lib.mkMerge [
     {
@@ -182,7 +192,7 @@ in
         ++ fontPackages
         ++ ddcPackages
         ++ lib.optionals (personal.enable && personal.plezy.enable) [ plezy ]
-        ++ lib.optionals (apiForCursorSupported && cfg.enable) [ api-for-cursor ];
+        ++ lib.optionals (apiForCursorSupported && cfg.enable) [ apiForCursorPackage ];
 
       # Symlink Nix-installed font files into ~/Library/Fonts/ on activation.
       # The marker file `dotfiles-managed` records every symlink we own so

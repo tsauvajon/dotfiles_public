@@ -25,7 +25,7 @@ let
       ];
     }).config;
   evalSupported =
-    enable:
+    { enable, ... }@settings:
     (homeManagerLib.homeManagerConfiguration {
       pkgs = supportedPkgs;
       extraSpecialArgs.inputs = { };
@@ -36,17 +36,25 @@ let
           home.homeDirectory = "/Users/test";
           home.stateVersion = "25.05";
           home.username = "test";
-          programs.apiForCursor.enable = enable;
+          programs.apiForCursor = {
+            inherit enable;
+          }
+          // lib.optionalAttrs (settings ? maxBridgeRequestBytes) {
+            maxBridgeRequestBytes = settings.maxBridgeRequestBytes;
+          };
         }
       ];
     }).config;
   hasApiForCursorPackage =
     config: builtins.any (pkg: (pkg.pname or null) == "api-for-cursor") config.home.packages;
-  supportedActivation = enable: (evalSupported enable).home.activation.linkDarwinAppAliases.data;
+  apiForCursorPackage =
+    config: lib.findFirst (pkg: (pkg.pname or null) == "api-for-cursor") null config.home.packages;
+  supportedActivation =
+    enable: (evalSupported { inherit enable; }).home.activation.linkDarwinAppAliases.data;
 in
 {
   testApiForCursorIsDisabledByDefault = {
-    expr = lib.hasInfix ''options.programs.apiForCursor.enable = lib.mkEnableOption "API for Cursor";'' source;
+    expr = lib.hasInfix ''enable = lib.mkEnableOption "API for Cursor";'' source;
     expected = true;
   };
 
@@ -57,7 +65,7 @@ in
       && (lib.hasInfix "ai.standardagents.cursorapi.launcher" source)
       && (lib.hasInfix ''printf 'APPL????' > "$app/Contents/PkgInfo"'' source)
       && (lib.hasInfix ''args[0] = "/usr/bin/open";'' source)
-      && (lib.hasInfix ''args[1] = "''${pkgs.api-for-cursor}/Applications/API for Cursor.app";'' source)
+      && (lib.hasInfix ''args[1] = "''${apiForCursorPackage}/Applications/API for Cursor.app";'' source)
       && (lib.hasInfix "link_root_app_launcher 'API for Cursor.app' " (supportedActivation true))
       && !(lib.hasInfix "link_app_alias 'API for Cursor.app' " (supportedActivation true))
       && !(lib.hasInfix "link_root_app_launcher 'API for Cursor.app' " (supportedActivation false));
@@ -86,12 +94,66 @@ in
   };
 
   testApiForCursorInstallsPackageWhenEnabledOnAppleSilicon = {
-    expr = hasApiForCursorPackage (evalSupported true);
+    expr = hasApiForCursorPackage (evalSupported {
+      enable = true;
+    });
     expected = true;
   };
 
   testApiForCursorDoesNotInstallPackageWhenDisabledOnAppleSilicon = {
-    expr = hasApiForCursorPackage (evalSupported false);
+    expr = hasApiForCursorPackage (evalSupported {
+      enable = false;
+    });
+    expected = false;
+  };
+
+  testApiForCursorPackageDefaultBridgeRequestSize = {
+    expr = supportedPkgs.api-for-cursor.bridgeMaxJsonBytes;
+    expected = 16 * 1024 * 1024;
+  };
+
+  testApiForCursorHomeOptionDefaultsInstalledPackageBridgeRequestSize = {
+    expr =
+      (apiForCursorPackage (evalSupported {
+        enable = true;
+      })).bridgeMaxJsonBytes;
+    expected = 16 * 1024 * 1024;
+  };
+
+  testApiForCursorPackageBridgeRequestSizeIsOverridable = {
+    expr =
+      (supportedPkgs.api-for-cursor.override { bridgeMaxJsonBytes = 8 * 1024 * 1024; })
+      .bridgeMaxJsonBytes;
+    expected = 8 * 1024 * 1024;
+  };
+
+  testApiForCursorHomeOptionConfiguresInstalledPackage = {
+    expr =
+      (apiForCursorPackage (evalSupported {
+        enable = true;
+        maxBridgeRequestBytes = 12 * 1024 * 1024;
+      })).bridgeMaxJsonBytes;
+    expected = 12 * 1024 * 1024;
+  };
+
+  testApiForCursorPackageRejectsNonPositiveBridgeRequestSize = {
+    expr =
+      (builtins.tryEval
+        (supportedPkgs.api-for-cursor.override {
+          bridgeMaxJsonBytes = 0;
+        }).drvPath
+      ).success;
+    expected = false;
+  };
+
+  testApiForCursorHomeOptionRejectsNonPositiveBridgeRequestSize = {
+    expr =
+      (builtins.tryEval
+        (evalSupported {
+          enable = true;
+          maxBridgeRequestBytes = 0;
+        }).home.packages
+      ).success;
     expected = false;
   };
 
