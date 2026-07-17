@@ -57,6 +57,7 @@ in
 
   config = {
     home.sessionVariables = {
+      DYLINT_CARGO_WRAPPER = "dylint-cargo";
       KACHE_FALLBACK = kacheFallback;
       SCCACHE_CACHE_SIZE = sccacheCacheSize;
       SCCACHE_DIR = sccacheDir;
@@ -66,6 +67,7 @@ in
       # bat (cat replacement) theme — Catppuccin Mocha to match the
       # rest of the terminal aesthetic.
       BAT_THEME = "Catppuccin Mocha";
+      DYLINT_CARGO_WRAPPER = "dylint-cargo";
       KACHE_FALLBACK = kacheFallback;
       SCCACHE_CACHE_SIZE = sccacheCacheSize;
       SCCACHE_DIR = sccacheDir;

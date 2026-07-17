@@ -14,6 +14,80 @@ let
       extensions = [ "rustfmt" ];
     }
   );
+  dylintToolchainDate = "2026-04-16";
+  dylintToolchain = "nightly-${dylintToolchainDate}";
+  dylintRust = pkgs.rust-bin.nightly.${dylintToolchainDate}.default.override {
+    extensions = [
+      "llvm-tools-preview"
+      "rustc-dev"
+      "rust-src"
+      "rustfmt"
+    ];
+  };
+  dylintLinkInputs = [ pkgs.zlib ] ++ lib.optionals pkgs.stdenv.isDarwin [ pkgs.libiconv ];
+  dylintLinkLibraryPath = lib.makeLibraryPath dylintLinkInputs;
+  dylintToolchainWithTarget = "${dylintToolchain}-${pkgs.stdenv.hostPlatform.rust.rustcTarget}";
+  dylintShims = pkgs.symlinkJoin {
+    name = "dotfiles-dylint-shims";
+    paths = [
+      (pkgs.writeShellScriptBin "rustup" ''
+        set -euo pipefail
+
+        case "$*" in
+          "+stable which cargo"|"which cargo")
+            printf '%s\n' "${dylintRust}/bin/cargo"
+            ;;
+          "which rustc")
+            printf '%s\n' "${dylintRust}/bin/rustc"
+            ;;
+          "show active-toolchain")
+            printf '%s (provided by Nix)\n' "${dylintToolchainWithTarget}"
+            ;;
+          *)
+            printf 'rustup shim only supports Dylint toolchain queries, got: rustup %s\n' "$*" >&2
+            exit 1
+            ;;
+        esac
+      '')
+      (pkgs.writeShellScriptBin "cargo" ''
+        export RUSTUP_TOOLCHAIN="${dylintToolchainWithTarget}"
+        export RUSTC="${dylintRust}/bin/rustc"
+        export CARGO_BUILD_RUSTC_WRAPPER=
+        unset RUSTC_WRAPPER
+        export LIBRARY_PATH="${dylintLinkLibraryPath}:''${LIBRARY_PATH:-}"
+        export PATH="${dylintRust}/bin:$PATH"
+        exec "${dylintRust}/bin/cargo" "$@"
+      '')
+    ];
+  };
+  dylintCargo = pkgs.writeShellScriptBin "dylint-cargo" ''
+    export RUSTUP_TOOLCHAIN="${dylintToolchainWithTarget}"
+    export RUSTC="${dylintRust}/bin/rustc"
+    export CARGO_BUILD_RUSTC_WRAPPER=
+    unset RUSTC_WRAPPER
+    export LIBRARY_PATH="${dylintLinkLibraryPath}:''${LIBRARY_PATH:-}"
+    export PATH="${dylintRust}/bin:$PATH"
+    exec "${dylintRust}/bin/cargo" "$@"
+  '';
+  dylintTools = pkgs.symlinkJoin {
+    name = "dotfiles-dylint-tools";
+    paths = [
+      pkgs.dylint-tools
+      dylintCargo
+    ];
+    nativeBuildInputs = [ pkgs.makeWrapper ];
+    postBuild = ''
+      wrapProgram "$out/bin/cargo-dylint" \
+        --set DYLINT_RUST_BIN "${dylintRust}/bin" \
+        --set DYLINT_RUSTUP_BIN "${dylintShims}/bin" \
+        --set CARGO_BUILD_RUSTC_WRAPPER "" \
+        --unset RUSTC_WRAPPER \
+        --prefix PATH : "${dylintShims}/bin:${dylintRust}/bin" \
+        --prefix LIBRARY_PATH : "${dylintLinkLibraryPath}"
+      wrapProgram "$out/bin/dylint-link" \
+        --prefix LIBRARY_PATH : "${dylintLinkLibraryPath}"
+    '';
+  };
   rustWithNightlyFmt = pkgs.symlinkJoin {
     name = "dotfiles-rust";
     paths = [
@@ -72,6 +146,7 @@ lib.mkMerge [
     home.packages = [
       pkgs.cargo-coupling
       pkgs.cargo-outdated
+      dylintTools
       pkgs.kache
       pkgs.protobuf
       rustWithNightlyFmt

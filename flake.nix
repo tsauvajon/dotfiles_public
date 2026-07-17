@@ -155,6 +155,7 @@
         {
           api-for-cursor = final.callPackage ./pkgs/api-for-cursor { };
           cargo-coupling = final.callPackage ./pkgs/cargo-coupling { };
+          dylint-tools = final.callPackage ./pkgs/dylint-tools { };
           dumap = final.callPackage ./pkgs/dumap { };
           glim = final.callPackage ./pkgs/glim { };
           herdr = final.callPackage ./pkgs/herdr { };
