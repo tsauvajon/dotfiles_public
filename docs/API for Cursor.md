@@ -128,7 +128,7 @@ memory separately from local provider retries.
 
 ## Port Changes
 
-If the app cannot bind port `8787`, free that port and restart the app. Do not allow it to run on another port than 8787.
+If the app cannot bind port `8787`, free that port and restart the app. Do not allow it to run on another port than `8787`.
 
 If the app itself accidentally gets saved with a different listener port, OpenCode
 will keep trying `http://127.0.0.1:8787/v1` while the app listens somewhere else,
@@ -146,11 +146,22 @@ curl --fail --silent http://127.0.0.1:8788/v1/models >/dev/null
 
 To reset the app back to `8787`, stop it before changing preferences. The app
 writes its current settings back on quit, so editing the preference while it is
-running can be overwritten by the shutdown save:
+running can be overwritten by the shutdown save. A dirty restart can also make
+the app briefly bind `8787`, fail its immediate rebind with `Address already in
+use`, and persist the fallback port `8788`; wait for the old listener to fully
+exit before relaunching.
 
 ```sh
 osascript -e 'tell application id "ai.standardagents.cursorapi" to quit' || \
   pkill -f '/API for Cursor.app/Contents/MacOS/API for Cursor'
+pkill -f 'cursor-sdk-local-agent-bridge.mjs' || true
+
+while lsof -nP -iTCP:8787 -sTCP:LISTEN >/dev/null 2>&1 || \
+    lsof -nP -iTCP:8788 -sTCP:LISTEN >/dev/null 2>&1 || \
+    lsof -nP -iTCP:8792 -sTCP:LISTEN >/dev/null 2>&1; do
+  sleep 1
+done
+sleep 10
 
 settings_json='{
   "backendBaseURL" : "",
@@ -164,6 +175,7 @@ settings_json='{
 }'
 defaults write ai.standardagents.cursorapi CursorAPI.settings.v1 \
   -data "$(printf '%s' "$settings_json" | xxd -p -c 256)"
+defaults write ai.standardagents.cursorapi CursorAPI.sdkBridgePort.v1 -int 8792
 killall cfprefsd || true
 open -a "$HOME/Applications/API for Cursor.app"
 ```
