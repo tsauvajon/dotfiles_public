@@ -117,8 +117,6 @@
       "git symbolic-ref *": "allow",
       "git worktree *": "allow",
       "git *": "allow",
-      "glab api *": "allow",
-      "glab *": "allow",
       "goto *": "allow",
       "grep *": "allow",
       "head *": "allow",
