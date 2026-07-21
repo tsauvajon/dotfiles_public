@@ -177,6 +177,7 @@
 
               patches = (old.patches or [ ]) ++ [
                 ./pkgs/opencode/concise-static-permission-denial.patch
+                ./pkgs/opencode/global-event-listener-retention.patch
               ];
 
               node_modules = old.node_modules.overrideAttrs (_: {
@@ -325,6 +326,11 @@
         concatTomlFilesCheck = import ./home/lib/concat-toml-files.test.nix { inherit pkgs lib; };
         opencodeImportsCheck = import ./scripts/lib/opencode-imports.test.nix { inherit pkgs lib; };
         opencodeTestsCheck = import ./home/opencode.test { inherit pkgs lib; };
+        opencodeGlobalEventListenerRetentionCheck =
+          import ./pkgs/opencode/global-event-listener-retention.test.nix
+            {
+              inherit pkgs;
+            };
         opencodeVersionAlignmentCheck =
           pkgs.runCommand "opencode-version-alignment"
             {
@@ -480,6 +486,7 @@
             concat-toml-files-test = concatTomlFilesCheck;
             merge-dirs-test = mergeDirsCheck;
             opencode-imports-test = opencodeImportsCheck;
+            opencode-global-event-listener-retention-test = opencodeGlobalEventListenerRetentionCheck;
             opencode-version-alignment = opencodeVersionAlignmentCheck;
             opencode-tests = opencodeTestsCheck;
             tool-habit-smoke = toolHabitSmokeCheck;
