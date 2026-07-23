@@ -239,7 +239,7 @@ candidate_bucket() {
     local pattern
     pattern="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
     case "$pattern" in
-        *internal-admin*|*private-registry*|*corp.example*|*deploy-cli*|*vault\ status*|~/.agents/*|~/.claude/*|~/.corp/*|~/work/*)
+        *corp.example*|*deploy-cli*|*glim*|*internal-admin*|*private-registry*|*vault\ status*|~/.agents/*|~/.claude/*|~/.corp/*|~/work/*)
             printf 'Private Overlay\n'
             ;;
         *)
