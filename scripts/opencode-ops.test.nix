@@ -201,6 +201,18 @@ pkgs.runCommand "opencode-ops-test"
         ! grep -q '^### .* - v1$' "$TMPDIR/source-log.md" || fail "permission log heading should not include API kind: $(cat "$TMPDIR/source-log.md")"
         grep -q '^- Command:$' "$TMPDIR/source-log.md" || fail "permission log should include a command heading: $(cat "$TMPDIR/source-log.md")"
         grep -q '^TOKEN=\[REDACTED\] mdimport /tmp/app$' "$TMPDIR/source-log.md" || fail "permission log should include redacted command text: $(cat "$TMPDIR/source-log.md")"
+        grep -q '^## Candidate Permission Rules$' "$TMPDIR/source-log.md" || fail "permission log should include candidate rules: $(cat "$TMPDIR/source-log.md")"
+        grep -q '^### Public Base$' "$TMPDIR/source-log.md" || fail "candidate rules should group public rules: $(cat "$TMPDIR/source-log.md")"
+        grep -q '| 1 | `mdimport \*` | `allow` |' "$TMPDIR/source-log.md" || fail "candidate rules should count normalized allow rules: $(cat "$TMPDIR/source-log.md")"
+
+        temp_request='{"permission":"external_directory","patterns":["/var/folders/62/y7bysrp91130b0n2yvlg64vw0000gp/T/opencode/foo"],"metadata":{},"always":["/var/folders/62/y7bysrp91130b0n2yvlg64vw0000gp/T/*"]}'
+        append_log v1 /tmp/project "$temp_request" always 'routine external directory access' 200
+        grep -q '| 1 | `/var/folders/\*/\*/T/\*` | `allow` |' "$TMPDIR/source-log.md" || fail "candidate rules should normalize macOS temp paths: $(cat "$TMPDIR/source-log.md")"
+
+        reject_request='{"permission":"bash","patterns":["printenv SECRET"],"metadata":{"command":"printenv SECRET"},"always":["printenv *"]}'
+        append_log v1 /tmp/project "$reject_request" reject 'possible secret disclosure' 200
+        grep -q '^### Rejected$' "$TMPDIR/source-log.md" || fail "candidate rules should group rejected rules: $(cat "$TMPDIR/source-log.md")"
+        grep -q '| 1 | `printenv \*` | `reject` |' "$TMPDIR/source-log.md" || fail "candidate rules should count rejected rules: $(cat "$TMPDIR/source-log.md")"
 
         legacy_requests() {
           printf '%s\n' '[{"id":"per_test","sessionID":"ses_test","permission":"bash","patterns":["true"],"metadata":{"command":"true"},"always":["true *"]}]'

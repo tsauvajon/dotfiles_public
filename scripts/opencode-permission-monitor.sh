@@ -11,6 +11,8 @@ LIST_TIMEOUT="${OPENCODE_PERMISSION_MONITOR_LIST_TIMEOUT:-${OPENCODE_PERMISSION_
 REPLY_TIMEOUT="${OPENCODE_PERMISSION_MONITOR_REPLY_TIMEOUT:-${OPENCODE_PERMISSION_MONITOR_TIMEOUT:-5}}"
 INCLUDE_SESSION_HISTORY="${OPENCODE_PERMISSION_MONITOR_INCLUDE_SESSION_HISTORY:-0}"
 PROCESS_FILE="${OPENCODE_PERMISSION_MONITOR_PROCESS_FILE:-}"
+CANDIDATE_START='<!-- opencode-permission-monitor:candidates:start -->'
+CANDIDATE_END='<!-- opencode-permission-monitor:candidates:end -->'
 ONCE=0
 DRY_RUN=0
 QUIET=0
@@ -197,6 +199,7 @@ mark_seen() {
 append_log() {
     local kind="$1" location="$2" req="$3" reply="$4" reason="$5" api_status="$6"
     local command safe_req
+    ensure_log
     command="$(request_command "$req")"
     safe_req="$(redact <<< "$req")"
     {
@@ -212,6 +215,143 @@ append_log() {
         printf -- '- Request:\n\n'
         printf '```json\n%s\n```\n' "$safe_req"
     } >> "$LOG_FILE"
+    update_candidate_rules
+}
+
+normalize_candidate_pattern() {
+    local pattern="$1"
+    case "$pattern" in
+        /Users/thomas/*)
+            pattern="~/${pattern#/Users/thomas/}"
+            ;;
+    esac
+
+    if [[ "$pattern" =~ ^/var/folders/[^/]+/[^/]+/T(/.*)?$ ]]; then
+        pattern='/var/folders/*/*/T/*'
+    elif [[ "$pattern" =~ ^/nix/store/[^/]+-home-manager-generation/activate([[:space:]].*)?$ ]]; then
+        pattern='/nix/store/*-home-manager-generation/activate *'
+    fi
+
+    printf '%s\n' "$pattern"
+}
+
+candidate_bucket() {
+    local pattern
+    pattern="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+    case "$pattern" in
+        *internal-admin*|*private-registry*|*corp.example*|*deploy-cli*|*vault\ status*|~/.agents/*|~/.claude/*|~/.corp/*|~/work/*)
+            printf 'Private Overlay\n'
+            ;;
+        *)
+            printf 'Public Base\n'
+            ;;
+    esac
+}
+
+candidate_entries() {
+    local decision req permission pattern normalized bucket rule_decision
+    awk '
+        /^- Decision: `/ {
+            decision = $0
+            sub(/^- Decision: `/, "", decision)
+            sub(/`.*$/, "", decision)
+        }
+        /^```json$/ { in_json = 1; json = ""; next }
+        /^```$/ && in_json { print decision "\t" json; in_json = 0; next }
+        in_json { json = json $0 }
+    ' "$LOG_FILE" | while IFS=$'\t' read -r decision req; do
+        [[ -n "$req" ]] || continue
+        permission="$(jq -r '.permission // .action // "unknown"' <<< "$req" 2>/dev/null)" || continue
+        if [[ "$decision" == "reject" ]]; then
+            rule_decision='reject'
+        else
+            rule_decision='allow'
+        fi
+
+        jq -r 'if has("always") then .always[]? elif has("save") then .save[]? else .resources[]? end' <<< "$req" 2>/dev/null |
+            while IFS= read -r pattern; do
+                [[ -n "$pattern" ]] || continue
+                normalized="$(normalize_candidate_pattern "$pattern")"
+                if [[ "$rule_decision" == "reject" ]]; then
+                    bucket='Rejected'
+                else
+                    bucket="$(candidate_bucket "$normalized")"
+                fi
+                printf '%s\t%s\t%s\t%s\n' "$bucket" "$permission" "$normalized" "$rule_decision"
+            done
+    done
+}
+
+write_candidate_group() {
+    local entries_file="$1" bucket="$2" permission="$3"
+    awk -F '\t' -v bucket="$bucket" -v permission="$permission" '$1 == bucket && $2 == permission { print $3 "\t" $4 }' "$entries_file" |
+        sort | uniq -c | sort -k2,2 |
+        awk -F '\t' -v permission="$permission" '
+            BEGIN { first = 1 }
+            {
+                left = $1
+                decision = $2
+                sub(/^ */, "", left)
+                count = left
+                sub(/ .*/, "", count)
+                pattern = left
+                sub(/^[0-9]+ /, "", pattern)
+                if (first) {
+                    printf "\n#### %s\n\n", permission
+                    print "| Count | Pattern | Decision |"
+                    print "| ---: | --- | --- |"
+                    first = 0
+                }
+                printf "| %s | `%s` | `%s` |\n", count, pattern, decision
+            }
+        '
+}
+
+generate_candidate_summary() {
+    local entries_file="$1" bucket permission
+    printf '%s\n' "$CANDIDATE_START"
+    printf '## Candidate Permission Rules\n\n'
+    printf 'Generated from allowed/rejected permission prompts in this note. Review before copying into dotfiles.\n'
+    for bucket in 'Public Base' 'Private Overlay' 'Rejected'; do
+        if awk -F '\t' -v bucket="$bucket" '$1 == bucket { found = 1 } END { exit found ? 0 : 1 }' "$entries_file"; then
+            printf '\n### %s\n' "$bucket"
+            awk -F '\t' -v bucket="$bucket" '$1 == bucket { print $2 }' "$entries_file" | sort -u |
+                while IFS= read -r permission; do
+                    write_candidate_group "$entries_file" "$bucket" "$permission"
+                done
+        fi
+    done
+    printf '\n%s\n' "$CANDIDATE_END"
+}
+
+update_candidate_rules() {
+    local entries_file body_file summary_file new_file
+    [[ -s "$LOG_FILE" ]] || return
+    entries_file="$(mktemp)"
+    body_file="$(mktemp)"
+    summary_file="$(mktemp)"
+    new_file="$(mktemp)"
+    candidate_entries > "$entries_file"
+    if [[ ! -s "$entries_file" ]]; then
+        rm -f "$entries_file" "$body_file" "$summary_file" "$new_file"
+        return
+    fi
+    generate_candidate_summary "$entries_file" > "$summary_file"
+    awk -v start="$CANDIDATE_START" -v end="$CANDIDATE_END" '
+        $0 == start { skip = 1; next }
+        $0 == end { skip = 0; next }
+        !skip { print }
+    ' "$LOG_FILE" > "$body_file"
+    awk -v summary="$summary_file" '
+        $0 == "## Decisions" {
+            while ((getline line < summary) > 0) print line
+            close(summary)
+            print ""
+        }
+        { print }
+    ' "$body_file" > "$new_file"
+    mv "$new_file" "$LOG_FILE"
+    rm -f "$entries_file" "$body_file" "$summary_file"
 }
 
 request_command() {
