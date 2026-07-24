@@ -87,6 +87,7 @@ SDK `1.0.24` allows Grok text completions and direct OpenAI-compatible tool
 calls, but Grok still fails with OpenCode's full tool inventory: it repeatedly
 finishes with an empty tool-call payload. Treat the Grok entries as experimental
 and do not use them for OpenCode agents until that Cursor SDK behavior changes.
+See [Grok And OpenCode](Grok%20OpenCode.md) for the full investigation record.
 
 OpenCode talks to the local API using the placeholder API key `cursor-local`.
 The local app ignores that placeholder and uses the Cursor API key stored
