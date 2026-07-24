@@ -28,6 +28,8 @@ installs nothing and emits a Home Manager warning.
 
 The app source pin, npm dependency hash, and SwiftPM Sparkle pin live in
 `pkgs/api-for-cursor/default.nix` and `pkgs/api-for-cursor/generated/`.
+The bundled Cursor SDK version is pinned there as `cursorSdkVersion`; keep the
+recovery command below synchronized with that value.
 
 The pinned upstream SDK bridge otherwise limits JSON requests to 1 MiB and
 counts JavaScript characters while decoding each network chunk separately.
@@ -80,6 +82,11 @@ The repo-managed provider exposes the app's primary local model ids:
 - `cursorapi/composer-2.5-fast`
 - `cursorapi/grok-4.5`
 - `cursorapi/grok-4.5-fast`
+
+SDK `1.0.24` allows Grok text completions and direct OpenAI-compatible tool
+calls, but Grok still fails with OpenCode's full tool inventory: it repeatedly
+finishes with an empty tool-call payload. Treat the Grok entries as experimental
+and do not use them for OpenCode agents until that Cursor SDK behavior changes.
 
 OpenCode talks to the local API using the placeholder API key `cursor-local`.
 The local app ignores that placeholder and uses the Cursor API key stored
@@ -165,7 +172,7 @@ sleep 10
 
 settings_json='{
   "backendBaseURL" : "",
-  "clientVersion" : "sdk-1.0.13",
+  "clientVersion" : "sdk-1.0.24",
   "cursorAPIBaseURL" : "",
   "cursorAPIKey" : "",
   "launchAtLogin" : false,
@@ -175,6 +182,8 @@ settings_json='{
 }'
 defaults write ai.standardagents.cursorapi CursorAPI.settings.v1 \
   -data "$(printf '%s' "$settings_json" | xxd -p -c 256)"
+# Clear stale cached type/state before recreating the bridge preference.
+defaults delete ai.standardagents.cursorapi CursorAPI.sdkBridgePort.v1 >/dev/null 2>&1 || true
 defaults write ai.standardagents.cursorapi CursorAPI.sdkBridgePort.v1 -int 8792
 killall cfprefsd || true
 open -a "$HOME/Applications/API for Cursor.app"

@@ -1,0 +1,37 @@
+diff --git a/macos/CursorAPI/Sources/CursorAPI/AppModel.swift b/macos/CursorAPI/Sources/CursorAPI/AppModel.swift
+--- a/macos/CursorAPI/Sources/CursorAPI/AppModel.swift
++++ b/macos/CursorAPI/Sources/CursorAPI/AppModel.swift
+@@ -214,21 +214,33 @@ final class CursorAPIAppModel: ObservableObject {
+             } else {
+                 needsKeychainPermission = settings.keychainCursorAPIKeyAvailable && !settings.hasInlineCursorAPIKey
+             }
++            if isRunning {
++                updateStatusText()
++                LocalCursorSDKHarness.warmUpBridge(settings: settings)
++                lastError = nil
++                return
++            }
+             let requestedPort = settings.port
+             let activePort = try server.start(preferredPort: requestedPort, fallbackLimit: Self.portFallbackLimit)
+             settings.port = activePort
+             isRunning = true
+             updateStatusText()
+             LocalCursorSDKHarness.warmUpBridge(settings: settings)
+             if activePort != requestedPort {
+                 store.save(settings)
+                 statusText = "Port \(requestedPort) was busy; listening on \(baseURL)"
+                 refreshIntegrations()
+             }
+             lastError = nil
+         } catch AppSettingsStoreError.keychainPermissionRequired {
++            if isRunning {
++                needsKeychainPermission = true
++                updateStatusText()
++                lastError = nil
++                return
++            }
+             isRunning = false
+             needsKeychainPermission = true
+             statusText = "Click Start to allow \(CursorAPIBrand.displayName) to read the saved key from Keychain"
+             lastError = nil
+         } catch AppSettingsStoreError.missingCursorAPIKey {

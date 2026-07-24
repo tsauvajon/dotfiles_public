@@ -20,6 +20,7 @@ assert lib.assertMsg (
 let
   version = "0.1.10";
   build = "13";
+  cursorSdkVersion = "1.0.24";
 
   src = fetchFromGitHub {
     # Unreleased lifecycle fix from https://github.com/standardagents/composer-api/pull/27.
@@ -41,7 +42,9 @@ let
     pname = "api-for-cursor-node-modules";
     inherit version src;
 
-    npmDepsHash = "sha256-iVR27o1hxma3IQZ9fuJ5NmfhPcMG10NmDADWV++wX+w=";
+    patches = [ ./cursor-sdk-1.0.24.patch ];
+
+    npmDepsHash = "sha256-BEU1/2Z9hLtegRX2s/h1E/64UV8heuccMa9YgQfhFDI=";
     npmInstallFlags = [ "--omit=dev" ];
 
     dontNpmBuild = true;
@@ -60,7 +63,10 @@ swiftPackages.stdenv.mkDerivation {
   pname = "api-for-cursor";
   inherit version src;
 
-  patches = [ ./bridge-request-size.patch ];
+  patches = [
+    ./bridge-request-size.patch
+    ./start-server-running-keychain-unlock.patch
+  ];
 
   nativeBuildInputs = [
     nodejs_22
@@ -261,6 +267,13 @@ swiftPackages.stdenv.mkDerivation {
     test -x "$out/bin/api-for-cursor"
     /bin/sh -n "$out/bin/api-for-cursor"
     ${nodejs_22}/bin/node --check "$contents/Resources/cursor-sdk-local-agent-bridge.mjs"
+    test "$(${nodejs_22}/bin/node -p 'require(process.argv[1]).version' \
+      "$contents/Resources/node_modules/@cursor/sdk/package.json")" = "${cursorSdkVersion}"
+    grep -F -q '<string>sdk-${cursorSdkVersion}</string>' \
+      "$contents/Resources/CursorAPITransportDefaults.plist"
+    test -x "$contents/Resources/node_modules/@cursor/sdk-darwin-arm64/bin/rg"
+    /usr/bin/codesign --verify --strict \
+      "$contents/Resources/node_modules/@cursor/sdk-darwin-arm64/bin/rg"
     grep -F -q 'const maxJsonBytes = parseInteger(process.env.CURSOR_SDK_BRIDGE_MAX_JSON_BYTES, ${toString bridgeMaxJsonBytes});' \
       "$contents/Resources/cursor-sdk-local-agent-bridge.mjs"
     grep -F -q 'const body = Buffer.concat(chunks, bodyBytes).toString("utf8");' \
@@ -279,7 +292,7 @@ swiftPackages.stdenv.mkDerivation {
   '';
 
   passthru = {
-    inherit bridgeMaxJsonBytes;
+    inherit bridgeMaxJsonBytes cursorSdkVersion;
   };
 
   meta = {
