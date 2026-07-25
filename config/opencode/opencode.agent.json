@@ -32,6 +32,8 @@
     },
     "general": {
       "mode": "subagent",
+      "model": "openai/gpt-5.6-luna",
+      "variant": "max",
       "description": "General-purpose subagent for multi-step work that does not fit a narrower specialist.",
       "permission": {
         "bash": {
