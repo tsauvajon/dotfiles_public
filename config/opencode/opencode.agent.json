@@ -1,8 +1,6 @@
 {
   "agent": {
     "build": {
-      "model": "openai/gpt-5.5",
-      "variant": "high",
       "permission": {
         "task": {
           "*": "deny",
@@ -581,8 +579,8 @@
     },
     "review": {
       "mode": "subagent",
-      "model": "openai/gpt-5.5",
-      "variant": "medium",
+      "model": "openai/gpt-5.6-sol",
+      "variant": "high",
       "description": "Read-only candidate review. Return findings with severity, file:line, evidence, and suggested fixes.",
       "permission": {
         "bash": {
@@ -904,8 +902,8 @@
     },
     "implement": {
       "mode": "subagent",
-      "model": "openai/gpt-5.5",
-      "variant": "medium",
+      "model": "openai/gpt-5.6-terra",
+      "variant": "high",
       "description": "Implementation subagent that reads code, makes edits, runs verification, and returns a structured report of changes made and their status.",
       "permission": {
         "bash": {
@@ -1116,8 +1114,8 @@
     },
     "rust-design": {
       "mode": "subagent",
-      "model": "openai/gpt-5.5",
-      "variant": "medium",
+      "model": "openai/gpt-5.6-sol",
+      "variant": "high",
       "description": "Read-only Rust architecture and design subagent. Analyzes codebase structure, dependencies, and patterns to return structured design recommendations for API, type, trait, error handling, async, and ownership decisions.",
       "permission": {
         "bash": {
@@ -1270,8 +1268,8 @@
     },
     "rust": {
       "mode": "subagent",
-      "model": "openai/gpt-5.5",
-      "variant": "medium",
+      "model": "openai/gpt-5.6-terra",
+      "variant": "high",
       "description": "Rust designer/coder subagent. Reads Cargo.toml and surrounding modules, applies idiomatic Rust conventions, makes edits, and runs cargo verification.",
       "permission": {
         "bash": {
