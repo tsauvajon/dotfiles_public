@@ -28,6 +28,7 @@
   config,
   inputs,
   lib,
+  nixglNvidia ? null,
   pkgs,
   ...
 }:
@@ -43,6 +44,18 @@ let
   privateImmich = privatePersonal.immich or { };
 
   cfg = config.dotfiles.personal;
+
+  plezyPackage =
+    if pkgs.stdenv.isLinux && inputs ? nixgl && inputs ? nixgl-nixpkgs then
+      let
+        wrapWithNixGL = import ./lib/wrap-with-nixgl.nix {
+          inherit pkgs nixglNvidia;
+          inherit (inputs) nixgl nixgl-nixpkgs;
+        };
+      in
+      wrapWithNixGL pkgs.plezy "plezy"
+    else
+      pkgs.plezy;
 
   # Personal Homebrew-managed casks. Add new entries as `cask "name"` lines
   # gated by their respective per-app toggle. Empty when no personal
@@ -141,7 +154,7 @@ in
       ]
       ++ lib.optionals (cfg.naps2.enable && pkgs.stdenv.isLinux) [ pkgs.naps2 ]
       ++ lib.optionals (cfg.tailscale.enable && pkgs.stdenv.isLinux) [ pkgs.tailscale ]
-      ++ lib.optionals cfg.plezy.enable [ pkgs.plezy ]
+      ++ lib.optionals cfg.plezy.enable [ plezyPackage ]
       ++ lib.optionals cfg.immich.enable [ pkgs.immich-cli ];
 
     services.syncthing = lib.mkIf cfg.syncthing.enable {
