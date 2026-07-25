@@ -1,5 +1,5 @@
 {
   "dependencies": {
-    "@ai-sdk/openai-compatible": "2.0.51"
+    "@ai-sdk/openai-compatible": "2.0.62"
   }
 }

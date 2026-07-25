@@ -7,21 +7,20 @@
 }:
 
 let
-  version = "0.10.0";
+  version = "0.11.0";
 
   prebuiltSources = {
     aarch64-darwin = {
       target = "aarch64-apple-darwin";
-      hash = "sha256-ldxmnFyLjVshESsjCEn8pZRcxZ/VJfMet5q9mlGbHYc=";
+      hash = "sha256-FisEO7e1t+WNNEbtcHkjS9VPg50EiqSkFVVgdCaYGqs=";
     };
     aarch64-linux = {
       target = "aarch64-unknown-linux-musl";
-      hash = "sha256-2RCQmW2aWvnzSPZh3BL/Lb1OZBAWqPSRgKBiEaCuJBc=";
+      hash = "sha256-GVZrpI9842wKHW9tzojlnOTyShYuGvVm9bJFc+sE6Ys=";
     };
   };
 
-  # Upstream v0.10.0 publishes aarch64-only release assets; x86_64 falls back to
-  # source builds (verified 2026-07-15 via the GitHub API).
+  # Keep using prebuilt assets for aarch64 and source builds for x86_64.
   sourceBuildPlatforms = [
     "x86_64-darwin"
     "x86_64-linux"
@@ -85,10 +84,10 @@ else if builtins.elem stdenvNoCC.hostPlatform.system sourceBuildPlatforms then
       owner = "kunobi-ninja";
       repo = "kache";
       rev = "v${version}";
-      hash = "sha256-+shHEqFa/ixttYwl8aUfQ/MJfQJXpI38mPdHoa2Oyhg=";
+      hash = "sha256-AJjfnIDspLz9Fjn1cVVx65SB3b4Eh8uaWp8XnskuhhA=";
     };
 
-    cargoHash = "sha256-8cGTNNx6M5e53xcb7h8BAjKFoLnQCmN3girtXKUv6rw=";
+    cargoHash = "sha256-iUW19GqD0Gspn6F5uGMQiYSnGkBf2Isq5cw2Ef7sXDo=";
     cargoBuildFlags = [
       "-p"
       "kache"

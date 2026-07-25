@@ -33,8 +33,8 @@ let
   generated = swiftpm2nix.helpers ./generated;
 
   sparkleArtifact = fetchzip {
-    url = "https://github.com/sparkle-project/Sparkle/releases/download/2.9.2/Sparkle-for-Swift-Package-Manager.zip";
-    hash = "sha256-g+vxuoB0CLQAlzKoEOOc6ALr7ep1umllXLdZWwyvkpw=";
+    url = "https://github.com/sparkle-project/Sparkle/releases/download/2.9.4/Sparkle-for-Swift-Package-Manager.zip";
+    hash = "sha256-1TRorAAYAqKftXxwRvHj7BE/mcybKaB+Lyx9lE++xZA=";
     stripRoot = false;
   };
 

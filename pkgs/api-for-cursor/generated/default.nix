@@ -2,6 +2,6 @@
 {
   workspaceStateFile = ./workspace-state.json;
   hashes = {
-    "Sparkle" = "sha256-qi+TllFfn0JGN6hH9YgGJOaUhUB7i7Pamdpep6xDpL4=";
+    "Sparkle" = "sha256-ByLghNUKILzeRZjNO1DlVDSJ11bNc5tZBnB6t5E0Ybg=";
   };
 }
