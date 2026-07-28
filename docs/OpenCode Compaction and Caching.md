@@ -31,7 +31,7 @@ same change. Do not combine this change with a `tool_output` experiment.
   `bifrost/gpt-5.6-sol` model with the `high` variant. Verify the resolved private
   model before running the experiment; this is separate from top-level
   compaction behavior settings.
-- OpenCode itself is pinned to `1.18.5` in `flake.nix`. Recheck upstream behavior
+- OpenCode itself is pinned to `1.18.8` in `flake.nix`. Recheck upstream behavior
   and defaults if that pin changes before this runbook is executed.
 - The generated `~/.config/opencode/opencode.json` is Home Manager output. Never
   edit it directly.
@@ -61,11 +61,11 @@ Pruning is promising but not free:
 - There is not yet sanitized, representative before/after evidence for this
   setup.
 
-In OpenCode `1.18.5`, pruning skips recent turns and protected tools, preserves
+In OpenCode `1.18.8`, pruning skips recent turns and protected tools, preserves
 roughly 40,000 estimated tokens of older tool output, and only applies a batch
 when more than roughly 20,000 estimated tokens would be removed. These are
 implementation details, not stable configuration guarantees; see the pinned
-[`compaction.ts` source](https://github.com/anomalyco/opencode/blob/v1.18.5/packages/opencode/src/session/compaction.ts).
+[`compaction.ts` source](https://github.com/anomalyco/opencode/blob/v1.18.8/packages/opencode/src/session/compaction.ts).
 
 ## Token Accounting
 
@@ -86,9 +86,9 @@ overflow_count = tokens.total
 ```
 
 The normalization is in
-[`session.ts`](https://github.com/anomalyco/opencode/blob/v1.18.5/packages/opencode/src/session/session.ts),
+[`session.ts`](https://github.com/anomalyco/opencode/blob/v1.18.8/packages/opencode/src/session/session.ts),
 and the overflow calculation is in
-[`overflow.ts`](https://github.com/anomalyco/opencode/blob/v1.18.5/packages/opencode/src/session/overflow.ts).
+[`overflow.ts`](https://github.com/anomalyco/opencode/blob/v1.18.8/packages/opencode/src/session/overflow.ts).
 
 ### Cache Versus Context
 
@@ -280,10 +280,10 @@ from a pre-change export if a specific session needs unpruned history.
 ## Separately Gated `tool_output` Experiment
 
 `tool_output` is not a second compaction setting. It controls the immediate
-truncation limits applied when tools return output. OpenCode `1.18.5` defaults to
+truncation limits applied when tools return output. OpenCode `1.18.8` defaults to
 2,000 lines and 50 KiB, writes the complete truncated result to its tool-output
 directory, and retains those files for a limited period. See
-[`truncate.ts`](https://github.com/anomalyco/opencode/blob/v1.18.5/packages/opencode/src/tool/truncate.ts).
+[`truncate.ts`](https://github.com/anomalyco/opencode/blob/v1.18.8/packages/opencode/src/tool/truncate.ts).
 
 Do not run this experiment until the `compaction.prune` decision is complete.
 Then use new A/B fixtures and change one dimension only. The conservative first

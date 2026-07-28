@@ -132,9 +132,9 @@
     }:
     let
       opencodePin = {
-        version = "1.18.5";
-        srcHash = "sha256-qO26isOZNzdVX0Pd6IYRhhnOtcrvL3nI0C34kczzW0k=";
-        nodeModulesHash = "sha256-DDrijxS2geI1uFyj82gn5JPFOM6Mlwzi0OohG7vxoag=";
+        version = "1.18.8";
+        srcHash = "sha256-rBEDImSXnOyCJq9/56VwiipRzQnqztqRuvsHnZt6D7s=";
+        nodeModulesHash = "sha256-6j3AVSuEmkbl/0JzA8Y5qyz+VkkY+hGa5pvhfBR1eUQ=";
       };
       supportedSystems = [
         "x86_64-linux"
