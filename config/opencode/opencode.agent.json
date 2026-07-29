@@ -1271,7 +1271,7 @@
     "rust": {
       "mode": "subagent",
       "model": "openai/gpt-5.6-terra",
-      "variant": "high",
+      "variant": "xhigh",
       "description": "Rust designer/coder subagent. Reads Cargo.toml and surrounding modules, applies idiomatic Rust conventions, makes edits, and runs cargo verification.",
       "permission": {
         "bash": {
