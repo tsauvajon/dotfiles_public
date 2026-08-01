@@ -32,7 +32,6 @@
     },
     "general": {
       "mode": "subagent",
-      "variant": "max",
       "description": "General-purpose subagent for multi-step work that does not fit a narrower specialist.",
       "permission": {
         "bash": {
@@ -190,7 +189,6 @@
     },
     "explore": {
       "mode": "subagent",
-      "variant": "max",
       "description": "Read-only local code search. Return paths, line ranges, and concise evidence.",
       "permission": {
         "bash": {
@@ -350,7 +348,6 @@
     },
     "verify": {
       "mode": "subagent",
-      "variant": "max",
       "description": "Runs bounded verification commands and summarizes only actionable output. No edits.",
       "permission": {
         "bash": {
@@ -578,7 +575,6 @@
     },
     "review": {
       "mode": "subagent",
-      "variant": "high",
       "description": "Read-only candidate review. Return findings with severity, file:line, evidence, and suggested fixes.",
       "permission": {
         "bash": {
@@ -734,7 +730,6 @@
     },
     "scout": {
       "mode": "subagent",
-      "variant": "max",
       "description": "External research: web search, docs, dependency behavior, vendor APIs, ecosystem facts. Returns sources, verified facts, unknowns, and relevance to the local task.",
       "permission": {
         "bash": {
@@ -899,7 +894,6 @@
     },
     "implement": {
       "mode": "subagent",
-      "variant": "high",
       "description": "Implementation subagent that reads code, makes edits, runs verification, and returns a structured report of changes made and their status.",
       "permission": {
         "bash": {
@@ -1110,7 +1104,6 @@
     },
     "rust-design": {
       "mode": "subagent",
-      "variant": "high",
       "description": "Read-only Rust architecture and design subagent. Analyzes codebase structure, dependencies, and patterns to return structured design recommendations for API, type, trait, error handling, async, and ownership decisions.",
       "permission": {
         "bash": {
@@ -1263,7 +1256,6 @@
     },
     "rust": {
       "mode": "subagent",
-      "variant": "xhigh",
       "description": "Rust designer/coder subagent. Reads Cargo.toml and surrounding modules, applies idiomatic Rust conventions, makes edits, and runs cargo verification.",
       "permission": {
         "bash": {
