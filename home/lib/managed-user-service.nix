@@ -208,14 +208,19 @@ let
 
   defaultLinuxStartCommand = ''
     if command -v systemctl >/dev/null 2>&1; then
-      systemctl --user start ${systemdService} >/dev/null 2>&1 || true
+      systemctl --user start ${systemdService}
+    else
+      echo "error: systemctl is required to start ${systemdService}" >&2
+      false
     fi
   '';
 
   defaultLinuxRestartCommand = ''
     if command -v systemctl >/dev/null 2>&1; then
-      systemctl --user restart ${systemdService} >/dev/null 2>&1 || \
-        systemctl --user start ${systemdService} >/dev/null 2>&1 || true
+      systemctl --user restart ${systemdService}
+    else
+      echo "error: systemctl is required to restart ${systemdService}" >&2
+      false
     fi
   '';
   effectiveLinuxStartCommand =

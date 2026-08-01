@@ -120,6 +120,28 @@ in
     };
   };
 
+  testLinuxServiceActionsPropagateFailures = {
+    expr =
+      let
+        script = linuxOutput.home.activation.demoService.text;
+      in
+      (lib.hasInfix "systemctl --user start demo.service" script)
+      && (lib.hasInfix "systemctl --user restart demo.service" script)
+      && !(lib.hasInfix "systemctl --user start demo.service >/dev/null 2>&1 || true" script)
+      && !(lib.hasInfix "systemctl --user restart demo.service >/dev/null 2>&1" script);
+    expected = true;
+  };
+
+  testDarwinServiceActionsRemainUnchanged = {
+    expr =
+      let
+        script = darwinOutput.home.activation.demoService.text;
+      in
+      (lib.hasInfix ''/bin/launchctl kickstart "$domain/${commonArgs.label}" >/dev/null 2>&1 || true'' script)
+      && (lib.hasInfix ''/bin/launchctl kickstart -k "$domain/${commonArgs.label}" >/dev/null 2>&1 ||'' script);
+    expected = true;
+  };
+
   testMarkerAndWatchedPathAreEmbedded = {
     expr =
       (lib.hasInfix "demo.sha256" noPendingScript)
