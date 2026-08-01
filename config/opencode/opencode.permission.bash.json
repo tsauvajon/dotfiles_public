@@ -10,6 +10,7 @@
       "asdf *": "allow",
       "awk *": "allow",
       "bash *": "allow",
+      "bash scripts/*": "allow",
       "basename *": "allow",
       "brew *": "allow",
       "bun": "allow",
