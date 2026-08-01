@@ -176,7 +176,7 @@ let
       config/opencode/opencode.json must not exist.
       (Detected at: ${toString publicRoot}/opencode.json)
       The public side is fragment-only — split content into per-scope
-      `opencode.<scope>.json` partials (for example meta, watcher,
+      `opencode.<scope>.json` partials (for example meta, models, watcher,
       permission.*, agent, provider.*, experimental.*).
       See `mkMergedOpencodeJson` in home/lib/opencode-merge.nix and the
       fragments under config/opencode/ for the canonical merge contract.

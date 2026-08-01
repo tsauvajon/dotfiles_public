@@ -11,7 +11,7 @@
 # - `opencode.*.json` partials and `package.json`: deep JSON merge,
 #   private wins. The public side is fragment-only — there is no
 #   `config/opencode/opencode.json`; sections live in per-scope
-#   `opencode.<scope>.json` partials (for example meta, watcher,
+#   `opencode.<scope>.json` partials (for example meta, models, watcher,
 #   permission.*, agent, provider.*, experimental.*). Built by
 #   `lib/deep-merge-json.nix`.
 #   `package.json` additionally injects the `@opencode-ai/plugin`
