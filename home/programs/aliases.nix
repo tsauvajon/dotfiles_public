@@ -89,7 +89,6 @@ in
       alpsql2 = "rainfrog";
       csv = "tw";
       docx = "doxx";
-      gpg = "gpg-tui";
       json = "jiq";
       pdf = "tdf";
 
@@ -137,7 +136,6 @@ in
       cat = "bat";
       du = "dust";
       find = "fd";
-      gpg = "gpg-tui";
       l = "eza";
       la = "eza";
       less = "bat";

@@ -17,6 +17,7 @@ These tools add workflow-specific capabilities rather than replacing one classic
 | `gh`                     | `home/programs/git.nix`            | GitHub CLI                                         | `gh pr view`, `gh issue list`                                 |
 | `glab`                   | `home/programs/git.nix`            | GitLab CLI                                         | `glab mr list`, `glab ci status`                              |
 | `glim`                   | `home/devtools.nix`, local package | GitLab CI/CD TUI                                   | `glim`                                                        |
+| `gpg-tui`                | `home/devtools.nix`                | GPG key management TUI                             | `gpg-tui`                                                     |
 | `jiq`                    | `home/fs.nix`                      | Interactive `jq` query builder                     | `jiq data.json`, `curl ... \| jiq`, `Enter` outputs JSON      |
 | `mdterm`                 | `home/devtools.nix`                | Terminal Markdown viewer                           | `mdterm README.md`                                            |
 | `mqttui`                 | `home/devtools.nix`                | MQTT broker TUI                                    | `mqttui --broker localhost`, `mqttui --help`                  |
@@ -48,7 +49,6 @@ These tools replace a classic CLI directly, either through aliases or by acting 
 | `dust`    | `du`                  | `home/fs.nix`                        | Visual disk usage analyzer        | `dust`, `dust -d 2`                                |
 | `eza`     | `ls`                  | `home/fs.nix`                        | Modern directory listing          | `eza -la`, `eza --tree`                            |
 | `fd`      | `find`                | `home/fs.nix`                        | Fast file finder                  | `fd pattern`, `fd -e nix`                          |
-| `gpg-tui` | `gpg` key workflows   | `home/devtools.nix`                  | GPG key management TUI            | `gpg-tui`, `gpg` alias                             |
 | `htop`    | `btop`, `top`         | `home/fs.nix`                        | Interactive process viewer        | `htop`, `top` alias                                |
 | `ouch`    | `tar`, `zip`, `unzip` | `home/fs.nix`                        | Archive compress/extract CLI      | `ouch d archive.zip`, `ouch c archive.tar.gz dir/` |
 | `yazi`    | `lf`, `ranger`        | `home/fs.nix`                        | Terminal file manager             | `yazi`, `y`                                        |
