@@ -22,7 +22,7 @@ Status: deferred. No prompt override or guardrail test is part of Fix 12.
 OpenCode documents `agent.<name>.prompt` as a custom system prompt, but its
 runtime behavior is replacement rather than append-only customization.
 
-In the pinned OpenCode `v1.18.8` request preparation code, the first system
+In the pinned OpenCode `v1.18.9` request preparation code, the first system
 segment is selected as follows:
 
 ```text
@@ -37,12 +37,12 @@ message, but it does replace OpenCode's model-family base prompt. It is not a
 small suffix added to upstream behavior.
 
 The source of truth for this behavior is
-[`packages/opencode/src/session/llm/request.ts`](https://github.com/anomalyco/opencode/blob/v1.18.8/packages/opencode/src/session/llm/request.ts).
+[`packages/opencode/src/session/llm/request.ts`](https://github.com/anomalyco/opencode/blob/v1.18.9/packages/opencode/src/session/llm/request.ts).
 The base prompt is chosen by model API ID in
-[`packages/opencode/src/session/system.ts`](https://github.com/anomalyco/opencode/blob/v1.18.8/packages/opencode/src/session/system.ts),
+[`packages/opencode/src/session/system.ts`](https://github.com/anomalyco/opencode/blob/v1.18.9/packages/opencode/src/session/system.ts),
 with separate prompt files and routing for GPT-family variants, Codex, Claude,
 Gemini, Kimi, Trinity, Muse Spark, and fallback models in the
-[`session/prompt` directory](https://github.com/anomalyco/opencode/tree/v1.18.8/packages/opencode/src/session/prompt).
+[`session/prompt` directory](https://github.com/anomalyco/opencode/tree/v1.18.9/packages/opencode/src/session/prompt).
 
 This creates a maintenance obligation that a static local prompt cannot meet
 automatically:
