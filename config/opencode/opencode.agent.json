@@ -10,10 +10,10 @@
           "general": "allow",
           "implement": "allow",
           "review": "allow",
-          "rust": "allow",
+          "rust-implement": "allow",
           "rust-design": "allow",
           "scout": "allow",
-          "verify": "allow"
+          "bash-runner": "allow"
         }
       }
     },
@@ -27,7 +27,7 @@
           "review": "allow",
           "rust-design": "allow",
           "scout": "allow",
-          "verify": "allow"
+          "bash-runner": "allow"
         }
       }
     },
@@ -347,7 +347,7 @@
         "read": "allow"
       }
     },
-    "verify": {
+    "bash-runner": {
       "mode": "subagent",
       "description": "Runs bounded verification commands and summarizes only actionable output. No edits.",
       "permission": {
@@ -1255,9 +1255,9 @@
         "read": "allow"
       }
     },
-    "rust": {
+    "rust-implement": {
       "mode": "subagent",
-      "description": "Rust designer/coder subagent. Reads Cargo.toml and surrounding modules, applies idiomatic Rust conventions, makes edits, and runs cargo verification.",
+      "description": "Rust implementation subagent. Reads Cargo.toml and surrounding modules, applies idiomatic Rust conventions, makes edits, and runs cargo verification.",
       "permission": {
         "bash": {
           "*": "deny",

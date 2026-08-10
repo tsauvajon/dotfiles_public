@@ -5,7 +5,7 @@ Follow the current conversation plan. Extra context or constraints, if provided:
 
 Model the plan as a dependency graph. Continuously launch every ready workstream in parallel: no unfinished parent steps and no file/resource conflicts. When a workstream finishes, launch its code and plan reviews in parallel and verify it; once clean, immediately launch newly unblocked children.
 
-For each workstream, use the most specific relevant agent. For Rust changes, use `rust-design` first when design is unclear, then `rust`; use `implement` only when no narrower specialist fits.
+For each workstream, use the most specific relevant agent. For Rust changes, use `rust-design` first when design is unclear, then `rust-implement`; use `implement` only when no narrower specialist fits.
 
 Reviews:
 - code: bugs, regressions, missing tests, and quality

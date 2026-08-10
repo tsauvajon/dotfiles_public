@@ -192,7 +192,7 @@ Checklist:
 - Check `shared-server-error.log` for `MaxListenersExceededWarning`, and the main
   OpenCode log for repeated `stream error` entries.
 - Separate shared-server saturation from a failing helper provider. If a local
-  provider backs `small_model`, a configured title agent, or `verify`, confirm
+  provider backs `small_model`, a configured title agent, or `bash-runner`, confirm
   that its port is listening and its model endpoint succeeds. Repeated failures
   at roughly 30-second intervals indicate OpenCode retry backoff rather than
   useful work.

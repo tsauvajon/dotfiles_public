@@ -106,7 +106,7 @@ let
     "env CARGO_TARGET_DIR=/tmp/opencode-target cargo check"
   ];
 
-  verifyGitCCommands = [
+  bashRunnerGitCCommands = [
     "git -C /tmp/repo diff --check"
     "git -C /tmp/repo log -5"
     "git -C /tmp/repo rev-parse --show-toplevel"
@@ -145,23 +145,23 @@ in
     expected = expectedActions "deny" agentDeniedCargoCommands;
   };
 
-  testRustAgentCargoCacheOverrideDenies = {
-    expr = actionsFor (agentRules "rust") agentDeniedCargoCommands;
+  testRustImplementAgentCargoCacheOverrideDenies = {
+    expr = actionsFor (agentRules "rust-implement") agentDeniedCargoCommands;
     expected = expectedActions "deny" agentDeniedCargoCommands;
   };
 
-  testVerifyAgentCargoCacheOverrideDenies = {
-    expr = actionsFor (agentRules "verify") agentDeniedCargoCommands;
+  testBashRunnerAgentCargoCacheOverrideDenies = {
+    expr = actionsFor (agentRules "bash-runner") agentDeniedCargoCommands;
     expected = expectedActions "deny" agentDeniedCargoCommands;
   };
 
-  testVerifyAgentGitCReadCommandsAllow = {
-    expr = actionsFor (agentRules "verify") verifyGitCCommands;
-    expected = expectedActions "allow" verifyGitCCommands;
+  testBashRunnerAgentGitCReadCommandsAllow = {
+    expr = actionsFor (agentRules "bash-runner") bashRunnerGitCCommands;
+    expected = expectedActions "allow" bashRunnerGitCCommands;
   };
 
-  testVerifyAgentGitCWriteCommandsDeny = {
-    expr = lastMatchingAction (agentRules "verify") "git -C /tmp/repo commit -m test";
+  testBashRunnerAgentGitCWriteCommandsDeny = {
+    expr = lastMatchingAction (agentRules "bash-runner") "git -C /tmp/repo commit -m test";
     expected = "deny";
   };
 }

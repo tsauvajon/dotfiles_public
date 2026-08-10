@@ -32,7 +32,7 @@
       "model": "openai/gpt-5.6-luna",
       "variant": "high"
     },
-    "verify": {
+    "bash-runner": {
       "model": "openai/gpt-5.6-luna",
       "variant": "high"
     },
@@ -52,7 +52,7 @@
       "model": "openai/gpt-5.6-sol",
       "variant": "high"
     },
-    "rust": {
+    "rust-implement": {
       "model": "openai/gpt-5.6-terra",
       "variant": "high"
     }

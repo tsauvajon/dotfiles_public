@@ -21,7 +21,7 @@ The strategy optimizes for two outcomes:
 
 The most important delegation target is noisy shell output: `cargo *`, `nix *`,
 test, lint, build, and other commands that can emit hundreds or thousands of
-lines. These should usually run inside a cheap `verify` subagent, which returns a
+lines. These should usually run inside a cheap `bash-runner` subagent, which returns a
 small actionable summary instead of pasting logs into the main conversation.
 
 ## Core Principle
@@ -40,9 +40,9 @@ agent makes final decisions about architecture, risk, edits, and what to do next
 | `build` / primary | `openai/gpt-5.5` with high reasoning | Main conversation, synthesis, decisions, final judgment. Delegates implementation to `implement`. | Most capable model; spend it where judgment matters. |
 | `implement` | `opencode/qwen3.6-plus-free` | Reads code, makes edits, runs verification. Returns structured report of changes and status. No git commit. | Code writing does not need GPT-5.5 reasoning; keeps primary context clean. |
 | `explore` | `opencode/deepseek-v4-flash-free` | Read-only local code search. Returns file paths, line ranges, and concise evidence. | High-volume local search does not need expensive reasoning. |
-| `verify` | `opencode/deepseek-v4-flash-free` | Runs bounded verification commands and summarizes only actionable output. No edits. | Highest ROI context firewall for noisy command output. |
+| `bash-runner` | `opencode/deepseek-v4-flash-free` | Runs bounded verification commands and summarizes only actionable output. No edits. | Highest ROI context firewall for noisy command output. |
 | `review` | `opencode/qwen3.6-plus-free` | Read-only candidate review findings with severity, evidence, and suggested fixes. | Slightly stronger cheap reasoning for critique, while final judgment stays with primary. Pending upgrade to `opencode/kimi-k2.6` for stronger code review reasoning. |
-| `scout` | `opencode/deepseek-v4-flash-free` | External docs, API docs, vendor docs, dependency behavior, ecosystem research. Returns sources, verified facts, unknowns, relevance. | Context isolation for web research; same flash-free model as explore/verify since reasoning needs are low. |
+| `scout` | `opencode/deepseek-v4-flash-free` | External docs, API docs, vendor docs, dependency behavior, ecosystem research. Returns sources, verified facts, unknowns, relevance. | Context isolation for web research; same flash-free model as explore/bash-runner since reasoning needs are low. |
 | `general` | inherits primary model | Rare parallel implementation or complex execution where writes are needed. | Isolates context, but does not save model cost. |
 
 ## Routing Rules
@@ -50,7 +50,7 @@ agent makes final decisions about architecture, risk, edits, and what to do next
 | Need | Delegate To | Expected Output |
 |---|---|---|
 | Find local files, symbols, call sites, config locations | `explore` | Paths, line ranges, short factual summaries |
-| Run `cargo`, `nix`, tests, lint, build, or noisy shell commands | `verify` | Command, exit code, relevant failures, likely files, omitted noise, next command |
+| Run `cargo`, `nix`, tests, lint, build, or noisy shell commands | `bash-runner` | Command, exit code, relevant failures, likely files, omitted noise, next command |
 | Check external docs, upstream source, dependency behavior | `scout` | Sources, verified facts, unknowns, relevance to local task |
 | Review a diff or implementation for bugs/regressions | `review` | Candidate findings with severity, file:line, evidence, suggested fix |
 | Edit files, write code, run verification | `implement` | Structured report of changes made, verification status, unresolved issues |
@@ -63,15 +63,15 @@ Subagents should return structured reports rather than free-form prose.
 | Agent | Default Budget |
 |---|---|
 | `explore` | Max 20 file references unless explicitly asked for more. |
-| `verify` | Max 100-150 summarized lines. Never paste full logs by default. |
+| `bash-runner` | Max 100-150 summarized lines. Never paste full logs by default. |
 | `review` | Max 10 findings, ordered by severity. |
 | `implement` | Structured report: changes list, verification status, unresolved issues. No full file contents. |
 | `scout` | Max 5 sources and 1500 words. |
 | `general` | As small as possible; summarize completed work and verification. |
 
-## `verify` Report Format
+## `bash-runner` Report Format
 
-The `verify` agent exists to absorb noisy command output. Its default response
+The `bash-runner` agent exists to absorb noisy command output. Its default response
 format should be:
 
 ```markdown
@@ -97,7 +97,7 @@ Unknowns:
 - <anything that could not be determined>
 ```
 
-`verify` must not edit files. It should not paste full logs unless the primary
+`bash-runner` must not edit files. It should not paste full logs unless the primary
 agent explicitly asks for raw output.
 
 ## What To Avoid
@@ -181,13 +181,13 @@ If runtime behavior shows `variant` is not enough, prefer explicit options:
 - OpenCode starts without `ConfigInvalidError`.
 - Runtime model display or `opencode models` confirms the model is available.
 
-### Stage 3: Add The `verify` Subagent
+### Stage 3: Add The `bash-runner` Subagent
 
 **Goal**: Create a cheap, edit-denied agent for noisy command execution.
 
 **File**:
 
-- `config/opencode/agents/verify.md`
+- `config/opencode/agents/bash-runner.md`
 
 **Model**:
 
@@ -202,7 +202,7 @@ If runtime behavior shows `variant` is not enough, prefer explicit options:
 
 **Prompt Requirements**:
 
-- Return the `verify` report format above.
+- Return the `bash-runner` report format above.
 - Summarize actionable failures instead of full logs.
 - Include exact command and exit code.
 - Include likely affected files.
@@ -212,7 +212,7 @@ If runtime behavior shows `variant` is not enough, prefer explicit options:
 **Success Criteria**:
 
 - The primary agent can delegate `cargo test`, `nix flake check`, `npm test`,
-  and similar commands to `verify`.
+  and similar commands to `bash-runner`.
 - The primary session receives compact summaries instead of raw logs.
 
 ### Stage 4: Override `explore`
@@ -362,7 +362,7 @@ a custom `research` agent.
         "task": {
           "*": "deny",
           "explore": "allow",
-          "verify": "allow",
+          "bash-runner": "allow",
           "review": "allow",
           "scout": "allow",
           "general": "allow"
@@ -395,7 +395,7 @@ a custom `research` agent.
 
 ```markdown
 For noisy verification commands such as cargo, nix, test, lint, build, or long
-shell output, prefer delegating to the verify subagent. The primary agent should
+shell output, prefer delegating to the bash-runner subagent. The primary agent should
 request a compact failure summary instead of consuming full logs directly.
 ```
 
@@ -420,12 +420,12 @@ Restart OpenCode after activation because config is loaded at startup.
 **Generated Files To Inspect**:
 
 - `~/.config/opencode/opencode.json`
-- `~/.config/opencode/agents/verify.md`
+- `~/.config/opencode/agents/bash-runner.md`
 
 **Behavior Tests**:
 
 - Ask the primary agent to run a noisy verification command and confirm it uses
-  `verify`.
+  `bash-runner`.
 - Ask the primary agent to find local references and confirm it uses `explore`.
 - Ask for external docs or dependency source and confirm it uses `scout`.
 - Ask for a diff review and confirm it uses `review`.
@@ -435,7 +435,7 @@ Restart OpenCode after activation because config is loaded at startup.
 **Success Criteria**:
 
 - No full build/test logs enter the primary context by default.
-- `verify` returns compact, actionable reports.
+- `bash-runner` returns compact, actionable reports.
 - `explore` returns paths and line ranges.
 - `review` returns bounded candidate findings.
 - `scout` works, or a concrete decision is made to add `research`.
@@ -445,7 +445,7 @@ Restart OpenCode after activation because config is loaded at startup.
 
 | Decision | Current Choice | Revisit When |
 |---|---|---|
-| Command-running agent name | `verify` | Only if usage suggests a clearer name. |
+| Command-running agent name | `bash-runner` | Only if usage suggests a clearer name. |
 | External docs agent | Configured `scout` | If `scout` is unavailable or not structured enough. |
 | Implementation agent | `implement` on qwen3.6-plus-free | If quality is insufficient, upgrade to kimi-k2.6. |
 | GPT-5.5 high config | Prefer `variant: "high"` | If runtime behavior requires explicit options. |
@@ -456,7 +456,7 @@ Restart OpenCode after activation because config is loaded at startup.
 
 After a week of real usage, evaluate:
 
-- Did `verify` prevent large command outputs from entering the primary context?
+- Did `bash-runner` prevent large command outputs from entering the primary context?
 - Did `explore` save time and tokens versus inline searching?
 - Did `review` produce useful candidate findings or too much noise?
 - Did `scout` cover external research well enough?
