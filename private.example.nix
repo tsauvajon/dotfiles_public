@@ -122,13 +122,6 @@
       # Optional — extra Home Manager modules contributed by this overlay.
       # Anything in this list is appended to the public flake's module
       # list and loaded into every host configuration.
-      #
-      # Example: opt in to API for Cursor, which is disabled by default
-      # in the public dotfiles:
-      #
-      #   homeModules = [
-      #     ({ ... }: { programs.apiForCursor.enable = true; })
-      #   ];
       homeModules = [ ];
     };
 

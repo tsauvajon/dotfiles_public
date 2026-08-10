@@ -184,7 +184,7 @@ pkgs.runCommand "opencode-ops-test"
           [ "$actual" = "$expected" ] || fail "expected $expected for $request, got $output"
         }
 
-        assert_legacy_decision always '{"permission":"bash","patterns":["mdimport -t \"$HOME/Applications/Nix Apps/API for Cursor.app\""],"metadata":{"command":"mdimport -t \"$HOME/Applications/Nix Apps/API for Cursor.app\""},"always":["mdimport *"]}'
+        assert_legacy_decision always '{"permission":"bash","patterns":["mdimport -t \"$HOME/Applications/Nix Apps/Example.app\""],"metadata":{"command":"mdimport -t \"$HOME/Applications/Nix Apps/Example.app\""},"always":["mdimport *"]}'
         assert_legacy_decision reject '{"permission":"bash","patterns":["/bin/rm -rf /tmp/example"],"metadata":{"command":"/bin/rm -rf /tmp/example"},"always":["rm *"]}'
         assert_legacy_decision reject '{"permission":"bash","patterns":["rm -r -f /tmp/example"],"metadata":{"command":"rm -r -f /tmp/example"},"always":["rm *"]}'
         assert_legacy_decision reject '{"permission":"bash","patterns":["find . -delete"],"metadata":{"command":"find . -delete"},"always":["find *"]}'

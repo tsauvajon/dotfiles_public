@@ -209,8 +209,7 @@ Checklist:
   or debugging an upstream issue.
 
 See `docs/OpenCode Shared Server Follow-ups.md` for the longer-term watchdog and
-hygiene plan. See `docs/API for Cursor.md` when the failing helper is the local
-Cursor API provider.
+hygiene plan.
 
 ## Symptom: Wrapper Command Behaves Like A Directory
 

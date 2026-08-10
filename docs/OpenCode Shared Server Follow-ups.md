@@ -168,6 +168,5 @@ as the current mitigation.
 - `scripts/opencode-ops.test.nix`: status and reap integration tests.
 - `docs/OpenCode Versioning.md`: channel and DB selection notes.
 - `docs/OpenCode Debug.md`: first-response diagnosis and safe recovery.
-- `docs/API for Cursor.md`: local provider health and retry troubleshooting.
 - `docs/OpenCode Cargo Cache.md`: per-session Cargo target isolation and cache
   cleanup notes.

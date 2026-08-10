@@ -150,26 +150,11 @@ let
     privatePath = privateAgentsDir;
     importDirs = importAgentsDirs;
   };
-  mergedPluginsWithCursorBridge = mkMergedDir {
+  mergedPlugins = mkMergedDir {
     name = "plugins";
     privatePath = privatePluginsDir;
     importDirs = importPluginsDirs;
   };
-  mergedPlugins =
-    if cfg.cursorAgentBridge.enable then
-      mergedPluginsWithCursorBridge
-    else
-      pkgs.runCommand "opencode-plugins-without-cursor-agent-bridge" { } ''
-        mkdir -p "$out"
-        for path in "${mergedPluginsWithCursorBridge}"/*; do
-          [ -e "$path" ] || [ -L "$path" ] || continue
-          name="''${path##*/}"
-          case "$name" in
-            cursor-agent-bridge.ts) ;;
-            *) ln -sfn "$path" "$out/$name" ;;
-          esac
-        done
-      '';
 
   # AGENTS.md content respecting cfg.rulesMode. The pure merge logic
   # lives in lib/opencode-merge.nix so it can be unit-tested with
@@ -193,23 +178,11 @@ let
   # JSON fragments live next to the private overlay's `config/opencode/` dir
   # (see `privateOpencodeDir` above) so the discovery root stays stable
   # even when `configFile` is overridden by a downstream private flake.
-  mergedJsonWithCursorProvider = mkMergedOpencodeJson {
-    inherit publicRoot importsDirs privateOpencodeDir;
-    inherit privateConfigFile;
-  };
-  mergedJsonWithoutCursorAgent =
-    if cfg.cursorAgentBridge.enable || !(mergedJsonWithCursorProvider ? provider) then
-      mergedJsonWithCursorProvider
-    else
-      let
-        providerWithoutCursor = builtins.removeAttrs mergedJsonWithCursorProvider.provider [ "cursor-agent" ];
-      in
-      if providerWithoutCursor == { } then
-        builtins.removeAttrs mergedJsonWithCursorProvider [ "provider" ]
-      else
-        mergedJsonWithCursorProvider // { provider = providerWithoutCursor; };
   mergedJson = applyProviderGates {
-    config = mergedJsonWithoutCursorAgent;
+    config = mkMergedOpencodeJson {
+      inherit publicRoot importsDirs privateOpencodeDir;
+      inherit privateConfigFile;
+    };
     providerGates = cfg.providerGates;
   };
 

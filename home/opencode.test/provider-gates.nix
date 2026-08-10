@@ -5,18 +5,18 @@ let
   inherit (import ../lib/opencode-merge.nix { inherit lib; }) applyProviderGates;
 
   config = {
-    model = "cursorapi/composer-2.5";
+    model = "localproxy/model-a";
     small_model = "bifrost/claude-fable-5";
     disabled_providers = [ "legacy" ];
     provider = {
-      cursorapi.name = "Cursor";
+      localproxy.name = "Local Proxy";
       bifrost.name = "Bifrost";
       openai.name = "OpenAI";
     };
     agent = {
-      cursor = {
-        model = "cursorapi/grok-4.5-fast";
-        nested.small_model = "cursorapi/composer-2.5-fast";
+      local = {
+        model = "localproxy/model-c";
+        nested.small_model = "localproxy/model-b";
       };
       bifrostSonnet = {
         model = "bifrost/claude-sonnet-5";
@@ -39,12 +39,12 @@ let
   };
 
   gates = {
-    cursorapi = {
+    localproxy = {
       enable = true;
       modelFallbacks = {
-        "composer-2.5".direct = "anthropic/claude-sonnet-4-6";
-        "composer-2.5-fast".direct = "anthropic/claude-sonnet-4-6";
-        "grok-4.5-fast".direct = "anthropic/claude-sonnet-4-6";
+        model-a.direct = "anthropic/claude-sonnet-4-6";
+        model-b.direct = "anthropic/claude-sonnet-4-6";
+        model-c.direct = "anthropic/claude-sonnet-4-6";
       };
     };
     bifrost = {
@@ -58,10 +58,10 @@ let
   };
 
   apply = providerGates: applyProviderGates { inherit config providerGates; };
-  cursorDisabled = apply (
+  localProxyDisabled = apply (
     gates
     // {
-      cursorapi = gates.cursorapi // {
+      localproxy = gates.localproxy // {
         enable = false;
       };
     }
@@ -75,7 +75,7 @@ let
     }
   );
   bothDisabled = apply {
-    cursorapi = gates.cursorapi // {
+    localproxy = gates.localproxy // {
       enable = false;
     };
     bifrost = gates.bifrost // {
@@ -98,16 +98,16 @@ in
     expected = config;
   };
 
-  testCursorDisabledRemovesProviderAndRewritesRecursively = {
+  testLocalProxyDisabledRemovesProviderAndRewritesRecursively = {
     expr = {
-      hasCursorProvider = cursorDisabled.provider ? cursorapi;
-      keepsBifrostProvider = cursorDisabled.provider ? bifrost;
-      rootModel = cursorDisabled.model;
-      nestedModel = cursorDisabled.agent.cursor.model;
-      nestedSmallModel = cursorDisabled.agent.cursor.nested.small_model;
+      hasLocalProxyProvider = localProxyDisabled.provider ? localproxy;
+      keepsBifrostProvider = localProxyDisabled.provider ? bifrost;
+      rootModel = localProxyDisabled.model;
+      nestedModel = localProxyDisabled.agent.local.model;
+      nestedSmallModel = localProxyDisabled.agent.local.nested.small_model;
     };
     expected = {
-      hasCursorProvider = false;
+      hasLocalProxyProvider = false;
       keepsBifrostProvider = true;
       rootModel = "anthropic/claude-sonnet-4-6";
       nestedModel = "anthropic/claude-sonnet-4-6";
@@ -146,14 +146,14 @@ in
     expected = [
       "legacy"
       "bifrost"
-      "cursorapi"
+      "localproxy"
     ];
   };
 
   testBothDisabledRemovesBothProviders = {
     expr = {
       hasBifrost = bothDisabled.provider ? bifrost;
-      hasCursor = bothDisabled.provider ? cursorapi;
+      hasLocalProxy = bothDisabled.provider ? localproxy;
       keepsOpenai = bothDisabled.provider ? openai;
       rootModel = bothDisabled.model;
       rootSmallModel = bothDisabled.small_model;
@@ -161,7 +161,7 @@ in
     };
     expected = {
       hasBifrost = false;
-      hasCursor = false;
+      hasLocalProxy = false;
       keepsOpenai = true;
       rootModel = "anthropic/claude-sonnet-4-6";
       rootSmallModel = "anthropic/claude-sonnet-4-6";

@@ -41,6 +41,3 @@ htop: use `htop` when process CPU, memory, or tree view matters.
 ouch: compress and extract archives with `ouch c` and `ouch d`.
 %
 opencode-permission-monitor: keep a terminal running `opencode-permission-monitor` when other OpenCode sessions may need permission decisions.
-%
-composer-api: launch API for Cursor with `api-for-cursor` before using `cursorapi/*` models.
-%

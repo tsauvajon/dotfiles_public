@@ -14,7 +14,6 @@ let
     // (import ./rules-modes.nix { inherit lib; })
     // (import ./missing-private.nix { inherit lib; })
     // (import ./package-merge.nix { inherit lib; })
-    // (import ./composer-provider.nix { inherit lib; })
     // (import ./provider-gates.nix { inherit lib; })
     // (import ./server-activation.nix { inherit lib; })
     // (import ./cargo-cache-guardrails.nix { inherit lib; })

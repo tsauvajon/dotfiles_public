@@ -153,7 +153,6 @@
           };
         in
         {
-          api-for-cursor = final.callPackage ./pkgs/api-for-cursor { };
           cargo-coupling = final.callPackage ./pkgs/cargo-coupling { };
           dylint-tools = final.callPackage ./pkgs/dylint-tools { };
           dumap = final.callPackage ./pkgs/dumap { };
@@ -284,8 +283,7 @@
         # cases, which we convert into a 0/non-zero exit by writing
         # `$out` only when the list is empty.
         libRunTestsCases =
-          (import ./flake.test.nix { inherit lib; })
-          // (import ./home/lib/deep-merge-json.test.nix { inherit lib; })
+          (import ./home/lib/deep-merge-json.test.nix { inherit lib; })
           // (import ./home/lib/concat-files.test.nix { inherit lib; })
           // (import ./home/lib/goto-enabled.test.nix { inherit lib; })
           // (import ./home/lib/list-files-in.test.nix { inherit lib; })
@@ -295,12 +293,7 @@
           // (import ./home/lib/rust-toolchain.test.nix { inherit lib; })
           // (import ./home/default.test.nix { inherit lib; })
           // (import ./home/bootstrap.test.nix { inherit lib; })
-          // (import ./home/darwin-apps.test.nix {
-            inherit lib;
-            homeManagerLib = home-manager.lib;
-            supportedPkgs = pkgsFor.aarch64-darwin;
-            unsupportedPkgs = pkgsFor.x86_64-linux;
-          })
+          // (import ./home/darwin-apps.test.nix { inherit lib; })
           // (import ./home/programs/cross-shell-aliases.test.nix { inherit lib; });
         libRunTestsFailures = lib.runTests libRunTestsCases;
         libRunTestsCheck = pkgs.runCommand "lib-runTests" { } (
@@ -411,33 +404,12 @@
         nixglNvidiaDoctorCheck = import ./scripts/nixgl-nvidia-doctor.test.nix { inherit pkgs lib; };
         opencodeOpsCheck = import ./scripts/opencode-ops.test.nix { inherit pkgs lib; };
         yaziLiveSearchCheck = import ./config/yazi/live-search.test.nix { inherit pkgs; };
-        cursorAgentBridgeCheck = import ./config/opencode/plugin-tests/cursor-agent-bridge.test.nix {
-          inherit pkgs;
-        };
         cargoBuildEnvCheck = import ./config/opencode/plugin-tests/cargo-build-env.test.nix {
           inherit pkgs;
         };
         primaryContextCheck = import ./config/opencode/plugin-tests/primary-context.test.nix {
           inherit pkgs;
         };
-        cursorAgentBridgeModuleTests = lib.runTests (
-          import ./home/cursor-agent-bridge.test.nix { inherit lib; }
-        );
-        cursorAgentBridgeModuleCheck = pkgs.runCommand "cursor-agent-bridge-module-test" { } (
-          if cursorAgentBridgeModuleTests == [ ] then
-            ''
-              echo "cursor-agent-bridge-module-test: all cases passed"
-              touch "$out"
-            ''
-          else
-            ''
-              echo "cursor-agent-bridge-module-test failures:" >&2
-              cat <<'EOF' >&2
-              ${builtins.toJSON cursorAgentBridgeModuleTests}
-              EOF
-              exit 1
-            ''
-        );
       in
       {
         formatter = pkgs.nixfmt-rfc-style;
@@ -453,9 +425,6 @@
             tsql
             weave
             ;
-        }
-        // lib.optionalAttrs (system == "aarch64-darwin") {
-          inherit (pkgs) api-for-cursor;
         };
         checks =
           builtins.listToAttrs (
@@ -464,9 +433,6 @@
               value = homeConfigurations.${h}.activationPackage;
             }) hosts
           )
-          // lib.optionalAttrs (system == "aarch64-darwin") {
-            inherit (pkgs) api-for-cursor;
-          }
           // {
             inherit (pkgs)
               cargo-coupling
@@ -495,10 +461,8 @@
             nixgl-nvidia-doctor-test = nixglNvidiaDoctorCheck;
             opencode-ops-test = opencodeOpsCheck;
             yazi-live-search-test = yaziLiveSearchCheck;
-            cursor-agent-bridge-test = cursorAgentBridgeCheck;
             cargo-build-env-test = cargoBuildEnvCheck;
             primary-context-test = primaryContextCheck;
-            cursor-agent-bridge-module-test = cursorAgentBridgeModuleCheck;
           };
       }
     )

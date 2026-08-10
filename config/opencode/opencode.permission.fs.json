@@ -11,7 +11,6 @@
     "external_directory": {
       "~/.cargo/*": "allow",
       "~/.config/*": "allow",
-      "~/.cursor/projects/*": "allow",
       "~/.local/*": "allow",
       "~/.cache/opencode/*": "allow",
       "~/.local/cache/*": "allow",
