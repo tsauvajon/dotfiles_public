@@ -5,19 +5,19 @@
 }:
 
 let
-  version = "0.7.5";
+  version = "0.8.0";
   sources = {
     aarch64-darwin = {
       asset = "herdr-macos-aarch64";
-      hash = "sha256-NzUFRrABJVWUO5Lq+WJmXeTiZDlbrrRCJ7gBXo/1sNY=";
+      hash = "sha256-1Tqfk/zP38xVYyknv1EAL1rdCqeZC831CP+9hKxlgXg=";
     };
     x86_64-darwin = {
       asset = "herdr-macos-x86_64";
-      hash = "sha256-P+UMSmPcgQIwaxMiF4Yo3bNlXNOuVteE8JQVNAjWnmI=";
+      hash = "sha256-d8ta/WyPyqrzvCjkdOwBwgkzGtCAlOINf4qpsLt41kk=";
     };
     x86_64-linux = {
       asset = "herdr-linux-x86_64";
-      hash = "sha256-PcgyiAc+TC08Z5ow576XvMqRQcb9F9u7khkULpXFklM=";
+      hash = "sha256-uHLqfkD6LLF+hXrJtisb8m23tAPGIvXS8/WzX26azSg=";
     };
   };
 
@@ -30,7 +30,7 @@ stdenvNoCC.mkDerivation {
   inherit version;
 
   src = fetchurl {
-    url = "https://github.com/ogulcancelik/herdr/releases/download/v${version}/${source.asset}";
+    url = "https://github.com/herdrdev/herdr/releases/download/v${version}/${source.asset}";
     inherit (source) hash;
   };
 
@@ -59,7 +59,7 @@ stdenvNoCC.mkDerivation {
 
   meta = {
     description = "Terminal workspace manager for AI coding agents";
-    homepage = "https://github.com/ogulcancelik/herdr";
+    homepage = "https://github.com/herdrdev/herdr";
     license = lib.licenses.agpl3Plus;
     mainProgram = "herdr";
     platforms = builtins.attrNames sources;

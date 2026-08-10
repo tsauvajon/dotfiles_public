@@ -31,11 +31,11 @@
       inputs.rust-overlay.follows = "rust-overlay";
     };
     steel = {
-      url = "github:mattwparas/steel/3a418c9ea586c1862a8c3a49d6a998436afc8957";
+      url = "git+https://github.com/mattwparas/steel.git?rev=09dc028718281d3a398c9f567b3576f156f2b644";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     scooter-hx = {
-      url = "github:thomasschafer/scooter.hx/v0.1.4";
+      url = "git+https://github.com/thomasschafer/scooter.hx.git?rev=50c201fa225be496101702bbd35e633ae0da0faf";
       flake = false;
     };
     fake-warp-hx = {
@@ -47,7 +47,7 @@
       flake = false;
     };
     helix-file-watcher = {
-      url = "github:mattwparas/helix-file-watcher/e118b7552ec7697c560a24b48880c92d6aa4476e";
+      url = "git+https://github.com/mattwparas/helix-file-watcher.git?rev=8cd0726da47be4a1011c3246ff308c1dfefda9d1";
       flake = false;
     };
 
@@ -132,9 +132,9 @@
     }:
     let
       opencodePin = {
-        version = "1.18.9";
-        srcHash = "sha256-uvKzjPquhjm5OdDdoqexJQfDkN0OOXOW8RbdSka12NQ=";
-        nodeModulesHash = "sha256-cXA4umq5rPApiQdpFGB8jGmFB+e1+WkoFZUXKak1za0=";
+        version = "1.18.16";
+        srcHash = "sha256-AP2W443Zk/X8j6BWfMgAEbR4BQiJgnPpr1OG6JWIprE=";
+        nodeModulesHash = "sha256-3BrsXBSchRXPoqJif7GXSLD8NW2VuSIL0kgOj8IUmq8=";
       };
       supportedSystems = [
         "x86_64-linux"
