@@ -8,7 +8,7 @@
 # `inputs.private`. Every field below is read by a Home Manager
 # module under home/. Required vs. optional:
 #
-#   git.{name,email}             REQUIRED — used to generate machine keys.
+#   git.{name,email}             REQUIRED - used to generate the machine key.
 #   git.signingKey               REQUIRED by the build, auto-filled by setup.
 #   everything else              OPTIONAL — null/[]/omitted is fine.
 #
@@ -24,9 +24,9 @@
   outputs =
     { self, ... }:
     {
-      # REQUIRED — git identity. Fill name/email, then rerun setup.sh.
-      # When signingKey is empty, setup.sh generates or detects a GPG
-      # key for this email and patches the key id into this file.
+      # REQUIRED - git identity. Fill name/email, then rerun setup.sh.
+      # When signingKey is empty, setup.sh generates or detects the default
+      # SSH key and patches its public key path into this file.
       #
       # First-run shortcut: instead of hand-editing this file, you can
       # seed all three fields by exporting DOTFILES_GIT_NAME and

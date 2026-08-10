@@ -4,7 +4,7 @@
 # ~/.config/dotfiles/flake.nix under the `git` attribute. The build
 # throws if any of those three fields is empty so missing identity is
 # caught loudly rather than producing unsigned commits as "". setup.sh
-# fills signingKey automatically when it generates or detects a GPG key.
+# fills signingKey with the public SSH key path.
 #
 # Optional ~/.config/dotfiles/extra.gitconfig is included as a
 # per-machine overlay when `git.extraConfigInclude` points at it.
@@ -28,7 +28,7 @@ assert lib.assertMsg hasIdentity ''
 
   Private git identity not set. Edit ~/.config/dotfiles/flake.nix and
   fill in `git.name` and `git.email`, then rerun setup.sh so it can
-  generate or detect a GPG key and fill `git.signingKey`.
+  generate or detect an SSH key and fill `git.signingKey`.
 
   To inspect or reprint key upload commands manually:
     ./scripts/bootstrap-keys.sh --show
@@ -47,12 +47,10 @@ assert lib.assertMsg hasIdentity ''
     ]
     ++ lib.optional stdenv.isDarwin pinentry_mac;
 
-  # Wire gpg-agent to use pinentry-mac on darwin so commit signing
-  # works from non-TTY contexts (IDEs, Finder-launched git GUIs). The
-  # heavy lifting lives in scripts/lib/configure-gpg-pinentry.sh so it
-  # can be exercised by the configure-gpg-pinentry-test flake check
-  # (covers missing-file, empty, single-line, multi-line, and
-  # preserves-other-settings shapes).
+  # Wire gpg-agent to use pinentry-mac on darwin for pass and other GPG
+  # operations from non-TTY contexts. The heavy lifting lives in
+  # scripts/lib/configure-gpg-pinentry.sh so it can be exercised by the
+  # configure-gpg-pinentry-test flake check.
   home.activation = lib.mkIf pkgs.stdenv.isDarwin {
     configureGpgAgentPinentry = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
       ${pkgs.bash}/bin/bash ${../../scripts/lib/configure-gpg-pinentry.sh} \
@@ -68,7 +66,7 @@ assert lib.assertMsg hasIdentity ''
     signing = {
       key = signingKey;
       signByDefault = true;
-      format = "openpgp";
+      format = "ssh";
     };
 
     includes = lib.optional (extraConfigInclude != null) {
