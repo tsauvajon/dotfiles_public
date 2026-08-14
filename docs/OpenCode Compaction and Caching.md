@@ -1,15 +1,15 @@
 # OpenCode Compaction and Caching
 
-This is the deferred implementation runbook for Fix 11. Do not enable a knob
-from this page without first completing the sanitized A/B test below.
+This is the production monitoring runbook for Fix 11. Evaluate any additional
+compaction knob only through the sanitized A/B test below.
 
 ## Decision
 
-Defer the configuration change until a representative, non-sensitive A/B test
-shows a material reduction in provider input without loss of task quality or a
-cache-cost regression.
+Production enables only `compaction.prune`. Any additional setting requires a
+representative, non-sensitive A/B test showing a material provider-input
+reduction without loss of task quality or a cache-cost regression.
 
-The conservative first production change, if the gate passes, is only:
+The conservative production change is only:
 
 ```json
 {
@@ -24,14 +24,15 @@ same change. Do not combine this change with a `tool_output` experiment.
 
 ## Current State
 
-- The merged config has no top-level `compaction` object. On the current pin,
-  OpenCode defaults to automatic compaction with old tool-output pruning
-  disabled. Reverify these implementation defaults after an OpenCode update.
+- The merged config has a top-level `compaction` object from
+  `config/opencode/opencode.compaction.json`, with `prune: true`. It leaves
+  `auto`, `reserved`, `tail_turns`, and `preserve_recent_tokens` unset, so the
+  current pin's defaults still govern those fields.
 - The private model overlay currently pins `agent.compaction` to the full-context
-  `bifrost/gpt-5.6-sol` model with the `high` variant. Verify the resolved private
+  `openai/gpt-5.6-sol` model with the `high` variant. Verify the resolved private
   model before running the experiment; this is separate from top-level
   compaction behavior settings.
-- OpenCode itself is pinned to `1.18.16` in `flake.nix`. Recheck upstream behavior
+- OpenCode itself is pinned to `1.18.18` in `flake.nix`. Recheck upstream behavior
   and defaults if that pin changes before this runbook is executed.
 - The generated `~/.config/opencode/opencode.json` is Home Manager output. Never
   edit it directly.
@@ -45,7 +46,7 @@ config/opencode/opencode.compaction.json
 That filename matches the existing public `opencode.<scope>.json` fragment
 convention. `home/opencode.nix` deep-merges it into the generated global config.
 
-## Why Defer
+## Why This Remains Conservative
 
 Pruning is promising but not free:
 
@@ -58,14 +59,24 @@ Pruning is promising but not free:
   alter provider billing metadata.
 - The pinned full-context compaction model already reduces the immediate risk of
   the compaction request itself overflowing.
-- There is not yet sanitized, representative before/after evidence for this
-  setup.
+- A privacy-safe synthetic A/B on 2026-08-14 using OpenCode `1.18.16` observed
+  pruning in three independently imported sessions, preserved all test facts
+  without errors, and reduced measured provider input from 57,394-57,395 tokens
+  to 53,614-53,615 tokens (about 6.6%). A post-bump regression using the built
+  `1.18.18` binary also preserved all facts without errors and reduced provider
+  input from 93,591 to 86,106 tokens (about 8.0%). Continue monitoring
+  representative real sessions because synthetic fixtures cannot establish
+  production answer quality.
 
-In OpenCode `1.18.16`, pruning skips recent turns and protected tools, preserves
-roughly 40,000 estimated tokens of older tool output, and only applies a batch
-when more than roughly 20,000 estimated tokens would be removed. These are
+In OpenCode `1.18.18`, `compaction.prune: true` skips the newest turn and the
+protected `skill` tool, preserves roughly 40,000 estimated tokens of older
+eligible tool output, and only applies a batch when more than roughly 20,000
+estimated tokens would be removed. The same release no longer defaults
+`tail_turns` to two: when unset, ordinary compaction retains as much recent
+history as fits its token budget (25% of usable context, clamped to 2,000–15,000
+tokens). Pruning and compaction selection are separate behaviors. These are
 implementation details, not stable configuration guarantees; see the pinned
-[`compaction.ts` source](https://github.com/anomalyco/opencode/blob/v1.18.16/packages/opencode/src/session/compaction.ts).
+[`compaction.ts` source](https://github.com/anomalyco/opencode/blob/v1.18.18/packages/opencode/src/session/compaction.ts).
 
 ## Token Accounting
 
@@ -86,9 +97,9 @@ overflow_count = tokens.total
 ```
 
 The normalization is in
-[`session.ts`](https://github.com/anomalyco/opencode/blob/v1.18.16/packages/opencode/src/session/session.ts),
+[`session.ts`](https://github.com/anomalyco/opencode/blob/v1.18.18/packages/opencode/src/session/session.ts),
 and the overflow calculation is in
-[`overflow.ts`](https://github.com/anomalyco/opencode/blob/v1.18.16/packages/opencode/src/session/overflow.ts).
+[`overflow.ts`](https://github.com/anomalyco/opencode/blob/v1.18.18/packages/opencode/src/session/overflow.ts).
 
 ### Cache Versus Context
 
@@ -105,9 +116,10 @@ Keep these concepts separate when interpreting results:
 - A successful result improves `provider_input`, request latency, or compaction
   reliability without materially worsening cache cost or answer quality.
 
-## Gate For Running The Experiment
+## Gate For Additional Experiments
 
-Run the A/B only when all of the following are true:
+Run another A/B before changing any additional compaction setting, and only when
+all of the following are true:
 
 1. OpenCode still supports `compaction.prune` and the generated schema accepts it.
 2. A long, tool-heavy session can be exported and made safe for local testing.
@@ -238,14 +250,14 @@ JSONL only inside the protected temporary directory. Delete the imported test
 sessions and `rm -rf "$LAB"` after the result has been recorded in sanitized
 aggregate form.
 
-## Promotion Procedure
+## Promotion Or Revalidation Procedure
 
 Promote only if all qualifying fixtures retain required facts and the prune arm
 shows a repeatable provider-input, latency, cost, or reliability benefit without
 a material cache regression.
 
-1. Add only `config/opencode/opencode.compaction.json` with the JSON shown at the
-   top of this page.
+1. Keep `config/opencode/opencode.compaction.json` limited to the JSON shown at
+   the top of this page.
 2. Validate the JSON and run `nix flake check`.
 3. Run `bash setup.sh` from a normal shell. Do not restart the shared server from
    inside an active OpenCode prompt.
@@ -273,6 +285,9 @@ Rollback immediately if any of these occurs after promotion:
 Rollback by deleting `config/opencode/opencode.compaction.json` (or setting
 `prune` to `false` in an emergency overlay), running `bash setup.sh` from a normal
 shell, safely restarting the shared server, and verifying the resolved config.
+A source rollback must also remove `testCompactionPruneEnabled` from
+`home/opencode.test/default.nix`; the private-overlay emergency override can
+leave that public-config guardrail intact.
 Rollback affects future request construction; it does not remove already
 persisted `compacted` markers from test or production sessions. Fork or restore
 from a pre-change export if a specific session needs unpruned history.
@@ -280,13 +295,13 @@ from a pre-change export if a specific session needs unpruned history.
 ## Separately Gated `tool_output` Experiment
 
 `tool_output` is not a second compaction setting. It controls the immediate
-truncation limits applied when tools return output. OpenCode `1.18.16` defaults to
+truncation limits applied when tools return output. OpenCode `1.18.18` defaults to
 2,000 lines and 50 KiB, writes the complete truncated result to its tool-output
 directory, and retains those files for a limited period. See
-[`truncate.ts`](https://github.com/anomalyco/opencode/blob/v1.18.16/packages/opencode/src/tool/truncate.ts).
+[`truncate.ts`](https://github.com/anomalyco/opencode/blob/v1.18.18/packages/opencode/src/tool/truncate.ts).
 
-Do not run this experiment until the `compaction.prune` decision is complete.
-Then use new A/B fixtures and change one dimension only. The conservative first
+Run this experiment only after `compaction.prune` remains healthy in production.
+Use new A/B fixtures and change one dimension only. The conservative first
 candidate is a line-limit experiment that leaves the byte limit unchanged:
 
 ```json

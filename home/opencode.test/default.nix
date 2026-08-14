@@ -7,6 +7,10 @@
 { pkgs, lib }:
 
 let
+  mergedPublicConfig =
+    (import ../lib/opencode-merge.nix { inherit lib; }).mkMergedOpencodeJson
+      { publicRoot = ../../config/opencode; };
+
   cases =
     (import ./merge-precedence.nix { inherit lib; })
     // (import ./generated-json.nix { inherit lib; })
@@ -17,7 +21,13 @@ let
     // (import ./provider-gates.nix { inherit lib; })
     // (import ./server-activation.nix { inherit lib; })
     // (import ./cargo-cache-guardrails.nix { inherit lib; })
-    // (import ./public-base-guardrail.nix { inherit lib; });
+    // (import ./public-base-guardrail.nix { inherit lib; })
+    // {
+      testCompactionPruneEnabled = {
+        expr = mergedPublicConfig.compaction.prune;
+        expected = true;
+      };
+    };
 
   failures = lib.runTests cases;
   passedCount = builtins.length (builtins.attrNames cases);
