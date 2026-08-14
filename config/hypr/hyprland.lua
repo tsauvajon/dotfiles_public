@@ -19,7 +19,7 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP")
     hl.exec_cmd("waybar &")
     hl.exec_cmd("mako &")
-    hl.exec_cmd("kitty --class ssh-add -e ssh-add ~/.ssh/id_ed25519")
+    hl.exec_cmd("~/.nix-profile/bin/terminal-launcher --class ssh-add -- ssh-add ~/.ssh/id_ed25519")
 end)
 
 -------------------------------
@@ -160,16 +160,16 @@ hl.animation({ leaf = "workspaces", enabled = true, speed = 5, bezier = "wind" }
 ---- KEYBINDINGS ----
 ---------------------
 
-local terminal = "kitty"
+local terminal = "~/.nix-profile/bin/terminal-launcher"
 local fallbackTerminal = "~/.nix-profile/bin/safe-terminal"
 local browser = "firefox"
 local compatibleBrowser = "chromium"
 local notes = "obsidian"
-local fileManager = "kitty --class kitty-yazi --hold yazi"
+local fileManager = "~/.nix-profile/bin/terminal-launcher --class terminal-yazi --hold -- yazi"
 local passwordManager = "keepassxc"
 local screenshot = "grim -g \"$(slurp)\" - | swappy -f -"
 local menu = "rofi -show drun"
-local procViewer = "kitty --hold htop"
+local procViewer = "~/.nix-profile/bin/terminal-launcher --hold -- htop"
 local reloadBar = "~/.config/waybar/scripts/reload.sh"
 
 hl.bind("SUPER + Q", hl.dsp.exit())
@@ -318,9 +318,9 @@ hl.window_rule({ match = { class = "^(ssh-add)$" }, float = true })
 hl.window_rule({ match = { class = "^(ssh-add)$" }, size = { 500, 200 } })
 hl.window_rule({ match = { class = "^(ssh-add)$" }, center = true })
 
--- Kitty terminal.
-hl.window_rule({ match = { class = "^(kitty)$" }, size = { 8200, 540 } })
-hl.window_rule({ match = { class = "^(kitty)$" }, min_size = { 800, 500 } })
+-- Selected terminal. Home Manager replaces the class placeholder.
+hl.window_rule({ match = { class = "^(@defaultTerminalClass@)$" }, size = { 8200, 540 } })
+hl.window_rule({ match = { class = "^(@defaultTerminalClass@)$" }, min_size = { 800, 500 } })
 
 -- JetBrains IDEs.
 for _, class in ipairs({ "^(jetbrains-idea-ce)$", "^(jetbrains-pycharm-ce)$", "^(jetbrains-rider)$", "^(jetbrains-webstorm)$" }) do

@@ -4,15 +4,22 @@
   pkgs,
   lib,
   inputs,
+  terminal,
   ...
 }:
 
 let
   concatTomlFiles = import ../lib/concat-toml-files.nix { inherit pkgs lib; };
+  aerospaceSource = builtins.readFile ../../config/aerospace/aerospace.toml;
+  aerospaceBaseDir = pkgs.writeTextDir "aerospace.toml" (
+    assert lib.assertMsg (lib.hasInfix "__DEFAULT_TERMINAL_APP__" aerospaceSource)
+      "config/aerospace/aerospace.toml is missing the default terminal app placeholder";
+    lib.replaceStrings [ "__DEFAULT_TERMINAL_APP__" ] [ terminal.darwinAppName ] aerospaceSource
+  );
 
   aerospaceConfig = concatTomlFiles {
     name = "aerospace.toml";
-    base = ../../config/aerospace/aerospace.toml;
+    base = "${aerospaceBaseDir}/aerospace.toml";
     fragmentDirs = [
       ../../config/aerospace
       inputs.private

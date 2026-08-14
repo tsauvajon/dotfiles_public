@@ -229,14 +229,49 @@
 
       dotfilesRoot = ./.;
 
+      # Change this one toggle to "kitty" to make Kitty the default terminal
+      # everywhere it is launched or exposed.
+      defaultTerminal = "alacritty";
+
+      mkTerminal =
+        pkgs:
+        {
+          alacritty = {
+            package = pkgs.alacritty;
+            binary = "alacritty";
+            darwinAppName = "Alacritty.app";
+            hyprlandClass = "Alacritty";
+            childCommandFlag = "-e";
+          };
+          kitty = {
+            package = pkgs.kitty;
+            binary = "kitty";
+            darwinAppName = "kitty.app";
+            hyprlandClass = "kitty";
+            childCommandFlag = null;
+          };
+        }
+        .${defaultTerminal} or (throw "unsupported defaultTerminal: ${defaultTerminal}");
+
       mkHome =
         {
           system,
           hostModule,
         }:
-        home-manager.lib.homeManagerConfiguration {
+        let
           pkgs = pkgsFor.${system};
-          extraSpecialArgs = { inherit inputs system dotfilesRoot; };
+          terminal = mkTerminal pkgs;
+        in
+        home-manager.lib.homeManagerConfiguration {
+          inherit pkgs;
+          extraSpecialArgs = {
+            inherit
+              inputs
+              system
+              dotfilesRoot
+              terminal
+              ;
+          };
           modules = [
             ./home
             hostModule

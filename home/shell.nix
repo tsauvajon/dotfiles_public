@@ -5,6 +5,7 @@
   pkgs,
   lib,
   inputs,
+  terminal,
   nixglNvidia ? null,
   ...
 }:
@@ -36,17 +37,60 @@ let
     inherit (inputs) nixgl nixgl-nixpkgs;
     inherit nixglNvidia;
   };
+
+  selectedTerminal = wrapWithNixGL terminal.package terminal.binary;
+  terminalLauncher = pkgs.writeShellScriptBin "terminal-launcher" ''
+    class=""
+    hold=0
+
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --class)
+          if [ "$#" -lt 2 ]; then
+            printf '%s\n' 'terminal-launcher: --class requires a value' >&2
+            exit 64
+          fi
+          class="$2"
+          shift 2
+          ;;
+        --hold)
+          hold=1
+          shift
+          ;;
+        --)
+          shift
+          break
+          ;;
+        *)
+          printf '%s\n' "terminal-launcher: unsupported option: $1" >&2
+          exit 64
+          ;;
+      esac
+    done
+
+    if [ "$#" -gt 0 ]; then
+      ${lib.optionalString (
+        terminal.childCommandFlag != null
+      ) ''set -- ${terminal.childCommandFlag} "$@"''}
+    fi
+    if [ -n "$class" ]; then
+      set -- --class "$class" "$@"
+    fi
+    if [ "$hold" -eq 1 ]; then
+      set -- --hold "$@"
+    fi
+
+    exec ${selectedTerminal}/bin/${terminal.binary} "$@"
+  '';
 in
 {
   # tmux is provided by programs.tmux in home/programs/tmux.nix.
   home.packages = [
-    (wrapWithNixGL pkgs.alacritty "alacritty")
     pkgs.bash
     pkgs.coreutils
     pkgs.curl
     pkgs.fish
     pkgs.just
-    (wrapWithNixGL pkgs.kitty "kitty")
     pkgs.socat
     pkgs.tool-habit
     pkgs.websocat
@@ -56,6 +100,8 @@ in
     pkgs.zsh-completions
     pkgs.zsh-powerlevel10k
     pkgs.zsh-syntax-highlighting
+    selectedTerminal
+    terminalLauncher
   ]
   ++ lib.optionals (safeTerminal != null) [ safeTerminal ];
 

@@ -16,6 +16,7 @@
   lib,
   config,
   inputs,
+  terminal,
   ...
 }:
 
@@ -52,12 +53,8 @@ let
       target = "${pkgs.aerospace}/Applications/AeroSpace.app";
     }
     {
-      name = "Alacritty.app";
-      target = "${pkgs.alacritty}/Applications/Alacritty.app";
-    }
-    {
-      name = "Kitty.app";
-      target = "${pkgs.kitty}/Applications/kitty.app";
+      name = terminal.darwinAppName;
+      target = "${terminal.package}/Applications/${terminal.darwinAppName}";
     }
     {
       name = "Obsidian.app";
