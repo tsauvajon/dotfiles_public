@@ -19,6 +19,7 @@ let
       stdenv = { inherit isDarwin isLinux; };
       coreutils = "/nix/store/coreutils";
       curl = "/nix/store/curl";
+      systemd = "/nix/store/systemd";
     };
 
   config = {
@@ -118,6 +119,11 @@ in
         "PATH=/bin"
       ];
     };
+  };
+
+  testLinuxActivationPathIncludesSystemd = {
+    expr = linuxOutput.home.extraActivationPath;
+    expected = [ "/nix/store/systemd" ];
   };
 
   testLinuxServiceActionsPropagateFailures = {

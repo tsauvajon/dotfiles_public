@@ -266,6 +266,8 @@ lib.mkMerge [
   })
 
   (lib.mkIf pkgs.stdenv.isLinux {
+    home.extraActivationPath = [ pkgs.systemd ];
+
     systemd.user.services.${systemdUnitName} = {
       Unit = {
         Description = description;
