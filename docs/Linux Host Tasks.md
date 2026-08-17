@@ -25,7 +25,7 @@ On the Linux host:
    work unchanged.
 4. Consider folding `config/wayland-env.sh` into the new application as the
    single pre-compositor environment source. Today `wayland-env.sh` and
-   `config/hypr/env.conf` are comment-synced duplicates.
+   `config/hypr/hyprland.lua` are comment-synced duplicates.
 5. Rerun `bash setup.sh` on the Linux host and verify a fresh login still starts
    Hyprland.
 6. Delete the private copy once the Home Manager-managed binary is active.

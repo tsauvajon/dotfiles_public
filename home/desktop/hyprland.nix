@@ -1,4 +1,4 @@
-# Hyprland config: HM-managed symlink of the config tree.
+# Hyprland 0.55+ Lua configuration: HM-managed symlink of the config tree.
 { pkgs, lib, ... }:
 
 lib.mkIf pkgs.stdenv.isLinux {
