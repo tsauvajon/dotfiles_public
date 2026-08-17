@@ -3,6 +3,7 @@
   "theme": "catppuccin-mocha-lavender",
   "keybinds": {
     "command_list": "ctrl+p,<leader>p",
+    "session_background": "<leader>b",
     "variant_cycle": "ctrl+t,<leader>t,f3",
     "theme_list": "none",
     "model_cycle_recent": "none",
