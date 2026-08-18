@@ -45,5 +45,5 @@ hyperlinks = true
 post_processing = true
 persist = false
 mouse.enabled = true
-mouse.mods = "Command"
+mouse.mods = "Shift"
 command = "open"
