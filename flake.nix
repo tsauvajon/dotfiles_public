@@ -215,17 +215,20 @@
             }
           );
 
-          # Most upstream test inputs pull uncached SDKs (including Swift via
-          # dotnet) on Darwin. Keep pytest-forked because the retained pytest
-          # phase passes --forked.
-          pre-commit = prev.pre-commit.overridePythonAttrs (_: {
-            doCheck = false;
-            nativeCheckInputs = [ final.python3Packages.pytest-forked ];
-            checkInputs = [ ];
-            preCheck = "";
-            postCheck = "";
-            dontUsePytestCheck = true;
-          });
+          # Upstream integration tests pull uncached language SDKs, including
+          # Swift via dotnet, on Darwin.
+          pre-commit =
+            if final.stdenv.hostPlatform.isDarwin then
+              prev.pre-commit.overridePythonAttrs (_: {
+                doCheck = false;
+                nativeCheckInputs = [ final.python3Packages.pytest-forked ];
+                checkInputs = [ ];
+                preCheck = "";
+                postCheck = "";
+                dontUsePytestCheck = true;
+              })
+            else
+              prev.pre-commit;
         };
 
       mkPkgs =
