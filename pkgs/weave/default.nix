@@ -5,25 +5,25 @@
 }:
 
 let
-  version = "0.3.6";
+  version = "0.5.1";
   assets = {
     aarch64-darwin = {
       target = "aarch64-apple-darwin";
-      cliHash = "sha256-HKSXj9RQkCLPdOi9euTPFAKMbfGyEw4ch2E4BImW9Tc=";
-      driverHash = "sha256-fc/OJY16pWLAAoc4facLw+IshqzC5SFDF+xre6uS2FY=";
-      mcpHash = "sha256-QnYqggwFuFUVJODtA6jmlnsRsu00roOezu/1F8DcnVs=";
+      cliHash = "sha256-C/QcpfiWGw2f2ZeyMDL4K3Db1uT0ZjO4lrAjeiUnEng=";
+      driverHash = "sha256-hn+X5FTiI9hOWD+Ba21lD40NSNhzrCAG5RdDKjSt2W4=";
+      mcpHash = "sha256-fMSYfj2vJXohOG6eC0wVzLhnLKqSpInr3xKFr72ZzP0=";
     };
     x86_64-darwin = {
       target = "x86_64-apple-darwin";
-      cliHash = "sha256-3ZniXl5f0HLj7JdtwWRWZCz02zFiuzZeTbXLUBuVCgo=";
-      driverHash = "sha256-Y0lFdP8XZKCM2gCM0KMihL35OpBKoBcb8umGD1Xx58I=";
-      mcpHash = "sha256-PZNtKnlQQwvqlNlCKWCamVeL9yK0v5/4tyijnZle2D0=";
+      cliHash = "sha256-GozT3FZ31N6NyyiUhwzx+CjvF9h64rHve1U4wogVSZk=";
+      driverHash = "sha256-Gzt7CfOHxHjjseRD8Og2IjrzorgABrhZN6YSoLBOdW4=";
+      mcpHash = "sha256-HI8DulrzepUz94+oN2eRHc2a/Uj790JMlUQMgU46Lr8=";
     };
     x86_64-linux = {
       target = "x86_64-unknown-linux-gnu";
-      cliHash = "sha256-Ny194xZtPOJ+UTGMEvVzQzoMhjCThywv8qz0L4okf4I=";
-      driverHash = "sha256-tjbDjUOic3bd85xOSNqkJ74fhVvMva/ERJY+dUAgZ3M=";
-      mcpHash = "sha256-UBPG0w2DpuEJnTKSjx52KjQSjnZS1K3VJf4mwesL934=";
+      cliHash = "sha256-Y6aLAeredco0fRzI2wJEoRzzZGvnc0HGmirfeCI/xr0=";
+      driverHash = "sha256-CytlzsS5RSd12uFAPMhNB8tp2ktVNv34zNL/yVF3F9s=";
+      mcpHash = "sha256-KuCZC3Gir+CFNChv9/OGQILGyxWKavqCXm/cgbMngW4=";
     };
   };
   asset =

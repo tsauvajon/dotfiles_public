@@ -36,7 +36,9 @@ These are intentionally outside normal flake updates:
 - `home/cargo-locks/helix-file-watcher.Cargo.lock`: Cargo git dependencies are locked separately from Nix flakes.
 - `pkgs/*/default.nix`: every local package that fetches upstream sources or release assets carries manual version and hash pins (`tool-habit` is built from in-repo files and pins nothing). Source-built packages also pin `cargoHash`; binary packages pin one hash per upstream asset. The heavy cases are `pkgs/weave/default.nix` with 9 release asset hashes and `pkgs/herdr/default.nix` with 3.
 - `pkgs/kache/default.nix`: fixed release version, binary hashes for upstream-published platforms, and source/Cargo hashes for fallback builds.
+- `pkgs/marksman/default.nix`: the Darwin-only universal self-contained macOS release asset is pinned by version and hash. Update both literals when moving Marksman; Linux continues to use nixpkgs's source package.
 - `flake.nix`: `opencodePin` overrides the Nix-managed OpenCode binary/server version, source hash, and fixed-output `node_modules` hash. Recompute `nodeModulesHash` with the fixed-output-derivation mismatch flow on every OpenCode bump.
+- `home/lib/rust-toolchain.nix`: the shared Rust toolchain is explicitly pinned to rust-overlay nightly `2026-08-17`. It includes the official `rustc-codegen-cranelift-preview` component, so move the date only after confirming that component is available on every supported system and update the toolchain test at the same time.
 - `config/opencode/package.json`: OpenCode plugin dependencies are installed by Bun during activation, not by Nix flake updates. The `@opencode-ai/plugin` version is injected from `opencodePin.version` at merge time; see [OpenCode Versioning](OpenCode%20Versioning.md).
 - `config/Brewfile` and generated personal casks from `home/personal.nix`: reconciled by Homebrew through `setup.sh`, not by Nix.
 
@@ -59,10 +61,11 @@ When doing a dependency refresh, check each layer explicitly:
 3. Exact-rev public inputs: edit `flake.nix` URLs manually, then update related code or lock files.
 4. Local packages under `pkgs/`: bump versions and refresh source hashes plus `cargoHash`, platform binary hashes, or both for mixed source/binary packages.
 5. Helix plugin Cargo locks: refresh `home/cargo-locks/*.Cargo.lock` when plugin Cargo dependencies move.
-6. OpenCode binary/plugin: update `opencodePin` in `flake.nix` (version + `srcHash` + `nodeModulesHash`; get the new `nodeModulesHash` from the expected FOD mismatch). The plugin version in the generated package.json follows automatically. Run `nix flake check` so `opencode-version-alignment` catches drift.
-7. OpenCode package manifests: update private overlay package manifests when needed, then run `bash setup.sh` so activation runs Bun install.
-8. Private local imports: update or fetch the detached source repos, then run `bash setup.sh` to restage `opencode-imports/`.
-9. Mise tools: edit `~/.config/dotfiles/home/mise.nix` and rerun `bash setup.sh`.
-10. Homebrew casks: update `config/Brewfile` or personal cask toggles, then rerun `bash setup.sh`.
+6. Rust nightly: update the explicit date in `home/lib/rust-toolchain.nix`, verify `rustc-codegen-cranelift-preview` is published by rust-overlay for `x86_64-linux`, `aarch64-darwin`, and `x86_64-darwin`, then update `home/lib/rust-toolchain.test.nix` and run `nix flake check`.
+7. OpenCode binary/plugin: update `opencodePin` in `flake.nix` (version + `srcHash` + `nodeModulesHash`; get the new `nodeModulesHash` from the expected FOD mismatch). The plugin version in the generated package.json follows automatically. Run `nix flake check` so `opencode-version-alignment` catches drift.
+8. OpenCode package manifests: update private overlay package manifests when needed, then run `bash setup.sh` so activation runs Bun install.
+9. Private local imports: update or fetch the detached source repos, then run `bash setup.sh` to restage `opencode-imports/`.
+10. Mise tools: edit `~/.config/dotfiles/home/mise.nix` and rerun `bash setup.sh`.
+11. Homebrew casks: update `config/Brewfile` or personal cask toggles, then rerun `bash setup.sh`.
 
 Do not assume a clean `nix flake update` means every installed tool is current.

@@ -68,8 +68,11 @@ Currently managed:
 - Arch system packages from `packages/arch/pacman.txt` when `pacman` is present
 - macOS LaunchAgents (`Library/LaunchAgents/*.plist`)
 
-See [`docs/nodejs.md`](docs/nodejs.md) for the Bun-first JavaScript workflow and project-local
+See [`docs/Node.js.md`](docs/Node.js.md) for the Bun-first JavaScript workflow and project-local
 Node.js fallback options.
+
+See [`docs/Cranelift.md`](docs/Cranelift.md) for a portable guide to using
+Cranelift for faster Rust development builds.
 
 Linux-only modules are gated with `lib.mkIf pkgs.stdenv.isLinux`, so importing
 this flake on macOS leaves them as no-ops automatically.

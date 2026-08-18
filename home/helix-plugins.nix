@@ -21,7 +21,7 @@ let
     helix-file-watcher
     ;
 
-  stableRust = import ./lib/rust-toolchain.nix { inherit pkgs; };
+  rustToolchain = import ./lib/rust-toolchain.nix { inherit pkgs; };
 
   helixWithSteel = (helix-steel.packages.${system}.default).overrideAttrs (old: {
     cargoBuildFlags = (old.cargoBuildFlags or [ ]) ++ [
@@ -143,7 +143,7 @@ let
       substituteInPlace Cargo.toml \
         --replace-fail \
         'git = "https://github.com/mattwparas/steel.git"' \
-        'git = "https://github.com/mattwparas/steel.git", rev = "09dc028718281d3a398c9f567b3576f156f2b644"'
+        'git = "https://github.com/mattwparas/steel.git", rev = "2640abca12408c11b0d692b41284815c65856cf8"'
       substituteInPlace file-watcher.scm \
         --replace-fail \
         '(when (and helix-doc-last-saved (system-time<? helix-doc-last-saved file-last-modified))' \
@@ -179,7 +179,7 @@ let
         --prefix PATH : ${
           lib.makeBinPath [
             steelPkg
-            stableRust
+            rustToolchain
             pkgs.git
           ]
         }

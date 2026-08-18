@@ -271,11 +271,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1785119570,
-        "narHash": "sha256-Rgs2xKnGLFWQscxUaXX07oyZeuMDOHEbqDOsgliLFGM=",
+        "lastModified": 1786924861,
+        "narHash": "sha256-hftabkb+73OcGzvwFAjCiQorAhprs9TnU1+FkGO5CIw=",
         "owner": "nix-community",
         "repo": "home-manager",
-        "rev": "d4fd24667c8cbef124bb70a20380cab75ec8474d",
+        "rev": "09ae1b85a6db412d841d60f924b23f881f0d0a38",
         "type": "github"
       },
       "original": {
@@ -326,11 +326,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1786313170,
-        "narHash": "sha256-9BG7OgUWdu0ONDO5X2q6+K4bsuBITkX/3W4nNJu1Ito=",
+        "lastModified": 1786943417,
+        "narHash": "sha256-b4qgjdFtlz5TAZ1Hi7DFJeqX3sjaDUnrwr9OO+O1rM0=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "fcb8fcd6bf2d0adecae5bd491afaaaf8311b758d",
+        "rev": "0dd31db7e6dbf9ce05697c4545f6fe01accec994",
         "type": "github"
       },
       "original": {
@@ -386,11 +386,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1786420161,
-        "narHash": "sha256-PU4CY4GUCDFOoS67dGrc/fS6Y+d1cYZSh6nbgYqAAwE=",
+        "lastModified": 1786935912,
+        "narHash": "sha256-26qGGBO364d5JbTMrFchrxp7xY8CJp3D5cjkND99t7E=",
         "owner": "oxalica",
         "repo": "rust-overlay",
-        "rev": "3a646bd5daa3af78a78a1cb32329cb72d18fcae0",
+        "rev": "b479967b8ed7aca40ba52cf12f460484c53928a9",
         "type": "github"
       },
       "original": {
@@ -402,16 +402,16 @@
     "scooter-hx": {
       "flake": false,
       "locked": {
-        "lastModified": 1785094949,
-        "narHash": "sha256-pxvD4yJ1qtS4lUpJIIJZdYnDEYY415aZ03ufBoIt6hQ=",
+        "lastModified": 1786704370,
+        "narHash": "sha256-SaqNvnR/7M5ue1oeqr0rdGwjpVMG99or+DC9o7HZCCk=",
         "ref": "refs/heads/main",
-        "rev": "50c201fa225be496101702bbd35e633ae0da0faf",
-        "revCount": 281,
+        "rev": "0873e2244631ba42d04576776030b2672f0e6202",
+        "revCount": 291,
         "type": "git",
         "url": "https://github.com/thomasschafer/scooter.hx.git"
       },
       "original": {
-        "rev": "50c201fa225be496101702bbd35e633ae0da0faf",
+        "rev": "0873e2244631ba42d04576776030b2672f0e6202",
         "type": "git",
         "url": "https://github.com/thomasschafer/scooter.hx.git"
       }
@@ -444,16 +444,16 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1786136005,
-        "narHash": "sha256-BM+u7deh6AWV/DaLdcR35OdmRH5vDVv+X2wIBZQmAwQ=",
+        "lastModified": 1786813086,
+        "narHash": "sha256-D3+8XkW4nNZn45ckcvuY4WhpaUeYX3taNVgQQ1yFu6I=",
         "ref": "refs/heads/master",
-        "rev": "09dc028718281d3a398c9f567b3576f156f2b644",
-        "revCount": 1188,
+        "rev": "2640abca12408c11b0d692b41284815c65856cf8",
+        "revCount": 1189,
         "type": "git",
         "url": "https://github.com/mattwparas/steel.git"
       },
       "original": {
-        "rev": "09dc028718281d3a398c9f567b3576f156f2b644",
+        "rev": "2640abca12408c11b0d692b41284815c65856cf8",
         "type": "git",
         "url": "https://github.com/mattwparas/steel.git"
       }
@@ -538,11 +538,11 @@
     "yazi-plugins": {
       "flake": false,
       "locked": {
-        "lastModified": 1786091625,
-        "narHash": "sha256-IDmmXzQKFx3QZ9u5lMwcTOeWeMPWzIBeKBXkGAgJMaI=",
+        "lastModified": 1786951261,
+        "narHash": "sha256-/T4bWdpRZrYJqNeUZSlwqf5bCCJiB4Wa273iYNb8eBY=",
         "owner": "yazi-rs",
         "repo": "plugins",
-        "rev": "0be29a913ad61c6d119abfaaf253e96e6af5db67",
+        "rev": "b564235ae6e98b86865d0a23b841d9ddb2edd7f1",
         "type": "github"
       },
       "original": {

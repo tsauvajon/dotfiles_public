@@ -7,13 +7,7 @@
 }:
 
 let
-  stableRust = import ./lib/rust-toolchain.nix { inherit pkgs; };
-  nightlyRustfmt = pkgs.rust-bin.selectLatestNightlyWith (
-    toolchain:
-    toolchain.default.override {
-      extensions = [ "rustfmt" ];
-    }
-  );
+  rustToolchain = import ./lib/rust-toolchain.nix { inherit pkgs; };
   dylintToolchainDate = "2026-04-16";
   dylintToolchain = "nightly-${dylintToolchainDate}";
   dylintRust = pkgs.rust-bin.nightly.${dylintToolchainDate}.default.override {
@@ -54,6 +48,8 @@ let
         export RUSTC="${dylintRust}/bin/rustc"
         export CARGO_BUILD_RUSTC_WRAPPER=
         unset RUSTC_WRAPPER
+        unset CARGO_UNSTABLE_CODEGEN_BACKEND
+        unset CARGO_PROFILE_DEV_CODEGEN_BACKEND
         export LIBRARY_PATH="${dylintLinkLibraryPath}:''${LIBRARY_PATH:-}"
         export PATH="${dylintRust}/bin:$PATH"
         exec "${dylintRust}/bin/cargo" "$@"
@@ -65,6 +61,8 @@ let
     export RUSTC="${dylintRust}/bin/rustc"
     export CARGO_BUILD_RUSTC_WRAPPER=
     unset RUSTC_WRAPPER
+    unset CARGO_UNSTABLE_CODEGEN_BACKEND
+    unset CARGO_PROFILE_DEV_CODEGEN_BACKEND
     export LIBRARY_PATH="${dylintLinkLibraryPath}:''${LIBRARY_PATH:-}"
     export PATH="${dylintRust}/bin:$PATH"
     exec "${dylintRust}/bin/cargo" "$@"
@@ -82,26 +80,27 @@ let
         --set DYLINT_RUSTUP_BIN "${dylintShims}/bin" \
         --set CARGO_BUILD_RUSTC_WRAPPER "" \
         --unset RUSTC_WRAPPER \
+        --unset CARGO_UNSTABLE_CODEGEN_BACKEND \
+        --unset CARGO_PROFILE_DEV_CODEGEN_BACKEND \
         --prefix PATH : "${dylintShims}/bin:${dylintRust}/bin" \
         --prefix LIBRARY_PATH : "${dylintLinkLibraryPath}"
       wrapProgram "$out/bin/dylint-link" \
         --prefix LIBRARY_PATH : "${dylintLinkLibraryPath}"
     '';
   };
-  rustWithNightlyFmt = pkgs.symlinkJoin {
+  cargoLlvmCov = pkgs.writeShellScriptBin "cargo-llvm-cov" ''
+    export CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm
+    exec "${pkgs.cargo-llvm-cov}/bin/cargo-llvm-cov" "$@"
+  '';
+  rustTools = pkgs.symlinkJoin {
     name = "dotfiles-rust";
     paths = [
-      pkgs.cargo-llvm-cov
+      cargoLlvmCov
       pkgs.grcov
       # Kept on PATH because kache delegates uncached invocations to sccache.
       pkgs.sccache
-      stableRust
+      rustToolchain
     ];
-    postBuild = ''
-      rm -f "$out/bin/rustfmt" "$out/bin/cargo-fmt"
-      ln -s ${nightlyRustfmt}/bin/rustfmt "$out/bin/rustfmt"
-      ln -s ${nightlyRustfmt}/bin/cargo-fmt "$out/bin/cargo-fmt"
-    '';
   };
   kacheBin = lib.getExe pkgs.kache;
   kacheLabel = "ninja.kunobi.kache";
@@ -149,7 +148,7 @@ lib.mkMerge [
       dylintTools
       pkgs.kache
       pkgs.protobuf
-      rustWithNightlyFmt
+      rustTools
       (lib.lowPrio pkgs.cargo-nextest)
     ];
 

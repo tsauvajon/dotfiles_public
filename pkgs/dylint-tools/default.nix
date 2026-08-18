@@ -8,16 +8,16 @@
 
 rustPlatform.buildRustPackage rec {
   pname = "dylint-tools";
-  version = "6.0.3";
+  version = "6.0.4";
 
   src = fetchFromGitHub {
     owner = "trailofbits";
     repo = "dylint";
     rev = "v${version}";
-    hash = "sha256-/1LCu68bVGgQtWrVHXMFTE78BYtVj0pctpTvj19Jtwg=";
+    hash = "sha256-CROuPpPzUobUcH3Xl2fpEOVxEBBppmFBaJSRXsEuaXg=";
   };
 
-  cargoHash = "sha256-YEQvBsGl16fAViGQD6rh+ReNwSU+2VuLdoc5GaATdM8=";
+  cargoHash = "sha256-9YAYtVoqMfyeG5sy8Jtt8a894k9AzyhIDEFzyqdzyeI=";
   nativeBuildInputs = [ pkg-config ];
   buildInputs = [ openssl ];
   DOCS_RS = "1";

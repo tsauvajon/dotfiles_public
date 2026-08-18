@@ -8,15 +8,15 @@ let
   sources = {
     aarch64-darwin = {
       target = "aarch64-apple-darwin";
-      hash = "sha256-EXSMvfcHFZvhwY5x/HcGgbgXIIIxgAnfIaA87jgBC1Q=";
+      hash = "sha256-DumyrDn8KMisE9/kGc5Lh2raEc8mkd1QViSwj5Iy3Cg=";
     };
     x86_64-darwin = {
       target = "x86_64-apple-darwin";
-      hash = "sha256-KTYZHCsHtRLGjh7cSEm/6ftEsI8fT0MWkm5d1XJeZdk=";
+      hash = "sha256-WABZC+8a7k01/HB50PizJZ7fHefVJa7uSdp49UFKYbQ=";
     };
     x86_64-linux = {
       target = "x86_64-unknown-linux-gnu";
-      hash = "sha256-LjVftqbvqbiQH9+aa1OBftcVycIwqaeiuQv+Y3gN5DA=";
+      hash = "sha256-iqlpkgq43mob4v9SOX8ZUSD2xMOjbwWqDF3GMsqzLN8=";
     };
   };
 
@@ -26,7 +26,7 @@ let
 in
 stdenvNoCC.mkDerivation rec {
   pname = "tsql";
-  version = "0.6.0";
+  version = "0.7.0";
 
   src = fetchurl {
     url = "https://github.com/fcoury/tsql/releases/download/v${version}/tsql-${source.target}.tar.gz";

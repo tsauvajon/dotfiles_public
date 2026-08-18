@@ -31,11 +31,11 @@
       inputs.rust-overlay.follows = "rust-overlay";
     };
     steel = {
-      url = "git+https://github.com/mattwparas/steel.git?rev=09dc028718281d3a398c9f567b3576f156f2b644";
+      url = "git+https://github.com/mattwparas/steel.git?rev=2640abca12408c11b0d692b41284815c65856cf8";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     scooter-hx = {
-      url = "git+https://github.com/thomasschafer/scooter.hx.git?rev=50c201fa225be496101702bbd35e633ae0da0faf";
+      url = "git+https://github.com/thomasschafer/scooter.hx.git?rev=0873e2244631ba42d04576776030b2672f0e6202";
       flake = false;
     };
     fake-warp-hx = {
@@ -159,6 +159,8 @@
           glim = final.callPackage ./pkgs/glim { };
           herdr = final.callPackage ./pkgs/herdr { };
           kache = final.callPackage ./pkgs/kache { };
+          marksman =
+            if final.stdenv.hostPlatform.isDarwin then final.callPackage ./pkgs/marksman { } else prev.marksman;
           sem = final.callPackage ./pkgs/sem { };
           tool-habit = final.callPackage ./pkgs/tool-habit { };
           tsql = final.callPackage ./pkgs/tsql { };
@@ -212,6 +214,18 @@
               ];
             }
           );
+
+          # Most upstream test inputs pull uncached SDKs (including Swift via
+          # dotnet) on Darwin. Keep pytest-forked because the retained pytest
+          # phase passes --forked.
+          pre-commit = prev.pre-commit.overridePythonAttrs (_: {
+            doCheck = false;
+            nativeCheckInputs = [ final.python3Packages.pytest-forked ];
+            checkInputs = [ ];
+            preCheck = "";
+            postCheck = "";
+            dontUsePytestCheck = true;
+          });
         };
 
       mkPkgs =
@@ -445,6 +459,67 @@
         primaryContextCheck = import ./config/opencode/plugin-tests/primary-context.test.nix {
           inherit pkgs;
         };
+        rustToolchainSmokeCheck =
+          let
+            rustToolchain = import ./home/lib/rust-toolchain.nix { inherit pkgs; };
+          in
+          pkgs.runCommand "rust-toolchain-smoke" { nativeBuildInputs = [ rustToolchain ]; } ''
+            export HOME="$TMPDIR"
+            export CARGO_HOME="$TMPDIR/cargo-home"
+
+            for binary in cargo rustc rustfmt cargo-fmt cargo-clippy clippy-driver rust-analyzer; do
+              command -v "$binary" >/dev/null || {
+                echo "missing Rust toolchain binary: $binary" >&2
+                exit 1
+              }
+            done
+
+            mkdir -p src
+            cat > Cargo.toml <<'EOF'
+            [package]
+            name = "rust-toolchain-smoke"
+            version = "0.1.0"
+            edition = "2024"
+            EOF
+            cat > src/main.rs <<'EOF'
+            fn main() {
+                println!("smoke");
+            }
+            EOF
+
+            check_backend() {
+              output="$(<"$1")"
+              backend="$2"
+              case "$output" in
+                *"codegen-backend=$backend"*) ;;
+                *)
+                  echo "expected $backend backend in $1" >&2
+                  exit 1
+                  ;;
+              esac
+            }
+
+            cargo build --offline -vv > dev-output 2>&1
+            check_backend dev-output cranelift
+            test "$(target/debug/rust-toolchain-smoke)" = smoke
+
+            cargo clean
+            CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm cargo build --offline -vv > llvm-output 2>&1
+            check_backend llvm-output llvm
+            test "$(target/debug/rust-toolchain-smoke)" = smoke
+
+            cargo clean
+            cargo build --offline --release -vv > release-output 2>&1
+            case "$(<release-output)" in
+              *"codegen-backend="*)
+                echo "release unexpectedly selected an explicit codegen backend" >&2
+                exit 1
+                ;;
+            esac
+            test "$(target/release/rust-toolchain-smoke)" = smoke
+
+            touch "$out"
+          '';
       in
       {
         formatter = pkgs.nixfmt-rfc-style;
@@ -498,6 +573,7 @@
             yazi-live-search-test = yaziLiveSearchCheck;
             cargo-build-env-test = cargoBuildEnvCheck;
             primary-context-test = primaryContextCheck;
+            rust-toolchain-smoke = rustToolchainSmokeCheck;
           };
       }
     )
