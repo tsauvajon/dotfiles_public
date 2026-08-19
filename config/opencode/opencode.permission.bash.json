@@ -2,9 +2,12 @@
   "permission": {
     "bash": {
       "*": "ask",
+      "*$BIN *": "deny",
+      "*\"$BIN\" *": "deny",
       "rm -rf *": "deny",
       "./pleasew *": "allow",
       "./scripts/*.sh *": "allow",
+      "scripts/* *": "allow",
       "./setup.sh *": "allow",
       "/usr/bin/time -p nix flake check *": "allow",
       "asdf *": "allow",
