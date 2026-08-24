@@ -174,7 +174,7 @@ pkgs.runCommand "opencode-ops-test"
           OPENCODE_PERMISSION_MONITOR_SOURCE_ONLY=1 \
           . "$permissionMonitor"
 
-        [ "$INTERVAL" = "15" ] || fail "permission monitor default interval should be 15 seconds, got $INTERVAL"
+        [ "$INTERVAL" = "4" ] || fail "permission monitor default interval should be 4 seconds, got $INTERVAL"
 
         assert_legacy_decision() {
           expected=$1
