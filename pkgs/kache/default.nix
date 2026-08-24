@@ -7,16 +7,16 @@
 }:
 
 let
-  version = "0.14.2";
+  version = "0.15.0";
 
   prebuiltSources = {
     aarch64-darwin = {
       target = "aarch64-apple-darwin";
-      hash = "sha256-aSkv50LwVMhj6dPzvO0qjlxG7pfJu2dCQyzHXdgsObM=";
+      hash = "sha256-ZQWdQZDb8slZqz4B16MUfrvHxk0/P6gdH91ZbizVIaU=";
     };
     aarch64-linux = {
       target = "aarch64-unknown-linux-musl";
-      hash = "sha256-KJL9fWJD7HkYecVThpHdxQGTSuinD1vfSXVn6vzOHTk=";
+      hash = "sha256-9TgKWpshXGdeorPejoFKoLKuIttAeh1z6BxmKSJf3Xg=";
     };
   };
 
@@ -84,10 +84,10 @@ else if builtins.elem stdenvNoCC.hostPlatform.system sourceBuildPlatforms then
       owner = "kunobi-ninja";
       repo = "kache";
       rev = "v${version}";
-      hash = "sha256-2hwzyWKZ+A03mtHAKy3cXHwakJIQjRn0/NUiEzCHABw=";
+      hash = "sha256-kluyxW58lWw8XOUSG0IPEcyesuPoXRVIeGF+kPPqOa8=";
     };
 
-    cargoHash = "sha256-XJMCWLZyuodvpxy/DLjFPFOQnPzbAszKXTTNKyMCGnE=";
+    cargoHash = "sha256-E63ZKqGlKZ7qY9syLBa1jYjxsrKjAStIliAAgOzyZn8=";
     cargoBuildFlags = [
       "-p"
       "kache"
