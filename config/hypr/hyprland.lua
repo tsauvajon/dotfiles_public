@@ -259,9 +259,9 @@ hl.bind("SUPER + up", hl.dsp.exec_cmd("pypr layout_center prev2")) -- Falls back
 hl.bind("SUPER + down", hl.dsp.exec_cmd("pypr layout_center next2")) -- Falls back to movefocus down.
 
 -- Dell U4025QW input switching via DDC/CI. Requires i2c-dev and i2c group access.
-hl.bind("CTRL + ALT + 1", hl.dsp.exec_cmd("monitor-input thunderbolt"))
-hl.bind("CTRL + ALT + 2", hl.dsp.exec_cmd("monitor-input dp"))
-hl.bind("CTRL + ALT + 3", hl.dsp.exec_cmd("monitor-input hdmi"))
+hl.bind("CTRL + ALT + 1", hl.dsp.exec_cmd("~/.nix-profile/bin/monitor-input thunderbolt"))
+hl.bind("CTRL + ALT + 2", hl.dsp.exec_cmd("~/.nix-profile/bin/monitor-input dp"))
+hl.bind("CTRL + ALT + 3", hl.dsp.exec_cmd("~/.nix-profile/bin/monitor-input hdmi"))
 
 ----------------------------
 ---- WINDOW AND LAYER RULES -
