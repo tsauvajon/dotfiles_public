@@ -46,6 +46,7 @@ let
   # exporters. See infra/arch-printer-exporter in homeserver/grafana-dashboards.
   privatePrinterExporter = privatePersonal."printer-exporter" or { };
   privateCupsExporter = privatePersonal."cups-exporter" or { };
+  privateMaintenanceExporter = privatePersonal."brother-maintenance-exporter" or { };
 
   printerExporterUrl =
     bindAddress: "http://${bindAddress}/metrics";
@@ -203,6 +204,32 @@ in
       default = privateCupsExporter.cupsUri or "http://localhost:631";
       description = "URI of the CUPS server the exporter queries over IPP/HTTP.";
     };
+
+    printerMaintenanceExporter.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = privateMaintenanceExporter.enable or false;
+      description = ''
+        Run the Brother maintenance-info exporter (toner/drum/tray percentages
+        decoded from private OIDs) as a user service. Defaults to false
+        because only hosts on the printer's home LAN can reach the device;
+        the private overlay opts in per host and supplies bindAddress.
+      '';
+    };
+
+    printerMaintenanceExporter.bindAddress = lib.mkOption {
+      type = lib.types.str;
+      default = privateMaintenanceExporter.bindAddress or "127.0.0.1:9629";
+      description = ''
+        Address the exporter binds. Use the host's Tailscale IPv4 so
+        exposure is governed by the tailnet policy alone.
+      '';
+    };
+
+    printerMaintenanceExporter.snmpHost = lib.mkOption {
+      type = lib.types.str;
+      default = privateMaintenanceExporter.snmpHost or "192.168.0.158";
+      description = "LAN address of the Brother printer to poll over SNMPv1.";
+    };
   };
 
   config =
@@ -319,6 +346,49 @@ in
             url = exporterUrl;
             waitAttempts = 50;
             waitDescription = "CUPS exporter";
+            watchedPaths = [ ];
+            workingDirectory = config.home.homeDirectory;
+          }
+        ))
+        (lib.mkIf (cfg.printerMaintenanceExporter.enable && pkgs.stdenv.isLinux) (
+          let
+            bindAddress = cfg.printerMaintenanceExporter.bindAddress;
+            snmpHost = cfg.printerMaintenanceExporter.snmpHost;
+            exporterUrl = printerExporterUrl bindAddress;
+            execArgs = [
+              "${pkgs.brother-maintenance-exporter}/bin/brother-maintenance-exporter"
+              "--bind=${bindAddress}"
+              "--snmp-host=${snmpHost}"
+            ];
+          in
+          (import ./lib/managed-user-service.nix) { inherit config pkgs lib; } {
+            activationName = "printerMaintenanceExporter";
+            changedMessage = "Brother maintenance exporter inputs changed; restarting service";
+            darwinProgramArguments = execArgs;
+            deferredFollowup = "Run setup.sh from a normal shell to restart the Brother maintenance exporter safely";
+            deferredMessage = "Brother maintenance exporter restart deferred because setup is running under an OpenCode agent";
+            description = "Brother printer maintenance-info prometheus exporter";
+            environment = { };
+            errorLogFile = "${config.xdg.dataHome}/brother-maintenance-exporter/error.log";
+            # The exporter always answers /metrics (brother_maintenance_up 0 on
+            # scrape failure), so health checks never loop-restart it.
+            healthCommand = ''${pkgs.curl}/bin/curl --fail --silent --max-time 2 '${exporterUrl}' >/dev/null 2>&1'';
+            label = "dev.brother.maintenance";
+            linuxExecStart = lib.escapeShellArgs execArgs;
+            linuxService.TimeoutStopSec = "10s";
+            logFile = "${config.xdg.dataHome}/brother-maintenance-exporter/log";
+            markerFile = "${config.xdg.cacheHome}/dotfiles/brother-maintenance-exporter.sha256";
+            occupiedHint = "If ${bindAddress} is held by an old exporter process, kill it manually and rerun setup.sh";
+            restartFailureWarning = "Brother maintenance exporter restart failed or did not become healthy at ${exporterUrl}";
+            serviceFingerprint = builtins.toJSON {
+              inherit bindAddress snmpHost;
+              bin = toString pkgs.brother-maintenance-exporter;
+            };
+            systemdService = "brother-maintenance-exporter.service";
+            systemdUnitName = "brother-maintenance-exporter";
+            url = exporterUrl;
+            waitAttempts = 50;
+            waitDescription = "Brother maintenance exporter";
             watchedPaths = [ ];
             workingDirectory = config.home.homeDirectory;
           }
