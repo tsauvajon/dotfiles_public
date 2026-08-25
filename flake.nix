@@ -154,6 +154,7 @@
         in
         {
           cargo-coupling = final.callPackage ./pkgs/cargo-coupling { };
+          cups-exporter = final.callPackage ./pkgs/cups-exporter { };
           dylint-tools = final.callPackage ./pkgs/dylint-tools { };
           dumap = final.callPackage ./pkgs/dumap { };
           glim = final.callPackage ./pkgs/glim { };
