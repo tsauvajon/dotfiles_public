@@ -47,6 +47,7 @@ let
   privatePrinterExporter = privatePersonal."printer-exporter" or { };
   privateCupsExporter = privatePersonal."cups-exporter" or { };
   privateMaintenanceExporter = privatePersonal."brother-maintenance-exporter" or { };
+  privateOpencodeExporter = privatePersonal."opencode-exporter" or { };
 
   printerExporterUrl =
     bindAddress: "http://${bindAddress}/metrics";
@@ -230,6 +231,35 @@ in
       default = privateMaintenanceExporter.snmpHost or "192.168.0.158";
       description = "LAN address of the Brother printer to poll over SNMPv1.";
     };
+
+    opencodeExporter.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = privateOpencodeExporter.enable or false;
+      description = ''
+        Run the OpenCode shared-server usage exporter as a user service.
+        Defaults to false because it is only useful on hosts running the
+        shared OpenCode server that monitoring should scrape; the private
+        overlay opts in per host and supplies bindAddress.
+      '';
+    };
+
+    opencodeExporter.bindAddress = lib.mkOption {
+      type = lib.types.str;
+      default = privateOpencodeExporter.bindAddress or "127.0.0.1:9630";
+      description = ''
+        Address the exporter binds. Use the host's Tailscale IPv4 so
+        exposure is governed by the tailnet policy alone.
+      '';
+    };
+
+    opencodeExporter.serverUrl = lib.mkOption {
+      type = lib.types.str;
+      default = privateOpencodeExporter.serverUrl or "http://127.0.0.1:4096";
+      description = ''
+        Base URL of the local shared OpenCode server
+        (programs.opencode.sharedServer) to poll.
+      '';
+    };
   };
 
   config =
@@ -389,6 +419,49 @@ in
             url = exporterUrl;
             waitAttempts = 50;
             waitDescription = "Brother maintenance exporter";
+            watchedPaths = [ ];
+            workingDirectory = config.home.homeDirectory;
+          }
+        ))
+        (lib.mkIf (cfg.opencodeExporter.enable && pkgs.stdenv.isLinux) (
+          let
+            bindAddress = cfg.opencodeExporter.bindAddress;
+            serverUrl = cfg.opencodeExporter.serverUrl;
+            exporterUrl = printerExporterUrl bindAddress;
+            execArgs = [
+              "${pkgs.opencode-exporter}/bin/opencode-exporter"
+              "--bind=${bindAddress}"
+              "--server-url=${serverUrl}"
+            ];
+          in
+          (import ./lib/managed-user-service.nix) { inherit config pkgs lib; } {
+            activationName = "opencodeExporter";
+            changedMessage = "OpenCode exporter inputs changed; restarting service";
+            darwinProgramArguments = execArgs;
+            deferredFollowup = "Run setup.sh from a normal shell to restart the OpenCode exporter safely";
+            deferredMessage = "OpenCode exporter inputs changed; restart deferred because setup is running under an OpenCode agent";
+            description = "OpenCode shared-server usage prometheus exporter";
+            environment = { };
+            errorLogFile = "${config.xdg.dataHome}/opencode-exporter/error.log";
+            # The exporter always answers /metrics (opencode_up 0 when the
+            # shared server is down), so health checks never loop-restart it.
+            healthCommand = ''${pkgs.curl}/bin/curl --fail --silent --max-time 2 '${exporterUrl}' >/dev/null 2>&1'';
+            label = "dev.opencode.exporter";
+            linuxExecStart = lib.escapeShellArgs execArgs;
+            linuxService.TimeoutStopSec = "10s";
+            logFile = "${config.xdg.dataHome}/opencode-exporter/log";
+            markerFile = "${config.xdg.cacheHome}/dotfiles/opencode-exporter.sha256";
+            occupiedHint = "If ${bindAddress} is held by an old exporter process, kill it manually and rerun setup.sh";
+            restartFailureWarning = "OpenCode exporter restart failed or did not become healthy at ${exporterUrl}";
+            serviceFingerprint = builtins.toJSON {
+              inherit bindAddress serverUrl;
+              bin = toString pkgs.opencode-exporter;
+            };
+            systemdService = "opencode-exporter.service";
+            systemdUnitName = "opencode-exporter";
+            url = exporterUrl;
+            waitAttempts = 50;
+            waitDescription = "OpenCode exporter";
             watchedPaths = [ ];
             workingDirectory = config.home.homeDirectory;
           }
