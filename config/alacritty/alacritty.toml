@@ -46,4 +46,3 @@ post_processing = true
 persist = false
 mouse.enabled = true
 mouse.mods = "Shift"
-command = "open"
