@@ -135,6 +135,15 @@
   #   ~/.config/dotfiles/ssh/config
   #     Private SSH hosts; included from ~/.ssh/config.
   #
+  #   ~/.config/dotfiles/keys/opencode-git-signing(.pub)
+  #     Passphrase-less SSH keypair used by the OpenCode git-signing plugin:
+  #     commits and tags made inside OpenCode shell sessions are signed with
+  #     this key instead of your interactive one. Generated automatically by
+  #     scripts/bootstrap-keys.sh when missing. Register the .pub on GitHub
+  #     as a signing key to get Verified badges:
+  #       gh ssh-key add ~/.config/dotfiles/keys/opencode-git-signing.pub \
+  #         --title "opencode-<host>" --type signing
+  #
   #   ~/.config/dotfiles/cargo.<name>.toml
   #     Cargo overlays, appended onto config/cargo/cargo-config.toml.
   #

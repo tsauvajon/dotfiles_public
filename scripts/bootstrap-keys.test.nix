@@ -53,6 +53,12 @@ pkgs.runCommand "bootstrap-keys-test"
         cp -R "$scriptsDir" "$fake_repo/scripts"
         chmod -R u+w "$fake_repo/scripts"
         chmod +x "$fake_repo/scripts/bootstrap-keys.sh" "$fake_repo/scripts/lib/patch-empty-string-field.sh"
+
+        # The sandbox has no /usr/bin/env, so env-based shebangs cannot exec.
+        # Point the copied scripts straight at the Nix-provided bash.
+        sed -i "1s|^.*$|#!${pkgs.bash}/bin/bash|" \
+          "$fake_repo/scripts/bootstrap-keys.sh" \
+          "$fake_repo/scripts/lib/patch-empty-string-field.sh"
         bootstrap="$fake_repo/scripts/bootstrap-keys.sh"
 
         bin_dir="$TMPDIR/bin"
@@ -231,6 +237,15 @@ pkgs.runCommand "bootstrap-keys-test"
           chmod 644 "$home_dir/.ssh/id_ed25519.pub"
         }
 
+        make_existing_opencode_keypair() {
+          mkdir -p "$private_dir/keys"
+          chmod 700 "$private_dir/keys"
+          printf 'existing fake opencode private key\n' > "$private_dir/keys/opencode-git-signing"
+          chmod 600 "$private_dir/keys/opencode-git-signing"
+          printf 'ssh-ed25519 existing-opencode-public-key\n' > "$private_dir/keys/opencode-git-signing.pub"
+          chmod 644 "$private_dir/keys/opencode-git-signing.pub"
+        }
+
         run_bootstrap() {
           expected_rc="$1"
           shift
@@ -262,21 +277,30 @@ pkgs.runCommand "bootstrap-keys-test"
         assert_contains "Public keys ready for upload" "$last_output"
         assert_contains "--usage-type auth_and_signing" "$last_output"
         assert_contains "--type signing" "$last_output"
+        assert_file "$private_dir/keys/opencode-git-signing"
+        assert_file "$private_dir/keys/opencode-git-signing.pub"
+        assert_mode "$private_dir/keys/opencode-git-signing" 600
+        assert_mode "$private_dir/keys/opencode-git-signing.pub" 644
+        assert_contains "generating OpenCode commit-signing key" "$last_output"
+        assert_contains 'opencode-testhost' "$last_output"
 
         # 2. Idempotent rerun reuses the same state and does not generate another key.
         sync_attrs_from_flake
         run_bootstrap 0
         assert_contains "already bootstrapped" "$last_output"
         assert_not_contains "Public keys ready for upload" "$last_output"
+        assert_not_contains "generating OpenCode commit-signing key" "$last_output"
 
         # 3. A configured signing key and existing keypair are left unchanged.
         setup_case case03-configured "Grace Hopper" "grace@example.test" "~/.ssh/custom.pub"
         make_existing_ssh_keypair
+        make_existing_opencode_keypair
         run_bootstrap 0
         assert_eq "~/.ssh/custom.pub" "$(attr_from_flake signingKey)" "configured signing key"
         assert_contains "already bootstrapped" "$last_output"
         assert_not_contains "Public keys ready for upload" "$last_output"
         assert_not_contains "Upload commands:" "$last_output"
+        assert_not_contains "generating OpenCode commit-signing key" "$last_output"
 
         # 4. An empty signing key adopts an existing default SSH keypair.
         setup_case case04-adopt-existing "Existing User" "existing@example.test" ""
@@ -285,6 +309,7 @@ pkgs.runCommand "bootstrap-keys-test"
         run_bootstrap 0
         assert_eq "~/.ssh/id_ed25519.pub" "$(attr_from_flake signingKey)" "adopted signing key path"
         assert_not_contains "generating SSH key" "$last_output"
+        assert_file "$private_dir/keys/opencode-git-signing"
 
         # 5. Existing SSH private key with missing public key is repaired using ssh-keygen -y.
         setup_case case05-recreate-ssh-pub "SSH Repair" "repair@example.test" "~/.ssh/id_ed25519.pub"
@@ -338,11 +363,13 @@ pkgs.runCommand "bootstrap-keys-test"
         # 10. --show prints upload hints even with no changes.
         setup_case case10-show "Show User" "show@example.test" "~/.ssh/id_ed25519.pub"
         make_existing_ssh_keypair
+        make_existing_opencode_keypair
         run_bootstrap 0 --show
         assert_contains "Public keys ready for upload" "$last_output"
         assert_contains "glab ssh-key add" "$last_output"
         assert_contains "gh ssh-key add" "$last_output"
         assert_contains "--type signing" "$last_output"
+        assert_contains 'opencode-testhost' "$last_output"
 
         # 11. Flag misuse exits 2 before doing any bootstrap work.
         setup_case case11-name-without-value "Flags" "flags@example.test" ""
@@ -352,6 +379,26 @@ pkgs.runCommand "bootstrap-keys-test"
         setup_case case11-unknown-flag "Flags" "flags@example.test" ""
         run_bootstrap 2 --definitely-unknown
         assert_contains "unknown argument" "$last_output"
+
+        # 12. An existing OpenCode signing keypair is never regenerated.
+        setup_case case12-opencode-exists "Kept Key" "kept@example.test" "~/.ssh/id_ed25519.pub"
+        make_existing_ssh_keypair
+        make_existing_opencode_keypair
+        run_bootstrap 0
+        assert_contains "already bootstrapped" "$last_output"
+        assert_not_contains "generating OpenCode commit-signing key" "$last_output"
+        assert_eq "existing fake opencode private key" "$(cat "$private_dir/keys/opencode-git-signing")" \
+          "existing opencode private key preserved"
+
+        # 13. A missing OpenCode signing public key is repaired via ssh-keygen -y.
+        setup_case case13-opencode-pub-missing "OC Repair" "oc-repair@example.test" "~/.ssh/id_ed25519.pub"
+        make_existing_ssh_keypair
+        make_existing_opencode_keypair
+        rm -f "$private_dir/keys/opencode-git-signing.pub"
+        run_bootstrap 0
+        assert_file "$private_dir/keys/opencode-git-signing.pub"
+        assert_mode "$private_dir/keys/opencode-git-signing.pub" 644
+        assert_contains "recreating OpenCode signing public key" "$last_output"
 
         echo "all bootstrap-keys assertions passed"
         touch "$out"

@@ -3,7 +3,8 @@
 #
 # This script is intentionally idempotent. It creates the missing personal key,
 # fills git.{name,email,signingKey} in the private flake when it can do so
-# safely, and prints upload instructions only when useful.
+# safely, generates the OpenCode commit-signing key when missing, and prints
+# upload instructions only when useful.
 set -euo pipefail
 umask 077
 
@@ -20,6 +21,8 @@ usage: $(basename "$0") [--show] [--name "Full Name"] [--email "you@example.com"
 
 Generates the default SSH key and patches git.{name,email,signingKey}
 in ~/.config/dotfiles/flake.nix when those fields are empty literals.
+Also generates the passphrase-less OpenCode commit-signing key under
+<private dir>/keys/ when missing.
 
 Flags:
   --name   Seed git.name when empty in the flake.
@@ -76,6 +79,8 @@ fi
 private_flake="$private_ref/flake.nix"
 ssh_key="$HOME/.ssh/id_ed25519"
 ssh_pub="$ssh_key.pub"
+opencode_key="$private_ref/keys/opencode-git-signing"
+opencode_pub="$opencode_key.pub"
 changed=0
 
 log() {
@@ -201,6 +206,45 @@ ensure_ssh_key() {
   changed=1
 }
 
+# Passphrase-less signing key used by the OpenCode git-signing plugin for
+# commits made inside OpenCode shell sessions. Lives under the private
+# overlay so it never enters the public repo.
+ensure_opencode_signing_key() {
+  local pub_tmp
+
+  mkdir -p "$(dirname "$opencode_key")"
+
+  if [ -f "$opencode_key" ]; then
+    log "OpenCode signing key already present: $opencode_key"
+    if [ ! -f "$opencode_pub" ]; then
+      warn "OpenCode signing public key missing: $opencode_pub"
+      if command -v ssh-keygen >/dev/null 2>&1; then
+        log "recreating OpenCode signing public key from $opencode_key"
+        pub_tmp=$(mktemp "$opencode_pub.tmp.XXXXXX")
+        if ssh-keygen -y -f "$opencode_key" > "$pub_tmp" && [ -s "$pub_tmp" ]; then
+          mv "$pub_tmp" "$opencode_pub"
+          chmod 644 "$opencode_pub"
+          changed=1
+        else
+          rm -f "$pub_tmp"
+          warn "could not recreate $opencode_pub"
+        fi
+      else
+        warn 'ssh-keygen not found; cannot recreate OpenCode signing public key'
+      fi
+    fi
+    return 0
+  fi
+
+  command -v ssh-keygen >/dev/null 2>&1 || die 'ssh-keygen not found on PATH'
+
+  log "generating OpenCode commit-signing key: $opencode_key"
+  ssh-keygen -t ed25519 -N "" -C "opencode-commit-signing" -f "$opencode_key"
+  chmod 600 "$opencode_key"
+  [ -f "$opencode_pub" ] && chmod 644 "$opencode_pub"
+  changed=1
+}
+
 print_upload_hints() {
   local host_title
   host_title=$(hostname -s 2>/dev/null || hostname 2>/dev/null || printf 'new-machine')
@@ -217,6 +261,15 @@ print_upload_hints() {
     printf '  gh auth status && gh ssh-key add "%s" --title "%s" --type signing\n' "$ssh_pub" "$host_title"
   else
     printf '\nNo SSH public key is available at %s.\n' "$ssh_pub"
+  fi
+
+  if [ -f "$opencode_pub" ]; then
+    printf '\nOpenCode signing public key: %s\n\n' "$opencode_pub"
+    print_file "$opencode_pub"
+    printf '\nUpload command (signing only):\n'
+    printf '  gh auth status && gh ssh-key add "%s" --title "opencode-%s" --type signing\n' "$opencode_pub" "$host_title"
+  else
+    printf '\nNo OpenCode signing public key is available at %s.\n' "$opencode_pub"
   fi
 
   printf '\n'
@@ -252,6 +305,8 @@ main() {
     patch_signing_key '~/.ssh/id_ed25519.pub' || true
     changed=1
   fi
+
+  ensure_opencode_signing_key
 
   if [ "$changed" -eq 1 ] || [ "$show_keys" -eq 1 ]; then
     print_upload_hints
