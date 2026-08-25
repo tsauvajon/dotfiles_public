@@ -463,6 +463,9 @@
         primaryContextCheck = import ./config/opencode/plugin-tests/primary-context.test.nix {
           inherit pkgs;
         };
+        gitSigningCheck = import ./config/opencode/plugin-tests/git-signing.test.nix {
+          inherit pkgs;
+        };
         rustToolchainSmokeCheck =
           let
             rustToolchain = import ./home/lib/rust-toolchain.nix { inherit pkgs; };
@@ -577,6 +580,7 @@
             yazi-live-search-test = yaziLiveSearchCheck;
             cargo-build-env-test = cargoBuildEnvCheck;
             primary-context-test = primaryContextCheck;
+            git-signing-test = gitSigningCheck;
             rust-toolchain-smoke = rustToolchainSmokeCheck;
           };
       }
