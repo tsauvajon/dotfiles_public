@@ -46,3 +46,4 @@ post_processing = true
 persist = false
 mouse.enabled = true
 mouse.mods = "Shift"
+command = { program = "sh", args = ["-c", 'xdg-open "$0" 2>/dev/null || open "$0"', "url"] }
