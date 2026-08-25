@@ -17,8 +17,8 @@ hl.monitor({
 
 hl.on("hyprland.start", function()
     hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP")
-    hl.exec_cmd("waybar &")
-    hl.exec_cmd("mako &")
+    hl.exec_cmd("~/.nix-profile/bin/waybar &")
+    hl.exec_cmd("~/.nix-profile/bin/mako &")
     hl.exec_cmd("~/.nix-profile/bin/terminal-launcher --class ssh-add -- ssh-add ~/.ssh/id_ed25519")
 end)
 
@@ -163,13 +163,13 @@ hl.animation({ leaf = "workspaces", enabled = true, speed = 5, bezier = "wind" }
 local terminal = "~/.nix-profile/bin/terminal-launcher"
 local fallbackTerminal = "~/.nix-profile/bin/safe-terminal"
 local browser = "firefox"
-local compatibleBrowser = "chromium"
-local notes = "obsidian"
-local fileManager = "~/.nix-profile/bin/terminal-launcher --class terminal-yazi --hold -- yazi"
-local passwordManager = "keepassxc"
-local screenshot = "grim -g \"$(slurp)\" - | swappy -f -"
-local menu = "rofi -show drun"
-local procViewer = "~/.nix-profile/bin/terminal-launcher --hold -- htop"
+local compatibleBrowser = "~/.nix-profile/bin/chromium"
+local notes = "~/.nix-profile/bin/obsidian"
+local fileManager = "~/.nix-profile/bin/terminal-launcher --class terminal-yazi --hold -- ~/.nix-profile/bin/yazi"
+local passwordManager = "~/.nix-profile/bin/keepassxc"
+local screenshot = "grim -g \"$(slurp)\" - | ~/.nix-profile/bin/swappy -f -"
+local menu = "~/.nix-profile/bin/rofi -show drun"
+local procViewer = "~/.nix-profile/bin/terminal-launcher --hold -- ~/.nix-profile/bin/htop"
 local reloadBar = "~/.config/waybar/scripts/reload.sh"
 
 hl.bind("SUPER + Q", hl.dsp.exit())
