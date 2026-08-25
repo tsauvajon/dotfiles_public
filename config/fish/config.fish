@@ -26,11 +26,6 @@ end
 set -U __done_min_cmd_duration 10000
 set -U __done_notification_urgency_level low
 
-# Apply .profile
-if test -f ~/.fish_profile
-    source ~/.fish_profile
-end
-
 function __dotfiles_prepend_path_once --argument-names dir
     if test -d "$dir"
         set -l entries
@@ -70,6 +65,11 @@ set --export GOPATH "$HOME/go"
 set --export PATH $GOPATH/bin $PATH
 
 __dotfiles_prefer_nix_bins
+
+# Apply login hooks after PATH is ready; fish_profile may exec the compositor.
+if test -f ~/.fish_profile
+    source ~/.fish_profile
+end
 
 ## Run fastfetch at start
 function fish_greeting
