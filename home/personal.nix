@@ -42,6 +42,13 @@ let
   privateTailscale = privatePersonal.tailscale or { };
   privatePlezy = privatePersonal.plezy or { };
   privateImmich = privatePersonal.immich or { };
+  # Dashed keys: only hosts whose private overlay opts in run these
+  # exporters. See infra/arch-printer-exporter in homeserver/grafana-dashboards.
+  privatePrinterExporter = privatePersonal."printer-exporter" or { };
+  privateCupsExporter = privatePersonal."cups-exporter" or { };
+
+  printerExporterUrl =
+    bindAddress: "http://${bindAddress}/metrics";
 
   cfg = config.dotfiles.personal;
 
@@ -144,29 +151,177 @@ in
       default = privateImmich.enable or true;
       description = "Install the Immich CLI for photo management on personal hosts.";
     };
-  };
 
-  config = lib.mkIf cfg.enable {
-    home.packages =
-      lib.optionals cfg.signal.enable [ pkgs.signal-desktop ]
-      ++ lib.optionals (cfg.chromium.enable && pkgs.stdenv.isLinux) [
-        (pkgs.chromium.override { enableWideVine = true; })
-      ]
-      ++ lib.optionals (cfg.naps2.enable && pkgs.stdenv.isLinux) [ pkgs.naps2 ]
-      ++ lib.optionals (cfg.tailscale.enable && pkgs.stdenv.isLinux) [ pkgs.tailscale ]
-      ++ lib.optionals cfg.plezy.enable [ plezyPackage ]
-      ++ lib.optionals cfg.immich.enable [ pkgs.immich-cli ];
-
-    services.syncthing = lib.mkIf cfg.syncthing.enable {
-      enable = true;
-      extraOptions = [ "--allow-newer-config" ];
+    printerExporter.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = privatePrinterExporter.enable or false;
+      description = ''
+        Run the Brother printer snmp_exporter bridge as a user service.
+        Defaults to false because only hosts on the printer's home LAN can
+        reach the device; the private overlay opts in per host and supplies
+        bindAddress and configFile.
+      '';
     };
 
-    # Only write Brewfile.personal on Darwin and only when at least
-    # one cask is selected. Skipping the file entirely when empty
-    # keeps `setup.sh` quiet on unaffected hosts.
-    xdg.configFile."dotfiles-managed/Brewfile.personal" = lib.mkIf (
-      pkgs.stdenv.isDarwin && personalBrewfileLines != [ ]
-    ) { text = personalBrewfileText; };
+    printerExporter.bindAddress = lib.mkOption {
+      type = lib.types.str;
+      default = privatePrinterExporter.bindAddress or "127.0.0.1:9116";
+      description = ''
+        Address the exporter binds. Use the host's Tailscale IPv4 so
+        exposure is governed by the tailnet policy alone.
+      '';
+    };
+
+    printerExporter.configFile = lib.mkOption {
+      type = lib.types.nullOr lib.types.path;
+      default = privatePrinterExporter.configFile or null;
+      description = "snmp_exporter module configuration (snmp.yml) for the printer.";
+    };
+
+    cupsExporter.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = privateCupsExporter.enable or false;
+      description = ''
+        Run the CUPS prometheus exporter as a user service. Defaults to
+        false because only hosts running a CUPS server have something to
+        export; the private overlay opts in per host and supplies
+        bindAddress.
+      '';
+    };
+
+    cupsExporter.bindAddress = lib.mkOption {
+      type = lib.types.str;
+      default = privateCupsExporter.bindAddress or "127.0.0.1:9628";
+      description = ''
+        Address the exporter binds. Use the host's Tailscale IPv4 so
+        exposure is governed by the tailnet policy alone.
+      '';
+    };
+
+    cupsExporter.cupsUri = lib.mkOption {
+      type = lib.types.str;
+      default = privateCupsExporter.cupsUri or "http://localhost:631";
+      description = "URI of the CUPS server the exporter queries over IPP/HTTP.";
+    };
   };
+
+  config =
+    lib.mkIf
+      cfg.enable
+      (lib.mkMerge [
+        {
+          home.packages =
+            lib.optionals cfg.signal.enable [ pkgs.signal-desktop ]
+            ++ lib.optionals (cfg.chromium.enable && pkgs.stdenv.isLinux) [
+              (pkgs.chromium.override { enableWideVine = true; })
+            ]
+            ++ lib.optionals (cfg.naps2.enable && pkgs.stdenv.isLinux) [ pkgs.naps2 ]
+            ++ lib.optionals (cfg.tailscale.enable && pkgs.stdenv.isLinux) [ pkgs.tailscale ]
+            ++ lib.optionals cfg.plezy.enable [ plezyPackage ]
+            ++ lib.optionals cfg.immich.enable [ pkgs.immich-cli ];
+
+          services.syncthing = lib.mkIf cfg.syncthing.enable {
+            enable = true;
+            extraOptions = [ "--allow-newer-config" ];
+          };
+
+          # Only write Brewfile.personal on Darwin and only when at least
+          # one cask is selected. Skipping the file entirely when empty
+          # keeps `setup.sh` quiet on unaffected hosts.
+          xdg.configFile."dotfiles-managed/Brewfile.personal" = lib.mkIf (
+            pkgs.stdenv.isDarwin && personalBrewfileLines != [ ]
+          ) { text = personalBrewfileText; };
+        }
+        (lib.mkIf (cfg.printerExporter.enable && pkgs.stdenv.isLinux) (
+          let
+            bindAddress = cfg.printerExporter.bindAddress;
+            configFile =
+              if cfg.printerExporter.configFile == null then
+                throw "dotfiles.personal.printerExporter.configFile must be supplied by the private overlay when the printer exporter is enabled."
+              else
+                cfg.printerExporter.configFile;
+            exporterUrl = printerExporterUrl bindAddress;
+            execArgs = [
+              "${pkgs.prometheus-snmp-exporter}/bin/snmp_exporter"
+              "--config.file=${toString configFile}"
+              "--web.listen-address=${bindAddress}"
+            ];
+          in
+          (import ./lib/managed-user-service.nix) { inherit config pkgs lib; } {
+            activationName = "printerExporter";
+            changedMessage = "Printer exporter inputs changed; restarting service";
+            darwinProgramArguments = execArgs;
+            deferredFollowup = "Run setup.sh from a normal shell to restart the printer exporter safely";
+            deferredMessage = "Printer exporter inputs changed; restart deferred because setup is running under an OpenCode agent";
+            description = "Brother printer SNMP exporter bridge";
+            environment = { };
+            errorLogFile = "${config.xdg.dataHome}/printer-exporter/error.log";
+            # The exporter's own /metrics endpoint answers even while the
+            # printer is asleep, so health checks never loop-restart it.
+            healthCommand = ''${pkgs.curl}/bin/curl --fail --silent --max-time 2 '${exporterUrl}' >/dev/null 2>&1'';
+            label = "dev.printer.exporter";
+            linuxExecStart = lib.escapeShellArgs execArgs;
+            linuxService.TimeoutStopSec = "10s";
+            logFile = "${config.xdg.dataHome}/printer-exporter/log";
+            markerFile = "${config.xdg.cacheHome}/dotfiles/printer-exporter.sha256";
+            occupiedHint = "If ${bindAddress} is held by an old exporter process, kill it manually and rerun setup.sh";
+            restartFailureWarning = "Printer exporter restart failed or did not become healthy at ${exporterUrl}";
+            serviceFingerprint = builtins.toJSON {
+              inherit bindAddress;
+              bin = toString pkgs.prometheus-snmp-exporter;
+            };
+            systemdService = "printer-exporter.service";
+            systemdUnitName = "printer-exporter";
+            url = exporterUrl;
+            waitAttempts = 50;
+            waitDescription = "printer exporter";
+            watchedPaths = [ (toString configFile) ];
+            workingDirectory = config.home.homeDirectory;
+          }
+        ))
+        (lib.mkIf (cfg.cupsExporter.enable && pkgs.stdenv.isLinux) (
+          let
+            bindAddress = cfg.cupsExporter.bindAddress;
+            cupsUri = cfg.cupsExporter.cupsUri;
+            exporterUrl = printerExporterUrl bindAddress;
+            execArgs = [
+              "${pkgs.cups-exporter}/bin/cups_exporter"
+              "-cups.uri=${cupsUri}"
+              "-web.listen-address=${bindAddress}"
+            ];
+          in
+          (import ./lib/managed-user-service.nix) { inherit config pkgs lib; } {
+            activationName = "cupsExporter";
+            changedMessage = "CUPS exporter inputs changed; restarting service";
+            darwinProgramArguments = execArgs;
+            deferredFollowup = "Run setup.sh from a normal shell to restart the CUPS exporter safely";
+            deferredMessage = "CUPS exporter inputs changed; restart deferred because setup is running under an OpenCode agent";
+            description = "CUPS print-server prometheus exporter";
+            environment = { };
+            errorLogFile = "${config.xdg.dataHome}/cups-exporter/error.log";
+            # The exporter's /metrics endpoint answers even while the queue
+            # is empty or a printer is offline, so health checks never
+            # loop-restart it.
+            healthCommand = ''${pkgs.curl}/bin/curl --fail --silent --max-time 2 '${exporterUrl}' >/dev/null 2>&1'';
+            label = "dev.cups.exporter";
+            linuxExecStart = lib.escapeShellArgs execArgs;
+            linuxService.TimeoutStopSec = "10s";
+            logFile = "${config.xdg.dataHome}/cups-exporter/log";
+            markerFile = "${config.xdg.cacheHome}/dotfiles/cups-exporter.sha256";
+            occupiedHint = "If ${bindAddress} is held by an old exporter process, kill it manually and rerun setup.sh";
+            restartFailureWarning = "CUPS exporter restart failed or did not become healthy at ${exporterUrl}";
+            serviceFingerprint = builtins.toJSON {
+              inherit bindAddress cupsUri;
+              bin = toString pkgs.cups-exporter;
+            };
+            systemdService = "cups-exporter.service";
+            systemdUnitName = "cups-exporter";
+            url = exporterUrl;
+            waitAttempts = 50;
+            waitDescription = "CUPS exporter";
+            watchedPaths = [ ];
+            workingDirectory = config.home.homeDirectory;
+          }
+        ))
+      ]);
 }
