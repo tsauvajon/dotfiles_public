@@ -23,7 +23,7 @@ from urllib.request import urlopen
 ACTIVE_WINDOW_SECONDS = 86400.0
 REQUEST_TIMEOUT_SECONDS = 10.0
 
-TOKEN_TYPES = ("input", "output", "reasoning")
+TOKEN_TYPES = ("input", "output", "reasoning", "cache_read", "cache_write")
 
 
 class ServerError(Exception):
@@ -65,6 +65,17 @@ def model_samples(values, cast):
     ]
 
 
+def model_token_samples(values):
+    return [
+        (
+            [("provider", provider), ("model", model_id), ("type", token_type)],
+            values[(provider, model_id)][token_type],
+        )
+        for provider, model_id in sorted(values)
+        for token_type in TOKEN_TYPES
+    ]
+
+
 def collect_sessions(server_url):
     """Return (projects, sessions) with sessions deduplicated across scopes."""
     projects = fetch_json(server_url, "/project")
@@ -97,9 +108,10 @@ def collect(server_url):
 
     projects, sessions = collect_sessions(server_url)
 
-    token_totals = {token_type: 0 for token_type in sorted(TOKEN_TYPES) + ["cache_read", "cache_write"]}
+    token_totals = {token_type: 0 for token_type in TOKEN_TYPES}
     model_cost = {}
     model_sessions = {}
+    model_tokens = {}
     cost_total = 0.0
     lines_added_total = 0
     lines_deleted_total = 0
@@ -110,19 +122,25 @@ def collect(server_url):
     for session in sessions:
         tokens = session.get("tokens") or {}
         cache = tokens.get("cache") or {}
-        for token_type in TOKEN_TYPES:
-            token_totals[token_type] += int(tokens.get(token_type) or 0)
-        token_totals["cache_read"] += int(cache.get("read") or 0)
-        token_totals["cache_write"] += int(cache.get("write") or 0)
-
-        cost = float(session.get("cost") or 0.0)
-        cost_total += cost
-
         model = session.get("model") or {}
         model_key = (
             str(model.get("providerID") or "unknown"),
             str(model.get("id") or "unknown"),
         )
+        model_tokens.setdefault(model_key, {token_type: 0 for token_type in TOKEN_TYPES})
+        session_tokens = {
+            "input": int(tokens.get("input") or 0),
+            "output": int(tokens.get("output") or 0),
+            "reasoning": int(tokens.get("reasoning") or 0),
+            "cache_read": int(cache.get("read") or 0),
+            "cache_write": int(cache.get("write") or 0),
+        }
+        for token_type, value in session_tokens.items():
+            token_totals[token_type] += value
+            model_tokens[model_key][token_type] += value
+
+        cost = float(session.get("cost") or 0.0)
+        cost_total += cost
         model_cost[model_key] = model_cost.get(model_key, 0.0) + cost
         model_sessions[model_key] = model_sessions.get(model_key, 0) + 1
 
@@ -174,6 +192,12 @@ def collect(server_url):
             "Cumulative tokens summed across all sessions.",
             "counter",
             [([("type", token_type)], token_totals[token_type]) for token_type in sorted(token_totals)],
+        ),
+        format_metric(
+            "opencode_model_tokens_total",
+            "Cumulative tokens per provider/model and token type.",
+            "counter",
+            model_token_samples(model_tokens),
         ),
         format_metric(
             "opencode_session_cost_usd_total",
