@@ -48,6 +48,7 @@ let
   privateCupsExporter = privatePersonal."cups-exporter" or { };
   privateMaintenanceExporter = privatePersonal."brother-maintenance-exporter" or { };
   privateOpencodeExporter = privatePersonal."opencode-exporter" or { };
+  privateOpencodeIngress = privatePersonal."opencode-ingress" or { };
 
   printerExporterUrl =
     bindAddress: "http://${bindAddress}/metrics";
@@ -260,6 +261,36 @@ in
         (programs.opencode.sharedServer) to poll.
       '';
     };
+
+    opencodeIngress.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = privateOpencodeIngress.enable or false;
+      description = ''
+        Run a Tailscale-only TCP bridge to the local shared OpenCode server.
+        The private overlay opts in only on the Arch host.
+      '';
+    };
+
+    opencodeIngress.bindAddress = lib.mkOption {
+      type = lib.types.str;
+      default = privateOpencodeIngress.bindAddress or "127.0.0.1";
+      description = "IPv4 address on which the OpenCode ingress bridge listens.";
+    };
+
+    opencodeIngress.port = lib.mkOption {
+      type = lib.types.port;
+      default = privateOpencodeIngress.port or 4097;
+      description = "TCP port on which the OpenCode ingress bridge listens.";
+    };
+
+    opencodeIngress.allowedSource = lib.mkOption {
+      type = lib.types.str;
+      default = privateOpencodeIngress.allowedSource or "127.0.0.1/32";
+      description = ''
+        Source IPv4 range accepted by the OpenCode ingress bridge. This must be
+        the Edge Tailscale address, not a broad Tailnet range.
+      '';
+    };
   };
 
   config =
@@ -462,6 +493,48 @@ in
             url = exporterUrl;
             waitAttempts = 50;
             waitDescription = "OpenCode exporter";
+            watchedPaths = [ ];
+            workingDirectory = config.home.homeDirectory;
+          }
+        ))
+        (lib.mkIf (cfg.opencodeIngress.enable && pkgs.stdenv.isLinux) (
+          let
+            bindAddress = cfg.opencodeIngress.bindAddress;
+            port = toString cfg.opencodeIngress.port;
+            allowedSource = cfg.opencodeIngress.allowedSource;
+            listenUrl = "http://${bindAddress}:${port}";
+            execArgs = [
+              "${pkgs.socat}/bin/socat"
+              "TCP-LISTEN:${port},bind=${bindAddress},fork,reuseaddr,range=${allowedSource}"
+              "TCP:127.0.0.1:4096"
+            ];
+          in
+          (import ./lib/managed-user-service.nix) { inherit config pkgs lib; } {
+            activationName = "opencodeIngress";
+            changedMessage = "OpenCode ingress inputs changed; restarting service";
+            darwinProgramArguments = execArgs;
+            deferredFollowup = "Run setup.sh from a normal shell to restart the OpenCode ingress safely";
+            deferredMessage = "OpenCode ingress inputs changed; restart deferred because setup is running under an OpenCode agent";
+            description = "Tailscale-only OpenCode ingress bridge";
+            environment = { };
+            errorLogFile = "${config.xdg.dataHome}/opencode-ingress/error.log";
+            healthCommand = ''${pkgs.curl}/bin/curl --fail --silent --max-time 2 http://127.0.0.1:4096/global/health >/dev/null 2>&1'';
+            label = "dev.opencode.ingress";
+            linuxExecStart = lib.escapeShellArgs execArgs;
+            linuxService.TimeoutStopSec = "10s";
+            logFile = "${config.xdg.dataHome}/opencode-ingress/log";
+            markerFile = "${config.xdg.cacheHome}/dotfiles/opencode-ingress.sha256";
+            occupiedHint = "If ${listenUrl} is held by an old ingress process, kill it manually and rerun setup.sh";
+            restartFailureWarning = "OpenCode ingress restart failed or did not become healthy at ${listenUrl}";
+            serviceFingerprint = builtins.toJSON {
+              inherit allowedSource bindAddress port;
+              bin = toString pkgs.socat;
+            };
+            systemdService = "opencode-ingress.service";
+            systemdUnitName = "opencode-ingress";
+            url = listenUrl;
+            waitAttempts = 50;
+            waitDescription = "OpenCode ingress";
             watchedPaths = [ ];
             workingDirectory = config.home.homeDirectory;
           }
