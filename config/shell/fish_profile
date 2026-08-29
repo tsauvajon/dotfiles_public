@@ -1,4 +1,12 @@
 if status --is-login; and test -z "$DISPLAY"; and test -z "$WAYLAND_DISPLAY"; and test -z "$SSH_TTY"; and test (tty) = /dev/tty1; and type -q start-hyprland
+    # Fish login shells do not source ~/.profile before starting Hyprland.
+    set -gx XDG_SESSION_TYPE wayland
+    set -gx XDG_CURRENT_DESKTOP Hyprland
+    if set -q XDG_DATA_DIRS[1]
+        set -gx XDG_DATA_DIRS "$HOME/.nix-profile/share:$XDG_DATA_DIRS"
+    else
+        set -gx XDG_DATA_DIRS "$HOME/.nix-profile/share:/usr/local/share:/usr/share"
+    end
     exec start-hyprland
 end
 

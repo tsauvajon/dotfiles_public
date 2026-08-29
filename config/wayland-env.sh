@@ -3,6 +3,7 @@
 # config/hypr/hyprland.lua, which sets the Hyprland session environment.
 export XDG_SESSION_TYPE=wayland
 export XDG_CURRENT_DESKTOP=Hyprland
+export XDG_DATA_DIRS="$HOME/.nix-profile/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 export QT_QPA_PLATFORM=wayland
 export MOZ_ENABLE_WAYLAND=1
 export LIBVA_DRIVER_NAME=nvidia
