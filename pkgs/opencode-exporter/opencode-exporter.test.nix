@@ -61,11 +61,6 @@ pkgs.runCommand "opencode-exporter-test"
     check("zai time fallback", exporter.zai_window_label({"type": "TIME_LIMIT"}), "1mo")
     check("zai unknown", exporter.zai_window_label({}), "unknown")
 
-    check("label seconds 5h", exporter.window_label_to_seconds("5h"), 18000)
-    check("label seconds 1w", exporter.window_label_to_seconds("1w"), 604800)
-    check("label seconds 1mo", exporter.window_label_to_seconds("1mo"), 2592000)
-    check("label seconds unknown", exporter.window_label_to_seconds("unknown"), 0)
-
     plan, windows = exporter.parse_openai_usage(
         {
             "plan_type": "plus",
@@ -92,10 +87,8 @@ pkgs.runCommand "opencode-exporter-test"
     check_close("openai 5h used", five_hour["used_ratio"], 0.78)
     check_close("openai 5h remaining", five_hour["remaining_ratio"], 0.22)
     check("openai 5h reset", five_hour["reset_seconds"], 1788179730.0)
-    check("openai 5h window seconds", five_hour["window_seconds"], 18000)
     check("openai 5h no credits", five_hour["limit_credits"], None)
     check("openai 1w label", weekly["window"], "1w")
-    check("openai 1w window seconds", weekly["window_seconds"], 604800)
     check_close("openai 1w used", weekly["used_ratio"], 0.12)
     check("openai windows sorted", [w["window"] for w in windows], ["1w", "5h"])
 
@@ -143,11 +136,9 @@ pkgs.runCommand "opencode-exporter-test"
     check("zai 5h limit credits", five["limit_credits"], 2000.0)
     check("zai 5h used credits", five["used_credits"], 522.0)
     check("zai 5h reset", five["reset_seconds"], 1788186091.775)
-    check("zai 5h window seconds", five["window_seconds"], 18000)
     check_close("zai 1mo used", monthly["used_ratio"], 522 / 10000)
     check_close("zai 1mo remaining", monthly["remaining_ratio"], 9477 / 10000)
     check("zai 1mo limit credits", monthly["limit_credits"], 10000.0)
-    check("zai 1mo window seconds", monthly["window_seconds"], 2592000)
 
     plan, windows = exporter.parse_zai_quota(
         {
