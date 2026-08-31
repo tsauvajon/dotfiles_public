@@ -262,6 +262,16 @@ in
       '';
     };
 
+    opencodeExporter.authFile = lib.mkOption {
+      type = lib.types.path;
+      default = privateOpencodeExporter.authFile or "${config.xdg.dataHome}/opencode/auth.json";
+      description = ''
+        OpenCode auth file read for subscription quota collection
+        (ai_subscription_quota_* metrics). Must belong to the user running
+        the exporter; credentials are never logged or exported.
+      '';
+    };
+
     opencodeIngress.enable = lib.mkOption {
       type = lib.types.bool;
       default = privateOpencodeIngress.enable or false;
@@ -458,11 +468,13 @@ in
           let
             bindAddress = cfg.opencodeExporter.bindAddress;
             serverUrl = cfg.opencodeExporter.serverUrl;
+            authFile = cfg.opencodeExporter.authFile;
             exporterUrl = printerExporterUrl bindAddress;
             execArgs = [
               "${pkgs.opencode-exporter}/bin/opencode-exporter"
               "--bind=${bindAddress}"
               "--server-url=${serverUrl}"
+              "--auth-file=${authFile}"
             ];
           in
           (import ./lib/managed-user-service.nix) { inherit config pkgs lib; } {
@@ -485,7 +497,7 @@ in
             occupiedHint = "If ${bindAddress} is held by an old exporter process, kill it manually and rerun setup.sh";
             restartFailureWarning = "OpenCode exporter restart failed or did not become healthy at ${exporterUrl}";
             serviceFingerprint = builtins.toJSON {
-              inherit bindAddress serverUrl;
+              inherit bindAddress serverUrl authFile;
               bin = toString pkgs.opencode-exporter;
             };
             systemdService = "opencode-exporter.service";

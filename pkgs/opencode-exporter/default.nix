@@ -1,10 +1,11 @@
 # OpenCode shared-server Prometheus exporter.
 #
 # Polls the HTTP API of an `opencode serve` instance (health, projects,
-# per-directory session lists) and exposes aggregate gauges/counters in the
-# Prometheus text format. Standard library only; python3 is the sole
-# runtime dependency. Runs as the opencode-exporter user service on hosts
-# where the private overlay opts in (see home/personal.nix).
+# per-directory session lists) plus each provider's subscription quota
+# endpoint, and exposes aggregate gauges/counters in the Prometheus text
+# format. Standard library only; python3 is the sole runtime dependency.
+# Runs as the opencode-exporter user service on hosts where the private
+# overlay opts in (see home/personal.nix).
 {
   lib,
   makeWrapper,
@@ -14,7 +15,7 @@
 
 stdenvNoCC.mkDerivation {
   pname = "opencode-exporter";
-  version = "1.0.0";
+  version = "1.1.0";
 
   src = ./.;
 

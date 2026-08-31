@@ -379,6 +379,11 @@
             {
               inherit pkgs;
             };
+        opencodeExporterCheck =
+          import ./pkgs/opencode-exporter/opencode-exporter.test.nix
+            {
+              inherit pkgs lib;
+            };
         opencodeVersionAlignmentCheck =
           pkgs.runCommand "opencode-version-alignment"
             {
@@ -572,6 +577,7 @@
             merge-dirs-test = mergeDirsCheck;
             opencode-imports-test = opencodeImportsCheck;
             opencode-global-event-listener-retention-test = opencodeGlobalEventListenerRetentionCheck;
+            opencode-exporter-test = opencodeExporterCheck;
             opencode-version-alignment = opencodeVersionAlignmentCheck;
             opencode-tests = opencodeTestsCheck;
             tool-habit-smoke = toolHabitSmokeCheck;
