@@ -134,6 +134,20 @@ def window_label_from_seconds(seconds):
     return f"{seconds}s"
 
 
+WINDOW_LABEL_SECONDS = {
+    label: seconds for seconds, label in ((18000, "5h"), (86400, "1d"), (604800, "1w"), (2592000, "1mo"))
+}
+
+
+def window_label_to_seconds(label):
+    """Nominal window length for a label; 0 when unknown.
+
+    Monthly windows use a nominal 30 days; providers only expose unit/number,
+    not the exact calendar span.
+    """
+    return WINDOW_LABEL_SECONDS.get(label, 0)
+
+
 def zai_window_label(entry):
     unit = entry.get("unit")
     number = entry.get("number")
@@ -161,6 +175,7 @@ def parse_openai_usage(payload):
         windows.append(
             {
                 "window": window_label_from_seconds(window_seconds),
+                "window_seconds": window_seconds,
                 "used_ratio": used_ratio,
                 "remaining_ratio": clamp01(1.0 - used_ratio),
                 "reset_seconds": float(entry.get("reset_at") or 0.0),
@@ -195,8 +210,10 @@ def parse_zai_quota(payload):
             used_ratio = clamp01(percentage / 100.0)
             remaining_ratio = clamp01(1.0 - used_ratio)
         credits = str(limit.get("type") or "") == "CREDIT_LIMIT"
+        label = zai_window_label(limit)
         window = {
-            "window": zai_window_label(limit),
+            "window": label,
+            "window_seconds": window_label_to_seconds(label),
             "used_ratio": used_ratio,
             "remaining_ratio": remaining_ratio,
             "reset_seconds": float(limit.get("nextResetTime") or 0.0) / 1000.0,
@@ -297,6 +314,7 @@ def quota_families():
     samples_remaining = []
     samples_used = []
     samples_reset = []
+    samples_window = []
     samples_limit_credits = []
     samples_used_credits = []
 
@@ -316,6 +334,8 @@ def quota_families():
             samples_used.append((window_labels, round(window_entry["used_ratio"], 6)))
             if window_entry["reset_seconds"] > 0:
                 samples_reset.append((window_labels, window_entry["reset_seconds"]))
+            if window_entry["window_seconds"] > 0:
+                samples_window.append((window_labels, window_entry["window_seconds"]))
             if window_entry["limit_credits"] is not None:
                 samples_limit_credits.append(
                     (window_labels, window_entry["limit_credits"])
@@ -360,6 +380,12 @@ def quota_families():
             "Unix timestamp of the next quota window reset.",
             "gauge",
             samples_reset,
+        ),
+        format_metric(
+            "ai_subscription_quota_window_seconds",
+            "Nominal length of the quota window in seconds.",
+            "gauge",
+            samples_window,
         ),
         format_metric(
             "ai_subscription_quota_limit_credits",
