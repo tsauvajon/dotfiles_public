@@ -49,6 +49,7 @@ let
   privateMaintenanceExporter = privatePersonal."brother-maintenance-exporter" or { };
   privateOpencodeExporter = privatePersonal."opencode-exporter" or { };
   privateOpencodeIngress = privatePersonal."opencode-ingress" or { };
+  privateUnifiExporter = privatePersonal."unifi-exporter" or { };
 
   printerExporterUrl =
     bindAddress: "http://${bindAddress}/metrics";
@@ -259,6 +260,35 @@ in
       description = ''
         Base URL of the local shared OpenCode server
         (programs.opencode.sharedServer) to poll.
+      '';
+    };
+
+    unifiExporter.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = privateUnifiExporter.enable or false;
+      description = ''
+        Run unpoller (UniFi controller Prometheus exporter) as a user service.
+        Defaults to false because only hosts on the UniFi console's home LAN
+        can reach it; the private overlay opts in per host and supplies
+        bindAddress and configFile.
+      '';
+    };
+
+    unifiExporter.bindAddress = lib.mkOption {
+      type = lib.types.str;
+      default = privateUnifiExporter.bindAddress or "127.0.0.1:9130";
+      description = ''
+        Address the exporter binds. Use the host's Tailscale IPv4 so
+        exposure is governed by the tailnet policy alone.
+      '';
+    };
+
+    unifiExporter.configFile = lib.mkOption {
+      type = lib.types.nullOr lib.types.path;
+      default = privateUnifiExporter.configFile or null;
+      description = ''
+        unpoller TOML configuration (controller URL plus credentials). Must
+        be supplied by the private overlay because it contains secrets.
       '';
     };
 
@@ -506,6 +536,53 @@ in
             waitAttempts = 50;
             waitDescription = "OpenCode exporter";
             watchedPaths = [ ];
+            workingDirectory = config.home.homeDirectory;
+          }
+        ))
+        (lib.mkIf (cfg.unifiExporter.enable && pkgs.stdenv.isLinux) (
+          let
+            bindAddress = cfg.unifiExporter.bindAddress;
+            configFile =
+              if cfg.unifiExporter.configFile == null then
+                throw "dotfiles.personal.unifiExporter.configFile must be supplied by the private overlay when the UniFi exporter is enabled."
+              else
+                cfg.unifiExporter.configFile;
+            exporterUrl = printerExporterUrl bindAddress;
+            execArgs = [
+              "${pkgs.unpoller}/bin/unpoller"
+              "--config=${toString configFile}"
+            ];
+          in
+          (import ./lib/managed-user-service.nix) { inherit config pkgs lib; } {
+            activationName = "unifiExporter";
+            changedMessage = "UniFi exporter inputs changed; restarting service";
+            darwinProgramArguments = execArgs;
+            deferredFollowup = "Run setup.sh from a normal shell to restart the UniFi exporter safely";
+            deferredMessage = "UniFi exporter inputs changed; restart deferred because setup is running under an OpenCode agent";
+            description = "UniFi controller unpoller prometheus exporter";
+            environment = { };
+            errorLogFile = "${config.xdg.dataHome}/unifi-exporter/error.log";
+            # unpoller keeps serving /metrics from its cached snapshot even
+            # while the console is unreachable, so health checks never
+            # loop-restart it.
+            healthCommand = ''${pkgs.curl}/bin/curl --fail --silent --max-time 2 '${exporterUrl}' >/dev/null 2>&1'';
+            label = "dev.unifi.exporter";
+            linuxExecStart = lib.escapeShellArgs execArgs;
+            linuxService.TimeoutStopSec = "10s";
+            logFile = "${config.xdg.dataHome}/unifi-exporter/log";
+            markerFile = "${config.xdg.cacheHome}/dotfiles/unifi-exporter.sha256";
+            occupiedHint = "If ${bindAddress} is held by an old exporter process, kill it manually and rerun setup.sh";
+            restartFailureWarning = "UniFi exporter restart failed or did not become healthy at ${exporterUrl}";
+            serviceFingerprint = builtins.toJSON {
+              inherit bindAddress;
+              bin = toString pkgs.unpoller;
+            };
+            systemdService = "unifi-exporter.service";
+            systemdUnitName = "unifi-exporter";
+            url = exporterUrl;
+            waitAttempts = 50;
+            waitDescription = "UniFi exporter";
+            watchedPaths = [ (toString configFile) ];
             workingDirectory = config.home.homeDirectory;
           }
         ))
