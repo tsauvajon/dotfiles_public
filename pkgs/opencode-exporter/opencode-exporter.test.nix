@@ -49,16 +49,16 @@ pkgs.runCommand "opencode-exporter-test"
     check("window 5h", exporter.window_label_from_seconds(18000), "5h")
     check("window 1d", exporter.window_label_from_seconds(86400), "1d")
     check("window 1w", exporter.window_label_from_seconds(604800), "1w")
-    check("window 1m", exporter.window_label_from_seconds(2592000), "1m")
+    check("window 1mo", exporter.window_label_from_seconds(2592000), "1mo")
     check("window 2d generic", exporter.window_label_from_seconds(172800), "2d")
     check("window zero", exporter.window_label_from_seconds(0), "unknown")
     check("window seconds", exporter.window_label_from_seconds(1234), "1234s")
 
     check("zai 5 hours", exporter.zai_window_label({"unit": 3, "number": 5}), "5h")
-    check("zai 1 month", exporter.zai_window_label({"unit": 6, "number": 1}), "1m")
+    check("zai 1 month", exporter.zai_window_label({"unit": 6, "number": 1}), "1mo")
     check("zai 1 week", exporter.zai_window_label({"unit": 5, "number": 1}), "1w")
     check("zai tokens fallback", exporter.zai_window_label({"type": "TOKENS_LIMIT"}), "5h")
-    check("zai time fallback", exporter.zai_window_label({"type": "TIME_LIMIT"}), "1m")
+    check("zai time fallback", exporter.zai_window_label({"type": "TIME_LIMIT"}), "1mo")
     check("zai unknown", exporter.zai_window_label({}), "unknown")
 
     plan, windows = exporter.parse_openai_usage(
@@ -130,15 +130,15 @@ pkgs.runCommand "opencode-exporter-test"
     check("zai window count", len(windows), 2)
     by_window = {window["window"]: window for window in windows}
     five = by_window["5h"]
-    monthly = by_window["1m"]
+    monthly = by_window["1mo"]
     check_close("zai 5h used", five["used_ratio"], 522 / 2000)
     check_close("zai 5h remaining", five["remaining_ratio"], 1477 / 2000)
     check("zai 5h limit credits", five["limit_credits"], 2000.0)
     check("zai 5h used credits", five["used_credits"], 522.0)
     check("zai 5h reset", five["reset_seconds"], 1788186091.775)
-    check_close("zai 1m used", monthly["used_ratio"], 522 / 10000)
-    check_close("zai 1m remaining", monthly["remaining_ratio"], 9477 / 10000)
-    check("zai 1m limit credits", monthly["limit_credits"], 10000.0)
+    check_close("zai 1mo used", monthly["used_ratio"], 522 / 10000)
+    check_close("zai 1mo remaining", monthly["remaining_ratio"], 9477 / 10000)
+    check("zai 1mo limit credits", monthly["limit_credits"], 10000.0)
 
     plan, windows = exporter.parse_zai_quota(
         {

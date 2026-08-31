@@ -37,8 +37,8 @@ ZAI_QUOTA_URL = "https://api.z.ai/api/monitor/usage/quota/limit"
 QUOTA_CACHE_TTL_SECONDS = 55.0
 OPENAI_TOKEN_MARGIN_SECONDS = 60.0
 
-ZAI_UNIT_ABBREVIATIONS = {3: "h", 4: "d", 5: "w", 6: "m"}
-ZAI_TYPE_FALLBACK_WINDOWS = {"TOKENS_LIMIT": "5h", "TIME_LIMIT": "1m"}
+ZAI_UNIT_ABBREVIATIONS = {3: "h", 4: "d", 5: "w", 6: "mo"}
+ZAI_TYPE_FALLBACK_WINDOWS = {"TOKENS_LIMIT": "5h", "TIME_LIMIT": "1mo"}
 
 
 class ServerError(Exception):
@@ -124,7 +124,7 @@ def clamp01(value):
 def window_label_from_seconds(seconds):
     if seconds <= 0:
         return "unknown"
-    known = {18000: "5h", 86400: "1d", 604800: "1w", 2592000: "1m"}
+    known = {18000: "5h", 86400: "1d", 604800: "1w", 2592000: "1mo"}
     if seconds in known:
         return known[seconds]
     if seconds % 86400 == 0:
