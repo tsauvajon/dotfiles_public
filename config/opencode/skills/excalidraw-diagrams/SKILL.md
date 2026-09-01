@@ -4,7 +4,7 @@ description: Create or edit Obsidian Excalidraw diagrams. Use for .excalidraw, .
 compatibility: opencode
 metadata:
   status: experimental
-  version: "0.1.0"
+  version: "0.1.1"
 ---
 
 # Excalidraw Diagrams
@@ -15,6 +15,7 @@ Use this skill when creating or editing Obsidian Excalidraw diagrams, especially
 
 - Read the current diagram file before editing it.
 - Check whether the file is raw `.excalidraw` JSON or Obsidian plugin Markdown (`*.excalidraw.md`).
+- If the diagram must render inline in an Obsidian note, inspect the vault's existing embedded diagrams before choosing a file format. Do not assume raw `.excalidraw` JSON will render as a canvas.
 - For `*.excalidraw.md`, edit the drawing payload, not only the Markdown summary sections.
 - Preserve the existing wrapper style unless there is a concrete reason to migrate it.
 - Validate by decompressing/parsing the drawing block after every generated edit.
@@ -61,6 +62,17 @@ Important details:
 - The highlighted warning line is informational; the plugin does not parse it, and exact wording is less important than the drawing sections.
 - Prefer `compressed-json` when the vault setting has compression enabled.
 - Plain `json` drawing blocks are recognized by the plugin, but they are less reliable in a vault where all normal saved files use `compressed-json`.
+
+## Inline Embeds In Obsidian
+
+For vaults where existing diagrams are Obsidian plugin documents, create `Diagram.excalidraw.md`, not raw `Diagram.excalidraw`, when the diagram must render inline.
+
+- Embed the wrapper with `![[Diagram.excalidraw]]`. Obsidian resolves that basename to `Diagram.excalidraw.md`, matching plugin-created files.
+- A raw `Diagram.excalidraw` can open as a standalone JSON-backed drawing in some setups but may render in Markdown as a generic attachment card instead of a canvas.
+- Do not leave both `Diagram.excalidraw` and `Diagram.excalidraw.md`; duplicate basenames make wiki-link resolution ambiguous.
+- When converting raw JSON, move it to `Diagram.excalidraw.md` and wrap the scene under `# Excalidraw Data` / `## Drawing`. Use `compressed-json` when tooling is available. A plain `json` block is an acceptable transitional format because the plugin can parse and recompress it on save.
+- After conversion, close and reopen the containing Markdown note or reload Obsidian if it cached the old attachment preview.
+- Validate the embed itself, not only the scene payload. A structurally valid raw scene does not prove Obsidian will render it inline.
 
 ## Scene Payload
 
@@ -126,6 +138,10 @@ Guidelines:
 
 ## Common Failure Modes
 
+- Error: an inline `![[Diagram.excalidraw]]` shows a grey file/attachment card instead of the drawing.
+- Likely cause: the target is raw `Diagram.excalidraw` JSON while the vault expects an Obsidian plugin wrapper.
+- Fix: convert it to `Diagram.excalidraw.md`, include `excalidraw-plugin: parsed`, `## Text Elements`, and a valid hidden drawing block, then remove the raw file and reopen the note.
+
 - Error: `Cannot read properties of null (reading '0')`.
 - Likely cause: `# Excalidraw Data` exists but `## Text Elements` is missing before `## Drawing`.
 - Fix: rebuild the Markdown wrapper to include `## Text Elements`, optional `## Embedded Files`, and a hidden `compressed-json` drawing block.
@@ -163,6 +179,8 @@ Guidelines:
 Before saying the diagram is fixed:
 
 - Confirm there is exactly one drawing block.
+- If the diagram is embedded, confirm the target file uses the vault's established wrapper format and that no raw file with the same basename remains.
+- Confirm `![[Diagram.excalidraw]]` resolves to `Diagram.excalidraw.md` and renders a canvas rather than an attachment card.
 - Decompress or parse the drawing block successfully.
 - Confirm `scene.type === "excalidraw"`.
 - Confirm expected element count and changed text are present.
