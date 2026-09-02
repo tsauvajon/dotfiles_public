@@ -166,11 +166,56 @@ local browser = "firefox"
 local compatibleBrowser = "~/.nix-profile/bin/chromium"
 local notes = "~/.nix-profile/bin/obsidian"
 local fileManager = "~/.nix-profile/bin/terminal-launcher --class terminal-yazi --hold -- ~/.nix-profile/bin/yazi"
+local graphicalFileManager = "~/.nix-profile/bin/nautilus"
+local graphicalFileManagerAtTerminal = "~/.nix-profile/bin/nautilus-terminal-cwd"
 local passwordManager = "~/.nix-profile/bin/keepassxc"
 local screenshot = "grim -g \"$(slurp)\" - | ~/.nix-profile/bin/swappy -f -"
 local menu = "~/.nix-profile/bin/rofi -show drun"
 local procViewer = "~/.nix-profile/bin/terminal-launcher --hold -- ~/.nix-profile/bin/htop"
 local reloadBar = "~/.config/waybar/scripts/reload.sh"
+
+-- Tag terminals once and use the tag for context-sensitive shortcuts.
+local terminalClasses = {}
+for _, class in ipairs({ "@defaultTerminalClass@", "Alacritty", "kitty", "foot", "terminal-yazi" }) do
+    terminalClasses[class] = true
+end
+
+local function windowHasTag(window, tag)
+    for _, windowTag in ipairs(window.tags or {}) do
+        if windowTag:sub(-1) == "*" then
+            windowTag = windowTag:sub(1, -2)
+        end
+        if windowTag == tag then
+            return true
+        end
+    end
+    return false
+end
+
+local function send_shortcut_once(mods, key)
+    hl.dispatch(hl.dsp.send_key_state({ mods = mods, key = key, state = "down" }))
+    hl.timer(function()
+        hl.dispatch(hl.dsp.send_key_state({ mods = mods, key = key, state = "up" }))
+    end, { timeout = 50, type = "oneshot" })
+end
+
+local function contextualKey(guiMods, guiKey, terminalMods, terminalKey)
+    return function()
+        local window = hl.get_active_window()
+        if window == nil then
+            return
+        end
+
+        local mods = guiMods
+        local key = guiKey
+        if windowHasTag(window, "terminal") then
+            mods = terminalMods
+            key = terminalKey
+        end
+
+        send_shortcut_once(mods, key)
+    end
+end
 
 hl.bind("SUPER + Q", hl.dsp.exit())
 
@@ -229,6 +274,8 @@ hl.bind("XF86AudioMute", hl.dsp.exec_cmd("amixer set Master toggle"), { locked =
 hl.bind("SUPER + return", hl.dsp.exec_cmd(terminal))
 hl.bind("SUPER + SHIFT + return", hl.dsp.exec_cmd(fallbackTerminal))
 hl.bind("SUPER + W", hl.dsp.exec_cmd(fileManager))
+hl.bind("SUPER + SHIFT + F", hl.dsp.exec_cmd(graphicalFileManager))
+hl.bind("SUPER + SHIFT + ALT + F", hl.dsp.exec_cmd(graphicalFileManagerAtTerminal))
 hl.bind("SUPER + X", hl.dsp.exec_cmd(passwordManager))
 hl.bind("SUPER + B", hl.dsp.exec_cmd(browser))
 hl.bind("SUPER + Z", hl.dsp.exec_cmd(compatibleBrowser))
@@ -236,6 +283,10 @@ hl.bind("SUPER + O", hl.dsp.exec_cmd(notes))
 hl.bind("ALT + SHIFT + 4", hl.dsp.exec_cmd(screenshot))
 hl.bind("SUPER + DELETE", hl.dsp.exec_cmd(procViewer))
 hl.bind("SUPER + SHIFT + R", hl.dsp.exec_cmd(reloadBar))
+
+-- Physical left Alt is Mod1/ALT; right Alt remains Mod5/AltGr for text input.
+hl.bind("ALT + C", contextualKey("CTRL", "C", "CTRL", "INSERT"))
+hl.bind("ALT + V", contextualKey("CTRL", "V", "SHIFT", "INSERT"))
 
 hl.bind("SUPER + F", hl.dsp.window.fullscreen())
 hl.bind("SUPER + V", hl.dsp.window.float())
@@ -252,7 +303,7 @@ hl.bind("ALT + code:212", hl.dsp.window.close())
 
 -- Pyprland center layout keybinds.
 -- https://hyprland-community.github.io/pyprland/layout_center.html
-hl.bind("SUPER + O", hl.dsp.exec_cmd("pypr layout_center toggle"))
+hl.bind("SUPER + C", hl.dsp.exec_cmd("pypr layout_center toggle"))
 hl.bind("SUPER + left", hl.dsp.exec_cmd("pypr layout_center prev")) -- Falls back to movefocus left.
 hl.bind("SUPER + right", hl.dsp.exec_cmd("pypr layout_center next")) -- Falls back to movefocus right.
 hl.bind("SUPER + up", hl.dsp.exec_cmd("pypr layout_center prev2")) -- Falls back to movefocus up.
@@ -286,14 +337,6 @@ for _, class in ipairs({
     hl.window_rule({ match = { class = class }, float = true })
 end
 
--- File manager.
-hl.window_rule({ match = { class = "^(pcmanfm)$" }, float = true })
-hl.window_rule({ match = { class = "^(pcmanfm)$", initial_title = "^(Creating.*)$" }, size = { 450, 172 } })
-hl.window_rule({ match = { class = "^(pcmanfm)$", initial_title = "^(Rename File)$" }, size = { 450, 172 } })
-hl.window_rule({ match = { class = "^(pcmanfm)$", initial_title = "^(Execute File)$" }, size = { 600, 112 } })
-hl.window_rule({ match = { class = "^(pcmanfm)$", initial_title = "^(Moving files)$" }, size = { 600, 242 } })
-hl.window_rule({ match = { class = "^(pcmanfm)$" }, size = { 750, 500 } })
-
 hl.window_rule({ match = { class = "^(feh)$" }, float = true })
 
 -- GTK and Qt settings.
@@ -319,7 +362,10 @@ hl.window_rule({ match = { class = "^(ssh-add)$" }, size = { 500, 200 } })
 hl.window_rule({ match = { class = "^(ssh-add)$" }, center = true })
 
 -- Selected terminal. Home Manager replaces the class placeholder.
-hl.window_rule({ match = { class = "^(@defaultTerminalClass@)$" }, size = { 8200, 540 } })
+for class, _ in pairs(terminalClasses) do
+    hl.window_rule({ match = { class = "^(" .. class .. ")$" }, tag = "+terminal" })
+end
+hl.window_rule({ match = { class = "^(@defaultTerminalClass@)$" }, size = { 820, 540 } })
 hl.window_rule({ match = { class = "^(@defaultTerminalClass@)$" }, min_size = { 800, 500 } })
 
 -- JetBrains IDEs.

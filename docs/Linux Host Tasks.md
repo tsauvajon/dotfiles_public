@@ -57,3 +57,20 @@ nix flake check --override-input private path:$HOME/.config/dotfiles
 
 This validates the GNU loader gating on binary packages and the new script tests
 on Linux. The macOS machine only exercises the `aarch64-darwin` checks locally.
+
+## Hyprland clipboard and file-manager checks
+
+After activating these dotfiles on the Linux host:
+
+1. Run `wev` and confirm physical left Alt reports `Mod1`/`ALT`, while right Alt
+   reports `Mod5`/AltGr and still enters international characters.
+2. In a GUI application, verify left Alt+C/V copy and paste through Ctrl+C/V.
+   In Alacritty, Kitty, Foot, and the Yazi terminal, verify the same keys use the
+   terminal-safe Ctrl+Insert/Shift+Insert behavior (including inside a shell).
+3. Confirm existing Super+V still toggles the focused window's floating state.
+4. Confirm Super+W still opens Yazi, Super+Shift+F opens Nautilus at home, and
+   Super+Shift+Alt+F opens Nautilus at the focused terminal/Yazi directory. Also
+   try the CWD shortcut from a GUI window and confirm it safely falls back home.
+5. Select a previewable file in Nautilus and press Space to verify Sushi.
+6. Confirm `systemctl --user status udiskie` is healthy, then attach a removable
+   drive and verify it mounts without a tray icon or notification.

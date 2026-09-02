@@ -7,6 +7,7 @@
   imports = [
     ./packages.nix
     ./hyprland.nix
+    ./nautilus.nix
     ./mako.nix
     ./waybar.nix
     ./rofi.nix

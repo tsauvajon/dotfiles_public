@@ -478,6 +478,19 @@
         gitSigningCheck = import ./config/opencode/plugin-tests/git-signing.test.nix {
           inherit pkgs;
         };
+        hyprlandDesktopCheck =
+          pkgs.runCommand "hyprland-desktop-test"
+            {
+              nativeBuildInputs = [
+                pkgs.lua
+                pkgs.python3
+              ];
+            }
+            ''
+              luac -p ${./config/hypr/hyprland.lua}
+              python3 ${./scripts/hyprland-desktop.test.py} ${./.}
+              touch "$out"
+            '';
         rustToolchainSmokeCheck =
           let
             rustToolchain = import ./home/lib/rust-toolchain.nix { inherit pkgs; };
@@ -594,6 +607,7 @@
             cargo-build-env-test = cargoBuildEnvCheck;
             primary-context-test = primaryContextCheck;
             git-signing-test = gitSigningCheck;
+            hyprland-desktop-test = hyprlandDesktopCheck;
             rust-toolchain-smoke = rustToolchainSmokeCheck;
           };
       }

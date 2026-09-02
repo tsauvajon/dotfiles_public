@@ -34,6 +34,8 @@ bindings = [
   { key = "Backspace", mods = "Command", chars = "\u0015" },
   { key = "Delete", mods = "Alt|Option", chars = "\u001bd" },
   { key = "Enter", mods = "Control", action = "ToggleFullscreen" },
+  { key = "Insert", mods = "Control", action = "Copy" },
+  { key = "Insert", mods = "Shift", action = "Paste" },
   # Tmux
   # { key = "R", mods = "Command", chars = "\u0002\"" }, # split tmux window vertically
 ]
