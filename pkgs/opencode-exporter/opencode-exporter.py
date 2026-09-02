@@ -40,6 +40,10 @@ OPENAI_TOKEN_MARGIN_SECONDS = 60.0
 ZAI_UNIT_ABBREVIATIONS = {3: "h", 4: "d", 5: "w", 6: "mo"}
 ZAI_TYPE_FALLBACK_WINDOWS = {"TOKENS_LIMIT": "5h", "TIME_LIMIT": "1mo"}
 
+# Provider label values used by the model metrics, so quota and usage series
+# can be joined in dashboards.
+QUOTA_PROVIDER_LABELS = {"openai": "openai", "zai": "zai-coding-plan"}
+
 
 class ServerError(Exception):
     pass
@@ -302,7 +306,10 @@ def quota_families():
 
     for subscription in sorted(quota_cache):
         entry = quota_cache[subscription]
-        labels = [("subscription", subscription)]
+        labels = [
+            ("subscription", subscription),
+            ("provider", QUOTA_PROVIDER_LABELS.get(subscription, subscription)),
+        ]
         samples_up.append((labels, 0.0 if entry["error"] else 1.0))
         if entry["success_wall"] > 0:
             samples_last.append((labels, entry["success_wall"]))

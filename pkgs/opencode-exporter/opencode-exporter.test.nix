@@ -195,6 +195,108 @@ pkgs.runCommand "opencode-exporter-test"
     )
     check_raises("zai missing key", lambda: exporter.collect_zai_quota({}))
 
+    exporter.quota_cache.clear()
+    exporter.quota_cache.update(
+        {
+            "openai": {
+                "fetched_monotonic": 0.0,
+                "plan": "plus",
+                "windows": [
+                    {
+                        "window": "5h",
+                        "used_ratio": 0.78,
+                        "remaining_ratio": 0.22,
+                        "reset_seconds": 1788179730.0,
+                        "limit_credits": None,
+                        "used_credits": None,
+                    }
+                ],
+                "error": None,
+                "success_wall": 100.0,
+            },
+            "zai": {
+                "fetched_monotonic": 0.0,
+                "plan": "lite",
+                "windows": [
+                    {
+                        "window": "5h",
+                        "used_ratio": 0.26,
+                        "remaining_ratio": 0.74,
+                        "reset_seconds": 1788186091.775,
+                        "limit_credits": 2000.0,
+                        "used_credits": 522.0,
+                    }
+                ],
+                "error": None,
+                "success_wall": 200.0,
+            },
+        }
+    )
+    exposition = "\n".join(
+        line for family in exporter.quota_families() for line in family
+    )
+    quota_samples = [
+        line for line in exposition.splitlines() if line.startswith("ai_subscription_")
+    ]
+    check(
+        "quota openai up labels",
+        'ai_subscription_quota_up{subscription="openai",provider="openai",} 1.0'
+        in quota_samples,
+        True,
+    )
+    check(
+        "quota zai up labels",
+        'ai_subscription_quota_up{subscription="zai",provider="zai-coding-plan",} 1.0'
+        in quota_samples,
+        True,
+    )
+    check(
+        "quota openai info labels",
+        'ai_subscription_info{subscription="openai",provider="openai",plan="plus",} 1.0'
+        in quota_samples,
+        True,
+    )
+    check(
+        "quota zai info labels",
+        'ai_subscription_info{subscription="zai",provider="zai-coding-plan",plan="lite",} 1.0'
+        in quota_samples,
+        True,
+    )
+    check(
+        "quota openai window labels",
+        'ai_subscription_quota_used_ratio{subscription="openai",provider="openai",window="5h",} 0.78'
+        in quota_samples,
+        True,
+    )
+    check(
+        "quota zai window labels",
+        'ai_subscription_quota_used_ratio{subscription="zai",provider="zai-coding-plan",window="5h",} 0.26'
+        in quota_samples,
+        True,
+    )
+    check(
+        "quota zai credits labels",
+        'ai_subscription_quota_limit_credits{subscription="zai",provider="zai-coding-plan",window="5h",} 2000.0'
+        in quota_samples,
+        True,
+    )
+    check(
+        "quota openai last scrape labels",
+        'ai_subscription_quota_last_scrape_timestamp_seconds{subscription="openai",provider="openai",} 100.0'
+        in quota_samples,
+        True,
+    )
+    check(
+        "every quota sample carries provider",
+        all("provider=" in line for line in quota_samples),
+        True,
+    )
+    check(
+        "every quota sample keeps subscription",
+        all("subscription=" in line for line in quota_samples),
+        True,
+    )
+
     if failures:
         for failure in failures:
             print(f"FAIL: {failure}", file=sys.stderr)
