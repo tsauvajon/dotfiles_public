@@ -66,6 +66,20 @@
   color: #{"@text"};
 }
 
+#custom-aibar {
+  color: #{"@green"};
+  margin-right: 12pt;
+
+  &.mid {
+    color: #{"@yellow"};
+  }
+
+  &.high,
+  &.critical {
+    color: #{"@red"};
+  }
+}
+
 #cpu {
   color: #{"@maroon"};
   margin-right: 12pt;

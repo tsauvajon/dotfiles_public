@@ -15,6 +15,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    ai-usagebar = {
+      url = "github:akitaonrails/ai-usagebar";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # nixGL pinned alongside a known-good nixpkgs commit. Touching the
     # pin will likely break OpenGL on Linux.
     nixgl = {

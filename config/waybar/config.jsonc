@@ -18,6 +18,7 @@
       "clock"
     ],
     "modules-right": [
+      "custom/aibar",
       "cpu",
       "memory",
       "network",
@@ -28,6 +29,16 @@
       "custom/color-picker",
       "custom/power"
     ],
+    "custom/aibar": {
+      "exec": "ai-usagebar --format '{vendor_short} {session_pct}% · {session_reset}'",
+      "return-type": "json",
+      "interval": 300,
+      "signal": 13,
+      "tooltip": true,
+      "on-click": "~/.nix-profile/bin/terminal-launcher --class ai-usagebar-tui -- ai-usagebar-tui",
+      "on-scroll-up": "ai-usagebar --cycle-next",
+      "on-scroll-down": "ai-usagebar --cycle-prev"
+    },
     "custom/rofi": {
       "format": "\udb82\udcc7",
       "on-click": "rofi -show drun",

@@ -1,5 +1,25 @@
 {
   "nodes": {
+    "ai-usagebar": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1788125279,
+        "narHash": "sha256-evw9YON8wLQ39ocCRlAYjbHVUAw/VNnjuiAXBgr4y44=",
+        "owner": "akitaonrails",
+        "repo": "ai-usagebar",
+        "rev": "c1414d77da87213588b4f1dadc7655e40a2190f8",
+        "type": "github"
+      },
+      "original": {
+        "owner": "akitaonrails",
+        "repo": "ai-usagebar",
+        "type": "github"
+      }
+    },
     "catppuccin-bat": {
       "flake": false,
       "locked": {
@@ -353,6 +373,7 @@
     },
     "root": {
       "inputs": {
+        "ai-usagebar": "ai-usagebar",
         "catppuccin-bat": "catppuccin-bat",
         "catppuccin-fzf": "catppuccin-fzf",
         "catppuccin-opencode": "catppuccin-opencode",

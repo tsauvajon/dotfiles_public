@@ -1,6 +1,11 @@
 # Desktop session tools (Linux-only). On non-Linux this module
 # contributes nothing.
-{ pkgs, lib, ... }:
+{
+  pkgs,
+  lib,
+  inputs,
+  ...
+}:
 
 lib.mkIf pkgs.stdenv.isLinux {
   # `keepassxc` is declared cross-platform in `home/apps.nix`; do not
@@ -23,5 +28,6 @@ lib.mkIf pkgs.stdenv.isLinux {
     rofi
     swappy
     waybar
+    inputs.ai-usagebar.packages.${pkgs.stdenv.hostPlatform.system}.default
   ];
 }
