@@ -14,7 +14,13 @@ private/auxiliary sources fill those gaps:
 
     Paper-tray table .1.3.6.1.4.1.2435.2.4.3.99.3.1.2.1.2.N
         Tab-separated ASCII rows: NAME TYPE SIZE ID MAX REMAIN. Row N=2 is
-        the header; N>=3 are trays.
+        the header; N>=3 are trays. The REMAIN column is pinned at 100 on
+        this firmware (even with the tray empty), so only MAX is trusted.
+
+    prtInputTable .1.3.6.1.2.1.43.8.2.1 (RFC 3805)
+        prtInputCurrentLevel (.10): -3 "some remaining" while the tray has
+        paper, 0 once a feed attempt finds it empty. This is the only real
+        paper-presence signal the firmware exposes.
 
     Active alert .1.3.6.1.2.1.43.18.1.1.8.1.1 (prtAlertDescription)
         Localized LCD status line, e.g. "Veille" while in sleep.
@@ -28,6 +34,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 MAINTENANCE_OID = ".1.3.6.1.4.1.2435.2.3.9.4.2.1.5.5.8.0"
 TRAY_TABLE_OID = ".1.3.6.1.4.1.2435.2.4.3.99.3.1.2.1.2"
 ALERT_DESCRIPTION_OID = ".1.3.6.1.2.1.43.18.1.1.8.1.1"
+INPUT_LEVEL_OID = ".1.3.6.1.2.1.43.8.2.1.10"
+INPUT_DESCRIPTION_OID = ".1.3.6.1.2.1.43.8.2.1.13"
 
 KEYS = {
     0x11: "brother_drum_page_count",
@@ -51,7 +59,10 @@ HELP = {
     "brother_black_toner_level_percent": (
         "Coarse black toner level (percent) from Brother private maintenance info"
     ),
-    "brother_paper_tray_remaining_percent": "Estimated paper remaining in a tray (percent)",
+    "brother_paper_input_level": (
+        "Paper presence per input tray (RFC 3805 prtInputCurrentLevel): "
+        "-3 some remaining, 0 empty, -1 other, -2 unknown, positive = sheets"
+    ),
     "brother_paper_tray_capacity_sheets": "Rated sheet capacity of a paper tray",
     "brother_printer_status_message": (
         "Current printer LCD/alert message (always 1); the message itself is "
@@ -120,10 +131,37 @@ def parse_trays(snmp_host: str, community: str) -> list[dict[str, str]]:
                 "type": fields[1],
                 "size": fields[2],
                 "capacity": fields[4],
-                "remaining": fields[5],
+                # fields[5] REMAIN is pinned at 100 on this firmware; ignored.
             }
         )
     return trays
+
+
+def parse_inputs(snmp_host: str, community: str) -> list[dict[str, str | int]]:
+    """prtInputTable rows: level (.10) + description (.13), joined by row index."""
+    levels = {}
+    names = {}
+    for oid, sink in ((INPUT_LEVEL_OID, levels), (INPUT_DESCRIPTION_OID, names)):
+        out = subprocess.run(
+            ["snmpwalk", "-v1", "-c", community, "-On", "-t1", "-r1", snmp_host, oid],
+            capture_output=True,
+            text=True,
+            timeout=20,
+            check=True,
+        ).stdout
+        for line in out.splitlines():
+            match = re.search(r"\.(\d+) = \w+: (.*)", line)
+            if not match:
+                continue
+            row, value = match.group(1), match.group(2)
+            if sink is levels:
+                sink[row] = int(value)
+            else:
+                sink[row] = clean_display_string(value)
+    return [
+        {"input": names.get(row, f"input{row}"), "level": levels[row]}
+        for row in sorted(levels)
+    ]
 
 
 def render_metrics(snmp_host: str, community: str) -> str:
@@ -134,6 +172,7 @@ def render_metrics(snmp_host: str, community: str) -> str:
     try:
         records = parse_maintenance(snmp_host, community)
         trays = parse_trays(snmp_host, community)
+        inputs = parse_inputs(snmp_host, community)
         _, message = snmp_get(snmp_host, community, ALERT_DESCRIPTION_OID)
         up = "1"
     except Exception as exc:
@@ -152,14 +191,18 @@ def render_metrics(snmp_host: str, community: str) -> str:
         lines.append(f"# TYPE {name} gauge")
         lines.append(f"{name} {val}")
 
-    for tray in trays:
-        labels = f'name="{tray["name"]}",type="{tray["type"]}",size="{tray["size"]}"'
-        lines.append(f"# HELP brother_paper_tray_remaining_percent {HELP['brother_paper_tray_remaining_percent']}")
-        lines.append("# TYPE brother_paper_tray_remaining_percent gauge")
-        lines.append(f'brother_paper_tray_remaining_percent{{{labels}}} {tray["remaining"]}')
+    if trays:
         lines.append(f"# HELP brother_paper_tray_capacity_sheets {HELP['brother_paper_tray_capacity_sheets']}")
         lines.append("# TYPE brother_paper_tray_capacity_sheets gauge")
+    for tray in trays:
+        labels = f'name="{tray["name"]}",type="{tray["type"]}",size="{tray["size"]}"'
         lines.append(f'brother_paper_tray_capacity_sheets{{{labels}}} {tray["capacity"]}')
+
+    if inputs:
+        lines.append(f"# HELP brother_paper_input_level {HELP['brother_paper_input_level']}")
+        lines.append("# TYPE brother_paper_input_level gauge")
+    for inp in inputs:
+        lines.append(f'brother_paper_input_level{{input="{inp["input"]}"}} {inp["level"]}')
 
     if message:
         safe = message.replace("\\", "\\\\").replace('"', '\\"')
