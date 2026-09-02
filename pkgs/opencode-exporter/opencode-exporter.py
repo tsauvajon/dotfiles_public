@@ -37,12 +37,14 @@ ZAI_QUOTA_URL = "https://api.z.ai/api/monitor/usage/quota/limit"
 QUOTA_CACHE_TTL_SECONDS = 55.0
 OPENAI_TOKEN_MARGIN_SECONDS = 60.0
 
-ZAI_UNIT_ABBREVIATIONS = {3: "h", 4: "d", 5: "w", 6: "mo"}
+# Z.AI's response enum uses unit=6 for the weekly model-credit window and
+# unit=5 for monthly tool quotas.
+ZAI_UNIT_ABBREVIATIONS = {3: "h", 4: "d", 5: "mo", 6: "w"}
 ZAI_TYPE_FALLBACK_WINDOWS = {"TOKENS_LIMIT": "5h", "TIME_LIMIT": "1mo"}
 
-# Provider label values used by the model metrics, so quota and usage series
-# can be joined in dashboards.
-QUOTA_PROVIDER_LABELS = {"openai": "openai", "zai": "zai-coding-plan"}
+# Provider label values keyed by subscription, so quota and usage series can be
+# joined in dashboards.
+QUOTA_PROVIDER_LABELS = {"openai": "openai", "zai-coding-plan": "zai"}
 
 
 class ServerError(Exception):
@@ -266,7 +268,10 @@ def refresh_quotas(auth_path):
     now_ms = time.time() * 1000.0
     collectors = (
         ("openai", lambda: collect_openai_quota(auth.get("openai"), now_ms)),
-        ("zai", lambda: collect_zai_quota(auth.get("zai-coding-plan"))),
+        (
+            "zai-coding-plan",
+            lambda: collect_zai_quota(auth.get("zai-coding-plan")),
+        ),
     )
     with quota_lock:
         for subscription, collector in collectors:

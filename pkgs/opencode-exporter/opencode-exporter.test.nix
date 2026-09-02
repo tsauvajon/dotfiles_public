@@ -55,8 +55,8 @@ pkgs.runCommand "opencode-exporter-test"
     check("window seconds", exporter.window_label_from_seconds(1234), "1234s")
 
     check("zai 5 hours", exporter.zai_window_label({"unit": 3, "number": 5}), "5h")
-    check("zai 1 month", exporter.zai_window_label({"unit": 6, "number": 1}), "1mo")
-    check("zai 1 week", exporter.zai_window_label({"unit": 5, "number": 1}), "1w")
+    check("zai 1 month", exporter.zai_window_label({"unit": 5, "number": 1}), "1mo")
+    check("zai 1 week", exporter.zai_window_label({"unit": 6, "number": 1}), "1w")
     check("zai tokens fallback", exporter.zai_window_label({"type": "TOKENS_LIMIT"}), "5h")
     check("zai time fallback", exporter.zai_window_label({"type": "TIME_LIMIT"}), "1mo")
     check("zai unknown", exporter.zai_window_label({}), "unknown")
@@ -130,15 +130,15 @@ pkgs.runCommand "opencode-exporter-test"
     check("zai window count", len(windows), 2)
     by_window = {window["window"]: window for window in windows}
     five = by_window["5h"]
-    monthly = by_window["1mo"]
+    weekly = by_window["1w"]
     check_close("zai 5h used", five["used_ratio"], 522 / 2000)
     check_close("zai 5h remaining", five["remaining_ratio"], 1477 / 2000)
     check("zai 5h limit credits", five["limit_credits"], 2000.0)
     check("zai 5h used credits", five["used_credits"], 522.0)
     check("zai 5h reset", five["reset_seconds"], 1788186091.775)
-    check_close("zai 1mo used", monthly["used_ratio"], 522 / 10000)
-    check_close("zai 1mo remaining", monthly["remaining_ratio"], 9477 / 10000)
-    check("zai 1mo limit credits", monthly["limit_credits"], 10000.0)
+    check_close("zai 1w used", weekly["used_ratio"], 522 / 10000)
+    check_close("zai 1w remaining", weekly["remaining_ratio"], 9477 / 10000)
+    check("zai 1w limit credits", weekly["limit_credits"], 10000.0)
 
     plan, windows = exporter.parse_zai_quota(
         {
@@ -214,7 +214,7 @@ pkgs.runCommand "opencode-exporter-test"
                 "error": None,
                 "success_wall": 100.0,
             },
-            "zai": {
+            "zai-coding-plan": {
                 "fetched_monotonic": 0.0,
                 "plan": "lite",
                 "windows": [
@@ -246,7 +246,7 @@ pkgs.runCommand "opencode-exporter-test"
     )
     check(
         "quota zai up labels",
-        'ai_subscription_quota_up{subscription="zai",provider="zai-coding-plan",} 1.0'
+        'ai_subscription_quota_up{subscription="zai-coding-plan",provider="zai",} 1.0'
         in quota_samples,
         True,
     )
@@ -258,7 +258,7 @@ pkgs.runCommand "opencode-exporter-test"
     )
     check(
         "quota zai info labels",
-        'ai_subscription_info{subscription="zai",provider="zai-coding-plan",plan="lite",} 1.0'
+        'ai_subscription_info{subscription="zai-coding-plan",provider="zai",plan="lite",} 1.0'
         in quota_samples,
         True,
     )
@@ -270,13 +270,13 @@ pkgs.runCommand "opencode-exporter-test"
     )
     check(
         "quota zai window labels",
-        'ai_subscription_quota_used_ratio{subscription="zai",provider="zai-coding-plan",window="5h",} 0.26'
+        'ai_subscription_quota_used_ratio{subscription="zai-coding-plan",provider="zai",window="5h",} 0.26'
         in quota_samples,
         True,
     )
     check(
         "quota zai credits labels",
-        'ai_subscription_quota_limit_credits{subscription="zai",provider="zai-coding-plan",window="5h",} 2000.0'
+        'ai_subscription_quota_limit_credits{subscription="zai-coding-plan",provider="zai",window="5h",} 2000.0'
         in quota_samples,
         True,
     )
