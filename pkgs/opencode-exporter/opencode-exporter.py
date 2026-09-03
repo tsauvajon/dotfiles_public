@@ -46,6 +46,15 @@ ZAI_TYPE_FALLBACK_WINDOWS = {"TOKENS_LIMIT": "5h", "TIME_LIMIT": "1mo"}
 # joined in dashboards.
 QUOTA_PROVIDER_LABELS = {"openai": "openai", "zai-coding-plan": "zai"}
 
+# OpenCode model provider IDs (model.providerID) that need normalizing to the
+# canonical provider labels above; every other provider ID passes through
+# unchanged.
+MODEL_PROVIDER_LABELS = {"zai-coding-plan": "zai"}
+
+
+def model_provider_label(provider_id):
+    return MODEL_PROVIDER_LABELS.get(provider_id, provider_id)
+
 
 class ServerError(Exception):
     pass
@@ -210,7 +219,18 @@ def parse_zai_quota(payload):
             "used_credits": used_value if credits else None,
         }
         existing = windows_by_label.get(window["window"])
-        if existing is not None and not (existing["limit_credits"] is None and credits):
+        if existing is not None:
+            if existing["limit_credits"] is None and credits:
+                # CREDIT_LIMIT still wins for quota and credit values, but
+                # keep the reset timestamp of the entry it replaces when the
+                # credit entry itself has no valid reset.
+                if window["reset_seconds"] <= 0.0:
+                    window["reset_seconds"] = existing["reset_seconds"]
+                windows_by_label[window["window"]] = window
+            elif existing["reset_seconds"] <= 0.0 and window["reset_seconds"] > 0.0:
+                # The kept entry lacks a valid reset timestamp; a duplicate
+                # entry for the same window can still supply one.
+                existing["reset_seconds"] = window["reset_seconds"]
             continue
         windows_by_label[window["window"]] = window
     windows = sorted(windows_by_label.values(), key=lambda window: window["window"])
@@ -436,7 +456,7 @@ def collect(server_url, auth_path):
         cache = tokens.get("cache") or {}
         model = session.get("model") or {}
         model_key = (
-            str(model.get("providerID") or "unknown"),
+            model_provider_label(str(model.get("providerID") or "unknown")),
             str(model.get("id") or "unknown"),
         )
         model_tokens.setdefault(model_key, {token_type: 0 for token_type in TOKEN_TYPES})

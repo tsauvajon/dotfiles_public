@@ -61,6 +61,10 @@ pkgs.runCommand "opencode-exporter-test"
     check("zai time fallback", exporter.zai_window_label({"type": "TIME_LIMIT"}), "1mo")
     check("zai unknown", exporter.zai_window_label({}), "unknown")
 
+    check("model provider zai mapping", exporter.model_provider_label("zai-coding-plan"), "zai")
+    check("model provider openai passthrough", exporter.model_provider_label("openai"), "openai")
+    check("model provider unknown passthrough", exporter.model_provider_label("anthropic"), "anthropic")
+
     plan, windows = exporter.parse_openai_usage(
         {
             "plan_type": "plus",
@@ -169,6 +173,117 @@ pkgs.runCommand "opencode-exporter-test"
         "zai collision prefers credits",
         windows[0]["limit_credits"],
         2000.0,
+    )
+    check(
+        "zai collision keeps credit reset",
+        windows[0]["reset_seconds"],
+        1788186091.775,
+    )
+
+    # Regression: a same-window TOKENS_LIMIT entry with a valid reset must
+    # lend its reset timestamp to the preferred CREDIT_LIMIT entry when the
+    # credit entry itself reports no reset (e.g. right after a window reset).
+    plan, windows = exporter.parse_zai_quota(
+        {
+            "data": {
+                "level": "lite",
+                "limits": [
+                    {
+                        "type": "TOKENS_LIMIT",
+                        "percentage": 40,
+                        "nextResetTime": 1788186091000,
+                    },
+                    {
+                        "type": "CREDIT_LIMIT",
+                        "unit": 3,
+                        "number": 5,
+                        "usage": 2000,
+                        "currentValue": 522,
+                        "remaining": 1477,
+                        "percentage": 26,
+                        "nextResetTime": 0,
+                    },
+                ],
+            }
+        }
+    )
+    check("zai missing credit reset keeps one window", len(windows), 1)
+    check(
+        "zai missing credit reset prefers credits",
+        windows[0]["limit_credits"],
+        2000.0,
+    )
+    check(
+        "zai missing credit reset keeps tokens reset",
+        windows[0]["reset_seconds"],
+        1788186091.0,
+    )
+
+    # Same collision with the entries in the opposite order.
+    plan, windows = exporter.parse_zai_quota(
+        {
+            "data": {
+                "level": "lite",
+                "limits": [
+                    {
+                        "type": "CREDIT_LIMIT",
+                        "unit": 3,
+                        "number": 5,
+                        "usage": 2000,
+                        "currentValue": 522,
+                        "remaining": 1477,
+                        "percentage": 26,
+                    },
+                    {
+                        "type": "TOKENS_LIMIT",
+                        "percentage": 40,
+                        "nextResetTime": 1788186091000,
+                    },
+                ],
+            }
+        }
+    )
+    check("zai credit-first collision keeps one window", len(windows), 1)
+    check(
+        "zai credit-first collision prefers credits",
+        windows[0]["limit_credits"],
+        2000.0,
+    )
+    check(
+        "zai credit-first collision keeps tokens reset",
+        windows[0]["reset_seconds"],
+        1788186091.0,
+    )
+
+    # When every duplicate entry lacks a reset timestamp, none may be invented.
+    plan, windows = exporter.parse_zai_quota(
+        {
+            "data": {
+                "level": "lite",
+                "limits": [
+                    {
+                        "type": "TOKENS_LIMIT",
+                        "percentage": 40,
+                    },
+                    {
+                        "type": "CREDIT_LIMIT",
+                        "unit": 3,
+                        "number": 5,
+                        "usage": 2000,
+                        "currentValue": 522,
+                        "remaining": 1477,
+                        "percentage": 26,
+                        "nextResetTime": 0,
+                    },
+                ],
+            }
+        }
+    )
+    check("zai all-missing resets keeps one window", len(windows), 1)
+    check(
+        "zai all-missing resets invents nothing",
+        windows[0]["reset_seconds"],
+        0.0,
     )
 
     check_raises("openai empty payload", lambda: exporter.parse_openai_usage({}))
