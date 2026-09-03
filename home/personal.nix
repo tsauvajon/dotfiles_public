@@ -302,6 +302,21 @@ in
       '';
     };
 
+    opencodeExporter.databaseFile = lib.mkOption {
+      type = lib.types.path;
+      default =
+        privateOpencodeExporter.databaseFile
+        or "${config.xdg.dataHome}/opencode/opencode-stable.db";
+      description = ''
+        OpenCode SQLite database (opencode-stable.db) opened read-only to
+        aggregate per-agent token/cost usage (opencode_agent_* metrics) in
+        one query per scrape instead of one message API call per session.
+        Sessions the database does not cover fall back to the shared
+        server's message API, so remote or custom servers keep working.
+        Pass an empty path ("") to always use the API.
+      '';
+    };
+
     opencodeIngress.enable = lib.mkOption {
       type = lib.types.bool;
       default = privateOpencodeIngress.enable or false;
@@ -499,12 +514,14 @@ in
             bindAddress = cfg.opencodeExporter.bindAddress;
             serverUrl = cfg.opencodeExporter.serverUrl;
             authFile = cfg.opencodeExporter.authFile;
+            databaseFile = cfg.opencodeExporter.databaseFile;
             exporterUrl = printerExporterUrl bindAddress;
             execArgs = [
               "${pkgs.opencode-exporter}/bin/opencode-exporter"
               "--bind=${bindAddress}"
               "--server-url=${serverUrl}"
               "--auth-file=${authFile}"
+              "--db=${databaseFile}"
             ];
           in
           (import ./lib/managed-user-service.nix) { inherit config pkgs lib; } {
@@ -527,7 +544,7 @@ in
             occupiedHint = "If ${bindAddress} is held by an old exporter process, kill it manually and rerun setup.sh";
             restartFailureWarning = "OpenCode exporter restart failed or did not become healthy at ${exporterUrl}";
             serviceFingerprint = builtins.toJSON {
-              inherit bindAddress serverUrl authFile;
+              inherit bindAddress serverUrl authFile databaseFile;
               bin = toString pkgs.opencode-exporter;
             };
             systemdService = "opencode-exporter.service";
