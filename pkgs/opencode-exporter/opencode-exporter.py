@@ -12,8 +12,8 @@ OpenCode SQLite database (--db, default under the XDG data home) is
 available it is opened read-only and the usage is aggregated with a
 single indexed query; only sessions the database does not cover fall
 back to the per-session message API (/session/{id}/message), so remote
-or custom servers keep working. Session- and model-level metrics keep
-using the session summaries.
+or custom servers keep working. Token and session-count metrics keep using
+session summaries; cost metrics prefer message-level data.
 
 The exporter also collects subscription quota state (ai_subscription_quota_*)
 by querying each provider's usage endpoint directly, using the credentials
@@ -21,13 +21,14 @@ from the local OpenCode auth file. It never refreshes OAuth tokens itself;
 when an access token is stale the affected subscription reports
 ai_subscription_quota_up 0 until the OpenCode server refreshes it.
 
-The exporter answers /metrics even while the OpenCode server is down: it
-reports opencode_up 0 instead of failing, so a systemd health check on
-/metrics never loop-restarts it.
+The exporter answers /metrics even while the OpenCode server is down by
+reporting opencode_up 0, and provides a lightweight /health endpoint for
+service liveness checks.
 """
 
 import argparse
 import json
+import math
 import os
 import sqlite3
 import sys
@@ -73,6 +74,105 @@ class ServerError(Exception):
 
 class QuotaError(Exception):
     pass
+
+
+class PricingError(Exception):
+    pass
+
+
+def _pricing_number(value, location):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise PricingError(f"{location} must be a number")
+    number = float(value)
+    if not math.isfinite(number) or number < 0:
+        raise PricingError(f"{location} must be finite and nonnegative")
+    return number
+
+
+def _pricing_tier(value, location):
+    if not isinstance(value, dict):
+        raise PricingError(f"{location} must be an object")
+    fields = ("input", "output", "cache_read", "cache_write")
+    missing = [field for field in fields if field not in value]
+    if missing:
+        raise PricingError(f"{location} is missing {', '.join(missing)}")
+    return {
+        field: _pricing_number(value[field], f"{location}.{field}")
+        for field in fields
+    }
+
+
+def load_pricing_file(path):
+    """Load validated OpenCode provider/model cost entries from PATH."""
+    if not path:
+        return {}
+    try:
+        with open(path, encoding="utf-8") as handle:
+            document = json.load(handle)
+    except (OSError, json.JSONDecodeError) as error:
+        raise PricingError(f"cannot read {path}: {error}") from error
+    if not isinstance(document, dict) or not isinstance(document.get("provider"), dict):
+        raise PricingError("root.provider must be an object")
+
+    pricing = {}
+    for provider_id, provider in document["provider"].items():
+        location = f"provider.{provider_id}"
+        if not isinstance(provider, dict) or not isinstance(provider.get("models"), dict):
+            raise PricingError(f"{location}.models must be an object")
+        for model_id, model in provider["models"].items():
+            model_location = f"{location}.models.{model_id}"
+            if not isinstance(model, dict) or "cost" not in model:
+                raise PricingError(f"{model_location}.cost must be an object")
+            cost = model["cost"]
+            rates = _pricing_tier(cost, f"{model_location}.cost")
+            if "context_over_200k" in cost:
+                rates["context_over_200k"] = _pricing_tier(
+                    cost["context_over_200k"],
+                    f"{model_location}.cost.context_over_200k",
+                )
+            pricing[(str(provider_id), str(model_id))] = rates
+    return pricing
+
+
+def positive_finite_cost(value):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    number = float(value)
+    return number if math.isfinite(number) and number > 0 else None
+
+
+def priced_usage(
+    provider_id,
+    model_id,
+    tokens,
+    reported_cost,
+    pricing,
+    context_over_200k=None,
+):
+    """Return (cost, estimated subtotal, missing-pricing flag)."""
+    reported = positive_finite_cost(reported_cost)
+    if reported is not None:
+        return reported, 0.0, False
+    usage = sum(tokens.get(token_type, 0) for token_type in TOKEN_TYPES)
+    rates = pricing.get((provider_id, model_id))
+    if rates is None:
+        return 0.0, 0.0, usage > 0
+    if context_over_200k is None:
+        context_over_200k = (
+            tokens.get("input", 0)
+            + tokens.get("cache_read", 0)
+            + tokens.get("cache_write", 0)
+            > 200000
+        )
+    if context_over_200k:
+        rates = rates.get("context_over_200k", rates)
+    estimate = (
+        tokens.get("input", 0) * rates["input"]
+        + (tokens.get("output", 0) + tokens.get("reasoning", 0)) * rates["output"]
+        + tokens.get("cache_read", 0) * rates["cache_read"]
+        + tokens.get("cache_write", 0) * rates["cache_write"]
+    ) / 1_000_000
+    return estimate, estimate, False
 
 
 def fetch_json(server_url, path):
@@ -212,27 +312,16 @@ def usage_tokens(tokens):
     }
 
 
-def agent_usage_from_db(db_path, session_agents):
-    """Aggregate per-agent token/cost usage from the local OpenCode SQLite
-    database (opencode-stable.db), opened read-only.
+def message_usage_from_db(db_path, session_agents):
+    """Return grouped assistant-message usage and covered session IDs.
 
-    Returns (agent_tokens, agent_cost, session_agent_tokens, covered): token
-    totals keyed by (agent, provider, model) with per-type counts, cost
-    totals keyed by agent, per-session token sums keyed by session then
-    (agent, provider, model) then type for per-session statistics, and the
-    set of session IDs the database knows about. One indexed query LEFT
-    JOINs the session and message tables so coverage and aggregation happen
-    in a single pass over only the requested sessions; JSON values are
-    extracted and summed inside SQLite, only assistant message rows are
-    counted (message parts are never read), and each message's agent falls
-    back to the given session agent, then "unknown" (missing model info
-    becomes provider/model "unknown"). Raises sqlite3.Error (or OSError)
-    when the database is unavailable or unusable; callers fall back to the
-    message API for uncovered sessions.
+    The single query groups by session, agent, provider/model, reported-cost
+    status, and OpenCode's >200k request tier. Python applies configured rates
+    to these compact groups rather than loading raw message JSON rows.
     """
     session_ids = sorted(session_agents)
     if not session_ids:
-        return {}, {}, set()
+        return [], set()
     uri = f"file:{quote(os.path.abspath(db_path))}?mode=ro"
     connection = sqlite3.connect(uri, uri=True)
     try:
@@ -240,35 +329,45 @@ def agent_usage_from_db(db_path, session_agents):
         cursor = connection.execute(
             f"""
             SELECT s.id,
-                   json_extract(m.data, '$.agent') AS message_agent,
-                   json_extract(m.data, '$.providerID') AS message_provider,
-                   json_extract(m.data, '$.modelID') AS message_model,
+                   COALESCE(NULLIF(json_extract(m.data, '$.agent'), ''), '') AS message_agent,
+                   COALESCE(NULLIF(json_extract(m.data, '$.providerID'), ''), 'unknown') AS provider_id,
+                   COALESCE(NULLIF(json_extract(m.data, '$.modelID'), ''), 'unknown') AS model_id,
+                   CASE WHEN typeof(json_extract(m.data, '$.cost')) IN ('integer', 'real')
+                              AND json_extract(m.data, '$.cost') > 0
+                        THEN 1 ELSE 0 END AS has_reported_cost,
+                   CASE WHEN COALESCE(json_extract(m.data, '$.tokens.input'), 0)
+                                  + COALESCE(json_extract(m.data, '$.tokens.cache.read'), 0)
+                                  + COALESCE(json_extract(m.data, '$.tokens.cache.write'), 0) > 200000
+                         THEN 1 ELSE 0 END AS context_over_200k,
                    COUNT(m.id) AS assistant_messages,
                    SUM(COALESCE(json_extract(m.data, '$.tokens.input'), 0)),
                    SUM(COALESCE(json_extract(m.data, '$.tokens.output'), 0)),
                    SUM(COALESCE(json_extract(m.data, '$.tokens.reasoning'), 0)),
                    SUM(COALESCE(json_extract(m.data, '$.tokens.cache.read'), 0)),
                    SUM(COALESCE(json_extract(m.data, '$.tokens.cache.write'), 0)),
-                   SUM(COALESCE(json_extract(m.data, '$.cost'), 0))
+                   SUM(CASE WHEN typeof(json_extract(m.data, '$.cost')) IN ('integer', 'real')
+                                  AND json_extract(m.data, '$.cost') > 0
+                            THEN json_extract(m.data, '$.cost') ELSE 0 END)
             FROM session s
             LEFT JOIN message m
               ON m.session_id = s.id
              AND json_extract(m.data, '$.role') = 'assistant'
             WHERE s.id IN ({placeholders})
-            GROUP BY s.id, message_agent, message_provider, message_model
+            GROUP BY s.id, message_agent, provider_id, model_id,
+                     has_reported_cost, context_over_200k
             """,
             session_ids,
         )
         covered = set()
-        agent_tokens = {}
-        agent_cost = {}
-        session_agent_tokens = {}
+        groups = []
         for row in cursor:
             (
                 session_id,
                 message_agent,
-                message_provider,
-                message_model,
+                provider_id,
+                model_id,
+                has_reported_cost,
+                _context_over_200k,
                 assistant_messages,
                 *totals,
             ) = row
@@ -277,25 +376,21 @@ def agent_usage_from_db(db_path, session_agents):
                 # Session with no assistant messages: covered, but it must
                 # not mint a zero-valued series for its agent.
                 continue
-            agent = str(message_agent or session_agents.get(session_id) or "unknown")
-            key = (
-                agent,
-                model_provider_label(str(message_provider or "unknown")),
-                str(message_model or "unknown"),
+            groups.append(
+                {
+                    "session_id": str(session_id),
+                    "agent": str(message_agent or session_agents.get(session_id) or "unknown"),
+                    "provider": str(provider_id),
+                    "model": str(model_id),
+                    "tokens": {
+                        token_type: int(total or 0)
+                        for token_type, total in zip(TOKEN_TYPES, totals[:-1])
+                    },
+                    "reported_cost": float(totals[-1] or 0.0) if has_reported_cost else 0.0,
+                    "context_over_200k": bool(_context_over_200k),
+                }
             )
-            bucket = agent_tokens.setdefault(
-                key, {token_type: 0 for token_type in TOKEN_TYPES}
-            )
-            session_bucket = session_agent_tokens.setdefault(session_id, {})
-            session_bucket.setdefault(
-                key, {token_type: 0 for token_type in TOKEN_TYPES}
-            )
-            for token_type, total in zip(TOKEN_TYPES, totals[:-1]):
-                value = int(total or 0)
-                bucket[token_type] += value
-                session_bucket[key][token_type] += value
-            agent_cost[agent] = agent_cost.get(agent, 0.0) + float(totals[-1] or 0.0)
-        return agent_tokens, agent_cost, session_agent_tokens, covered
+        return groups, covered
     finally:
         connection.close()
 
@@ -613,7 +708,7 @@ def collect_sessions(server_url):
     return projects, list(sessions_by_id.values())
 
 
-def collect(server_url, auth_path, db_path=None):
+def collect(server_url, auth_path, db_path=None, pricing=None):
     started = time.monotonic()
 
     health = fetch_json(server_url, "/global/health")
@@ -623,7 +718,10 @@ def collect(server_url, auth_path, db_path=None):
     projects, sessions = collect_sessions(server_url)
 
     token_totals = {token_type: 0 for token_type in TOKEN_TYPES}
+    pricing = pricing or {}
     model_cost = {}
+    model_estimated_cost = {}
+    pricing_missing = {}
     model_sessions = {}
     model_tokens = {}
     agent_tokens = {}
@@ -650,14 +748,12 @@ def collect(server_url, auth_path, db_path=None):
         for session in sessions
         if session.get("id")
     }
-    db_agent_tokens = {}
-    db_agent_cost = {}
-    db_session_agent_tokens = {}
+    usage_groups = []
     db_covered = set()
     if db_path:
         try:
-            db_agent_tokens, db_agent_cost, db_session_agent_tokens, db_covered = (
-                agent_usage_from_db(db_path, session_agents)
+            usage_groups, db_covered = message_usage_from_db(
+                db_path, session_agents
             )
         except (OSError, ValueError, sqlite3.Error) as error:
             # An unavailable or stale database must not fail the scrape:
@@ -667,10 +763,10 @@ def collect(server_url, auth_path, db_path=None):
                 f"opencode database unusable, using message API fallback: {error}",
                 file=sys.stderr,
             )
+    sessions_with_usage = {usage["session_id"] for usage in usage_groups}
 
     for session in sessions:
-        # Session- and model-level families stay based on the session
-        # summaries, which remain authoritative for those metrics.
+        # Token/session families stay based on the session summaries.
         model = session.get("model") or {}
         model_key = (
             model_provider_label(str(model.get("providerID") or "unknown")),
@@ -682,15 +778,14 @@ def collect(server_url, auth_path, db_path=None):
             token_totals[token_type] += value
             model_tokens[model_key][token_type] += value
 
-        cost = float(session.get("cost") or 0.0)
-        cost_total += cost
-        model_cost[model_key] = model_cost.get(model_key, 0.0) + cost
+        model_cost.setdefault(model_key, 0.0)
         model_sessions[model_key] = model_sessions.get(model_key, 0) + 1
 
         # Per-agent attribution comes from the database aggregate above for
         # covered sessions; the message API only serves the rest.
         session_agent = str(session.get("agent") or "unknown")
         session_id = str(session.get("id") or "")
+        messages_obtained = session_id in sessions_with_usage
         if session_id and session_id not in db_covered:
             try:
                 messages = fetch_json(
@@ -698,9 +793,7 @@ def collect(server_url, auth_path, db_path=None):
                     f"/session/{quote(session_id, safe='')}/message",
                 )
             except ServerError:
-                # A missing or flaky message list must not fail the whole
-                # scrape; the session-summary metrics remain unaffected.
-                messages = []
+                messages = None
             if isinstance(messages, list):
                 for envelope in messages:
                     info = envelope.get("info") if isinstance(envelope, dict) else None
@@ -709,25 +802,36 @@ def collect(server_url, auth_path, db_path=None):
                         or str(info.get("role") or "") != "assistant"
                     ):
                         continue
+                    messages_obtained = True
                     agent = str(info.get("agent") or session_agent)
-                    key = (
-                        agent,
-                        model_provider_label(str(info.get("providerID") or "unknown")),
-                        str(info.get("modelID") or "unknown"),
+                    usage_groups.append(
+                        {
+                            "session_id": session_id,
+                            "agent": agent,
+                            "provider": str(info.get("providerID") or "unknown"),
+                            "model": str(info.get("modelID") or "unknown"),
+                            "tokens": usage_tokens(info.get("tokens")),
+                            "reported_cost": info.get("cost"),
+                        }
                     )
-                    agent_tokens.setdefault(
-                        key, {token_type: 0 for token_type in TOKEN_TYPES}
-                    )
-                    session_bucket = session_agent_tokens.setdefault(session_id, {})
-                    session_bucket.setdefault(
-                        key, {token_type: 0 for token_type in TOKEN_TYPES}
-                    )
-                    for token_type, value in usage_tokens(info.get("tokens")).items():
-                        agent_tokens[key][token_type] += value
-                        session_bucket[key][token_type] += value
-                    agent_cost[agent] = agent_cost.get(agent, 0.0) + float(
-                        info.get("cost") or 0.0
-                    )
+
+        if not messages_obtained:
+            # Session summaries are a last resort only when assistant message
+            # info cannot be obtained from either SQLite or the API.
+            usage_groups.append(
+                {
+                    "session_id": session_id,
+                    "agent": session_agent,
+                    "provider": str(model.get("providerID") or "unknown"),
+                    "model": str(model.get("id") or "unknown"),
+                    "tokens": session_tokens,
+                    "reported_cost": session.get("cost"),
+                    "attribute_agent_tokens": False,
+                    # A session aggregate cannot establish whether any single
+                    # assistant request crossed the pricing tier threshold.
+                    "context_over_200k": False,
+                }
+            )
 
         summary = session.get("summary") or {}
         lines_added_total += int(summary.get("additions") or 0)
@@ -738,20 +842,79 @@ def collect(server_url, auth_path, db_path=None):
         if updated_ms > 0 and now_ms - updated_ms <= ACTIVE_WINDOW_SECONDS * 1000.0:
             active_24h += 1
 
-    # Merge the database aggregate with whatever the message API fallback
-    # collected; both share the same attribution rules, and the per-session
-    # maps never overlap because covered sessions skip the message API.
-    for key, tokens in db_agent_tokens.items():
-        bucket = agent_tokens.setdefault(
-            key, {token_type: 0 for token_type in TOKEN_TYPES}
+    if not pricing:
+        # Without configured rates, positive message costs retain their agent
+        # attribution while the session summary supplies any unreported
+        # remainder. This keeps the production/default cost counters from
+        # regressing when zero-cost message records are present.
+        attributed_by_session = {}
+        for usage in usage_groups:
+            attributed_by_session[usage["session_id"]] = (
+                attributed_by_session.get(usage["session_id"], 0.0)
+                + (positive_finite_cost(usage["reported_cost"]) or 0.0)
+            )
+        for session in sessions:
+            session_id = str(session.get("id") or "")
+            summary_cost = positive_finite_cost(session.get("cost")) or 0.0
+            remainder = summary_cost - attributed_by_session.get(session_id, 0.0)
+            if remainder <= 0:
+                continue
+            model = session.get("model") or {}
+            usage_groups.append(
+                {
+                    "session_id": session_id,
+                    "agent": str(session.get("agent") or "unknown"),
+                    "provider": str(model.get("providerID") or "unknown"),
+                    "model": str(model.get("id") or "unknown"),
+                    "tokens": {token_type: 0 for token_type in TOKEN_TYPES},
+                    "reported_cost": remainder,
+                    "attribute_agent_tokens": False,
+                }
+            )
+
+    # Database and API groups share one pricing and attribution path. A
+    # summary remainder may supplement, but never duplicate, message costs.
+    for usage in usage_groups:
+        agent = usage["agent"]
+        tokens = usage["tokens"]
+        raw_provider = usage["provider"]
+        model_id = usage["model"]
+        model_key = (model_provider_label(raw_provider), model_id)
+        if usage.get("attribute_agent_tokens", True):
+            agent_key = (agent, *model_key)
+            bucket = agent_tokens.setdefault(
+                agent_key, {token_type: 0 for token_type in TOKEN_TYPES}
+            )
+            session_bucket = session_agent_tokens.setdefault(usage["session_id"], {})
+            per_session = session_bucket.setdefault(
+                agent_key, {token_type: 0 for token_type in TOKEN_TYPES}
+            )
+            for token_type, value in tokens.items():
+                bucket[token_type] += value
+                per_session[token_type] += value
+        cost, estimated, missing = priced_usage(
+            raw_provider,
+            model_id,
+            tokens,
+            usage["reported_cost"],
+            pricing,
+            usage.get("context_over_200k"),
         )
-        for token_type, value in tokens.items():
-            bucket[token_type] += value
-    session_agent_tokens.update(db_session_agent_tokens)
+        # Pricing lookup uses the raw OpenCode provider ID above. Only the
+        # emitted metric label is normalized for dashboard joins.
+        pricing_missing.setdefault(model_key, False)
+        cost_total += cost
+        model_cost[model_key] = model_cost.get(model_key, 0.0) + cost
+        agent_cost[agent] = agent_cost.get(agent, 0.0) + cost
+        if estimated > 0:
+            model_estimated_cost[model_key] = (
+                model_estimated_cost.get(model_key, 0.0) + estimated
+            )
+        if missing:
+            pricing_missing[model_key] = True
 
     # Per-session statistics: one sample per observed token type per
-    # (agent, provider, model), over the sessions in which that pair
-    # appeared.
+    # (agent, provider, model), over the sessions in which that tuple appeared.
     agent_session_stats = {}
     for session_tokens in session_agent_tokens.values():
         for key, types in session_tokens.items():
@@ -760,8 +923,6 @@ def collect(server_url, auth_path, db_path=None):
             )
             for token_type, value in types.items():
                 entry[token_type].append(value)
-    for agent, cost in db_agent_cost.items():
-        agent_cost[agent] = agent_cost.get(agent, 0.0) + cost
 
     duration = time.monotonic() - started
     version = str(health.get("version") or "unknown")
@@ -823,24 +984,36 @@ def collect(server_url, auth_path, db_path=None):
         ),
         format_metric(
             "opencode_session_cost_usd_total",
-            "Cumulative session cost in USD summed across all sessions.",
+            "Cumulative session cost in USD from reported costs plus pricing fallback estimates.",
             "counter",
             [([], round(cost_total, 6))],
         ),
         format_metric(
             "opencode_model_cost_usd_total",
-            "Cumulative session cost in USD per provider/model.",
+            "Cumulative cost in USD per provider/model from reported costs plus pricing fallback estimates.",
             "counter",
             model_samples(model_cost, lambda value: round(value, 6)),
         ),
         format_metric(
             "opencode_agent_cost_usd_total",
-            "Cumulative cost in USD per agent, summed from assistant message info records.",
+            "Cumulative cost in USD per agent from reported costs plus pricing fallback estimates.",
             "counter",
             [
                 ([("agent", agent)], round(agent_cost[agent], 6))
                 for agent in sorted(agent_cost)
             ],
+        ),
+        format_metric(
+            "opencode_model_estimated_cost_usd_total",
+            "Cumulative provider/model cost subtotal supplied by pricing fallback estimates.",
+            "counter",
+            model_samples(model_estimated_cost, lambda value: round(value, 6)),
+        ),
+        format_metric(
+            "opencode_pricing_missing",
+            "1 when nonzero usage has no pricing entry and no positive persisted cost.",
+            "gauge",
+            model_samples(pricing_missing, int),
         ),
         format_metric(
             "opencode_model_sessions_total",
@@ -885,12 +1058,21 @@ def collect(server_url, auth_path, db_path=None):
 
 
 class MetricsHandler(BaseHTTPRequestHandler):
-    server_version = "opencode-exporter/1.2.0"
+    server_version = "opencode-exporter/1.4.0"
     exporter_server_url = None
     exporter_auth_file = None
     exporter_db_file = None
+    exporter_pricing = {}
 
     def do_GET(self):
+        if self.path == "/health":
+            body = b"OK\n"
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if self.path != "/metrics":
             self.send_error(404)
             return
@@ -899,6 +1081,7 @@ class MetricsHandler(BaseHTTPRequestHandler):
                 self.exporter_server_url,
                 self.exporter_auth_file,
                 self.exporter_db_file,
+                self.exporter_pricing,
             ).encode()
         except ServerError as error:
             body = (
@@ -967,12 +1150,24 @@ def main():
         "does not cover fall back to the message API. Pass an empty path to "
         "always use the API (default: %(default)s)",
     )
+    parser.add_argument(
+        "--pricing-file",
+        default="",
+        metavar="PATH",
+        help="OpenCode-shaped JSON model pricing file (default: disabled)",
+    )
     args = parser.parse_args()
+
+    try:
+        pricing = load_pricing_file(args.pricing_file)
+    except PricingError as error:
+        parser.error(f"invalid pricing file: {error}")
 
     handler = MetricsHandler
     handler.exporter_server_url = args.server_url.rstrip("/")
     handler.exporter_auth_file = args.auth_file
     handler.exporter_db_file = args.db
+    handler.exporter_pricing = pricing
     server = ThreadingHTTPServer(args.bind, handler)
     host, port = args.bind
     print(f"serving metrics on http://{host}:{port}/metrics", flush=True)
