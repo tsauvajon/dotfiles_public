@@ -480,22 +480,33 @@ pkgs.runCommand "opencode-exporter-test"
         },
     ]
 
-    # Expected attribution from these envelopes:
-    #   build:   input 10, output 27, reasoning 1, cache_read 2,
-    #            cache_write 3, cost 0.35  (m1 + m3; step-finish and user
-    #            message data ignored)
-    #   plan:    input 105, output 6, reasoning 0, cache_read 7,
-    #            cache_write 8, cost 0.40  (s1 m2 + s2 m1: one session can
-    #            feed several agents, one agent can span sessions)
-    #   unknown: input 1, output 4, cache_write 9, cost 0.25  (s3: no
-    #            message agent and no session agent; s4 has no messages and
-    #            contributes nothing)
+    # Expected attribution from these envelopes (provider/model fall back to
+    # "unknown" when the message info carries none):
+    #   build@zai/glm:        input 10, output 20, reasoning 1,
+    #                         cache_read 2, cache_write 3
+    #                         (m1; m3's cost lands on the build agent too
+    #                         because a missing message agent falls back to
+    #                         the session agent, and m5 costs nothing)
+    #   build@unknown:        output 7, cost 0.05  (m3 carries no model
+    #                         info)
+    #   build@openai/gpt:     input 5, cost 0  (m5: same agent on a second
+    #                         model stays a separate bucket)
+    #   plan@openai/gpt:      input 105, output 6, reasoning 0,
+    #                         cache_read 7, cache_write 8, cost 0.40
+    #                         (s1 m2 + s2 m1: one session can feed several
+    #                         agents, one agent/model can span sessions)
+    #   unknown@unknown:      input 1, output 4, cache_write 9, cost 0.25
+    #                         (s3: no message agent/model and no session
+    #                         agent; s4 has no messages and contributes
+    #                         nothing)
     session_messages = {
         "s1": [
             {
                 "info": {
                     "role": "assistant",
                     "agent": "build",
+                    "providerID": "zai-coding-plan",
+                    "modelID": "glm",
                     "cost": 0.3,
                     "tokens": {
                         "input": 10,
@@ -516,6 +527,8 @@ pkgs.runCommand "opencode-exporter-test"
                 "info": {
                     "role": "assistant",
                     "agent": "plan",
+                    "providerID": "openai",
+                    "modelID": "gpt",
                     "cost": 0.15,
                     "tokens": {"input": 100},
                 },
@@ -538,11 +551,24 @@ pkgs.runCommand "opencode-exporter-test"
                 },
                 "parts": [],
             },
+            {
+                "info": {
+                    "role": "assistant",
+                    "agent": "build",
+                    "providerID": "openai",
+                    "modelID": "gpt",
+                    "cost": 0,
+                    "tokens": {"input": 5},
+                },
+                "parts": [],
+            },
         ],
         "s2": [
             {
                 "info": {
                     "role": "assistant",
+                    "providerID": "openai",
+                    "modelID": "gpt",
                     "cost": 0.25,
                     "tokens": {
                         "input": 5,
@@ -608,56 +634,83 @@ pkgs.runCommand "opencode-exporter-test"
         check(
             "agent tokens zero-filled types",
             sum(1 for line in lines if line.startswith("opencode_agent_tokens_total{")),
-            15,
+            25,
         )
         check(
-            "agent build input",
-            'opencode_agent_tokens_total{agent="build",type="input",} 10' in lines,
+            "agent build glm input",
+            'opencode_agent_tokens_total{agent="build",model="glm",provider="zai",type="input",} 10'
+            in lines,
             True,
         )
         check(
-            "agent build output sums its messages",
-            'opencode_agent_tokens_total{agent="build",type="output",} 27' in lines,
+            "agent build glm output",
+            'opencode_agent_tokens_total{agent="build",model="glm",provider="zai",type="output",} 20'
+            in lines,
             True,
         )
         check(
-            "agent build reasoning",
-            'opencode_agent_tokens_total{agent="build",type="reasoning",} 1' in lines,
+            "agent build glm reasoning",
+            'opencode_agent_tokens_total{agent="build",model="glm",provider="zai",type="reasoning",} 1'
+            in lines,
             True,
         )
         check(
-            "agent build cache_read",
-            'opencode_agent_tokens_total{agent="build",type="cache_read",} 2' in lines,
+            "agent build glm cache_read",
+            'opencode_agent_tokens_total{agent="build",model="glm",provider="zai",type="cache_read",} 2'
+            in lines,
             True,
         )
         check(
-            "agent build cache_write",
-            'opencode_agent_tokens_total{agent="build",type="cache_write",} 3' in lines,
+            "agent build glm cache_write",
+            'opencode_agent_tokens_total{agent="build",model="glm",provider="zai",type="cache_write",} 3'
+            in lines,
+            True,
+        )
+        check(
+            "agent build gpt is a separate model bucket",
+            'opencode_agent_tokens_total{agent="build",model="gpt",provider="openai",type="input",} 5'
+            in lines,
+            True,
+        )
+        check(
+            "agent build gpt zero-fills missing types",
+            'opencode_agent_tokens_total{agent="build",model="gpt",provider="openai",type="output",} 0'
+            in lines,
+            True,
+        )
+        check(
+            "agent session-fallback tokens without model info stay separate",
+            'opencode_agent_tokens_total{agent="build",model="unknown",provider="unknown",type="output",} 7'
+            in lines,
             True,
         )
         check(
             "agent plan input spans sessions",
-            'opencode_agent_tokens_total{agent="plan",type="input",} 105' in lines,
+            'opencode_agent_tokens_total{agent="plan",model="gpt",provider="openai",type="input",} 105'
+            in lines,
             True,
         )
         check(
             "agent plan reasoning zero",
-            'opencode_agent_tokens_total{agent="plan",type="reasoning",} 0' in lines,
+            'opencode_agent_tokens_total{agent="plan",model="gpt",provider="openai",type="reasoning",} 0'
+            in lines,
             True,
         )
         check(
             "agent missing falls back to unknown",
-            'opencode_agent_tokens_total{agent="unknown",type="input",} 1' in lines,
+            'opencode_agent_tokens_total{agent="unknown",model="unknown",provider="unknown",type="input",} 1'
+            in lines,
             True,
         )
         check(
             "agent unknown output from session fallback",
-            'opencode_agent_tokens_total{agent="unknown",type="output",} 4' in lines,
+            'opencode_agent_tokens_total{agent="unknown",model="unknown",provider="unknown",type="output",} 4'
+            in lines,
             True,
         )
         check(
             "agent empty falls back to unknown",
-            'opencode_agent_tokens_total{agent="unknown",type="cache_write",} 9'
+            'opencode_agent_tokens_total{agent="unknown",model="unknown",provider="unknown",type="cache_write",} 9'
             in lines,
             True,
         )
@@ -672,8 +725,13 @@ pkgs.runCommand "opencode-exporter-test"
         )
         check(
             "non-assistant messages not counted",
-            'opencode_agent_tokens_total{agent="build",type="input",} 65'
+            'opencode_agent_tokens_total{agent="build",model="glm",provider="zai",type="input",} 65'
             not in lines,
+            True,
+        )
+        check(
+            "zai coding plan provider normalized",
+            all('provider="zai-coding-plan"' not in line for line in lines),
             True,
         )
         check(
@@ -691,6 +749,56 @@ pkgs.runCommand "opencode-exporter-test"
             'opencode_agent_cost_usd_total{agent="unknown",} 0.25' in lines,
             True,
         )
+        check(
+            "agent session stats zero-filled",
+            sum(
+                1
+                for line in lines
+                if line.startswith("opencode_agent_session_tokens{")
+            ),
+            100,
+        )
+        check(
+            "agent session stats help",
+            "# HELP opencode_agent_session_tokens Token distribution per agent, provider/model and token type over per-session totals (stat label: p10, p50, p90, mean); gauge, not a counter."
+            in lines,
+            True,
+        )
+        check(
+            "agent session stats type gauge",
+            "# TYPE opencode_agent_session_tokens gauge" in lines,
+            True,
+        )
+        check(
+            "single-session quantiles collapse to the value",
+            'opencode_agent_session_tokens{agent="build",model="glm",provider="zai",type="input",stat="p10",} 10.0'
+            in lines,
+            True,
+        )
+        check(
+            "multi-session p10 interpolates",
+            'opencode_agent_session_tokens{agent="plan",model="gpt",provider="openai",type="input",stat="p10",} 14.5'
+            in lines,
+            True,
+        )
+        check(
+            "multi-session p50 interpolates",
+            'opencode_agent_session_tokens{agent="plan",model="gpt",provider="openai",type="input",stat="p50",} 52.5'
+            in lines,
+            True,
+        )
+        check(
+            "multi-session p90 interpolates",
+            'opencode_agent_session_tokens{agent="plan",model="gpt",provider="openai",type="input",stat="p90",} 90.5'
+            in lines,
+            True,
+        )
+        check(
+            "multi-session mean averages",
+            'opencode_agent_session_tokens{agent="plan",model="gpt",provider="openai",type="input",stat="mean",} 52.5'
+            in lines,
+            True,
+        )
 
     # Run 1: no database configured — every session uses the message API.
     collect_lines = run_collect(None)
@@ -701,7 +809,7 @@ pkgs.runCommand "opencode-exporter-test"
     )
     check(
         "agent tokens help",
-        "# HELP opencode_agent_tokens_total Cumulative tokens per agent and token type, summed from assistant message info records."
+        "# HELP opencode_agent_tokens_total Cumulative tokens per agent, provider/model and token type, summed from assistant message info records."
         in collect_lines,
         True,
     )
@@ -799,15 +907,17 @@ pkgs.runCommand "opencode-exporter-test"
     connection.commit()
     connection.close()
 
-    db_agent_tokens, db_agent_cost, db_covered = exporter.agent_usage_from_db(
-        db_path,
-        {
-            "s1": "build",
-            "s2": "plan",
-            "s0": "unused-agent",
-            "s9": "session-agent",
-            "s99": "ghost",
-        },
+    db_agent_tokens, db_agent_cost, db_session_agent_tokens, db_covered = (
+        exporter.agent_usage_from_db(
+            db_path,
+            {
+                "s1": "build",
+                "s2": "plan",
+                "s0": "unused-agent",
+                "s9": "session-agent",
+                "s99": "ghost",
+            },
+        )
     )
     check(
         "db covered sessions",
@@ -816,23 +926,34 @@ pkgs.runCommand "opencode-exporter-test"
     )
     check(
         "db message-free session mints no agent series",
-        "unused-agent" in db_agent_tokens,
+        any(agent == "unused-agent" for agent, _, _ in db_agent_tokens),
         False,
     )
     check(
         "db build tokens",
-        db_agent_tokens["build"],
+        db_agent_tokens[("build", "zai", "glm")],
         {
             "input": 10,
-            "output": 27,
+            "output": 20,
             "reasoning": 1,
             "cache_read": 2,
             "cache_write": 3,
         },
     )
     check(
+        "db build second model bucket",
+        db_agent_tokens[("build", "openai", "gpt")],
+        {
+            "input": 5,
+            "output": 0,
+            "reasoning": 0,
+            "cache_read": 0,
+            "cache_write": 0,
+        },
+    )
+    check(
         "db plan tokens span sessions and empty agent",
-        db_agent_tokens["plan"],
+        db_agent_tokens[("plan", "openai", "gpt")],
         {
             "input": 105,
             "output": 6,
@@ -843,7 +964,7 @@ pkgs.runCommand "opencode-exporter-test"
     )
     check(
         "db empty-string agent falls back to session agent",
-        db_agent_tokens["session-agent"],
+        db_agent_tokens[("session-agent", "unknown", "unknown")],
         {
             "input": 7,
             "output": 3,
@@ -855,6 +976,71 @@ pkgs.runCommand "opencode-exporter-test"
     check("db build cost", db_agent_cost["build"], 0.35)
     check("db plan cost", db_agent_cost["plan"], 0.4)
     check("db session-agent cost", db_agent_cost["session-agent"], 0.1)
+    check(
+        "db per-session sums keyed by session and pair",
+        db_session_agent_tokens["s1"][("plan", "openai", "gpt")]["input"],
+        100,
+    )
+    check(
+        "db per-session sums keep every pair of one session",
+        sorted(db_session_agent_tokens["s1"]),
+        [
+            ("build", "openai", "gpt"),
+            ("build", "unknown", "unknown"),
+            ("build", "zai", "glm"),
+            ("plan", "openai", "gpt"),
+        ],
+    )
+
+    check("quantile of empty list", exporter.quantile([], 0.5), 0.0)
+    check("quantile of single value", exporter.quantile([7], 0.9), 7.0)
+    check("quantile interpolates at the ends", exporter.quantile([5, 100], 0.1), 14.5)
+    check(
+        "quantile interpolates in the middle",
+        exporter.quantile([1, 2, 3, 4], 0.5),
+        2.5,
+    )
+
+    def session_sample_value(token_type, stat):
+        for labels, value in session_samples:
+            if labels[3][1] == token_type and labels[4][1] == stat:
+                return value
+        return None
+
+    session_samples = exporter.agent_session_token_samples(
+        {
+            ("plan", "openai", "gpt"): {
+                "input": [100, 5],
+                "output": [6],
+                "reasoning": [],
+                "cache_read": [],
+                "cache_write": [],
+            }
+        }
+    )
+    check(
+        "session samples emit p10 p50 p90 mean per type",
+        [
+            labels[4][1]
+            for labels, _ in session_samples
+            if labels[3][1] == "input"
+        ],
+        ["p10", "p50", "p90", "mean"],
+    )
+    check("session samples input p10", session_sample_value("input", "p10"), 14.5)
+    check("session samples input p50", session_sample_value("input", "p50"), 52.5)
+    check("session samples input p90", session_sample_value("input", "p90"), 90.5)
+    check("session samples input mean", session_sample_value("input", "mean"), 52.5)
+    check(
+        "session samples single-session mean",
+        session_sample_value("output", "mean"),
+        6.0,
+    )
+    check(
+        "session samples empty type falls back to zero",
+        session_sample_value("reasoning", "p50"),
+        0.0,
+    )
 
     try:
         exporter.agent_usage_from_db(
@@ -894,7 +1080,7 @@ pkgs.runCommand "opencode-exporter-test"
         [("s1", "build"), ("s2", "plan"), ("s3", ""), ("s4", "")],
     )
     connection.executemany(
-        "INSERT INTO message (id, session_id, data) VALUES (?, ?, ?)", db_rows[0:5]
+        "INSERT INTO message (id, session_id, data) VALUES (?, ?, ?)", db_rows[0:6]
     )
     connection.commit()
     connection.close()
@@ -902,13 +1088,19 @@ pkgs.runCommand "opencode-exporter-test"
     check("full db coverage makes no message api calls", message_api_calls, [])
     check(
         "full db coverage drops message-less agents",
-        'opencode_agent_tokens_total{agent="unknown",type="input",} 1'
+        'opencode_agent_tokens_total{agent="unknown",model="unknown",provider="unknown",type="input",} 1'
+        in collect_lines,
+        False,
+    )
+    check(
+        "full db coverage drops message-less session stats",
+        'opencode_agent_session_tokens{agent="unknown",model="unknown",provider="unknown",type="input",stat="p50",}'
         in collect_lines,
         False,
     )
     check(
         "full db coverage keeps db agent metrics",
-        'opencode_agent_tokens_total{agent="build",type="input",} 10'
+        'opencode_agent_tokens_total{agent="build",model="glm",provider="zai",type="input",} 10'
         in collect_lines,
         True,
     )

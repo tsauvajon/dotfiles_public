@@ -139,12 +139,60 @@ def model_token_samples(values):
 def agent_token_samples(values):
     return [
         (
-            [("agent", agent), ("type", token_type)],
-            values[agent][token_type],
+            [
+                ("agent", agent),
+                ("model", model_id),
+                ("provider", provider),
+                ("type", token_type),
+            ],
+            values[(agent, provider, model_id)][token_type],
         )
-        for agent in sorted(values)
+        for agent, provider, model_id in sorted(values)
         for token_type in TOKEN_TYPES
     ]
+
+
+AGENT_SESSION_STATS = (("p10", 0.10), ("p50", 0.50), ("p90", 0.90), ("mean", None))
+
+
+def quantile(sorted_values, fraction):
+    """Linearly interpolated quantile over an ascending list, matching
+    Prometheus's quantile semantics; returns 0 for an empty list."""
+    if not sorted_values:
+        return 0.0
+    rank = fraction * (len(sorted_values) - 1)
+    lower = int(rank)
+    upper = min(lower + 1, len(sorted_values) - 1)
+    weight = rank - lower
+    return sorted_values[lower] * (1.0 - weight) + sorted_values[upper] * weight
+
+
+def agent_session_token_samples(values):
+    """Render per-session token distribution gauges: for every observed
+    (agent, provider, model) and token type, p10/p50/p90/mean over the
+    per-session totals seen in stored sessions."""
+    samples = []
+    for agent, provider, model_id in sorted(values):
+        for token_type in TOKEN_TYPES:
+            per_session = sorted(values[(agent, provider, model_id)][token_type])
+            for stat, fraction in AGENT_SESSION_STATS:
+                if fraction is None:
+                    value = sum(per_session) / len(per_session) if per_session else 0.0
+                else:
+                    value = quantile(per_session, fraction)
+                samples.append(
+                    (
+                        [
+                            ("agent", agent),
+                            ("model", model_id),
+                            ("provider", provider),
+                            ("type", token_type),
+                            ("stat", stat),
+                        ],
+                        round(value, 6),
+                    )
+                )
+    return samples
 
 
 def usage_tokens(tokens):
@@ -168,15 +216,19 @@ def agent_usage_from_db(db_path, session_agents):
     """Aggregate per-agent token/cost usage from the local OpenCode SQLite
     database (opencode-stable.db), opened read-only.
 
-    Returns (agent_tokens, agent_cost, covered): totals keyed by agent and
-    the set of session IDs the database knows about. One indexed query
-    LEFT JOINs the session and message tables so coverage and aggregation
-    happen in a single pass over only the requested sessions; JSON values
-    are extracted and summed inside SQLite, only assistant message rows are
+    Returns (agent_tokens, agent_cost, session_agent_tokens, covered): token
+    totals keyed by (agent, provider, model) with per-type counts, cost
+    totals keyed by agent, per-session token sums keyed by session then
+    (agent, provider, model) then type for per-session statistics, and the
+    set of session IDs the database knows about. One indexed query LEFT
+    JOINs the session and message tables so coverage and aggregation happen
+    in a single pass over only the requested sessions; JSON values are
+    extracted and summed inside SQLite, only assistant message rows are
     counted (message parts are never read), and each message's agent falls
-    back to the given session agent, then "unknown". Raises sqlite3.Error
-    (or OSError) when the database is unavailable or unusable; callers fall
-    back to the message API for uncovered sessions.
+    back to the given session agent, then "unknown" (missing model info
+    becomes provider/model "unknown"). Raises sqlite3.Error (or OSError)
+    when the database is unavailable or unusable; callers fall back to the
+    message API for uncovered sessions.
     """
     session_ids = sorted(session_agents)
     if not session_ids:
@@ -189,6 +241,8 @@ def agent_usage_from_db(db_path, session_agents):
             f"""
             SELECT s.id,
                    json_extract(m.data, '$.agent') AS message_agent,
+                   json_extract(m.data, '$.providerID') AS message_provider,
+                   json_extract(m.data, '$.modelID') AS message_model,
                    COUNT(m.id) AS assistant_messages,
                    SUM(COALESCE(json_extract(m.data, '$.tokens.input'), 0)),
                    SUM(COALESCE(json_extract(m.data, '$.tokens.output'), 0)),
@@ -201,28 +255,47 @@ def agent_usage_from_db(db_path, session_agents):
               ON m.session_id = s.id
              AND json_extract(m.data, '$.role') = 'assistant'
             WHERE s.id IN ({placeholders})
-            GROUP BY s.id, message_agent
+            GROUP BY s.id, message_agent, message_provider, message_model
             """,
             session_ids,
         )
         covered = set()
         agent_tokens = {}
         agent_cost = {}
+        session_agent_tokens = {}
         for row in cursor:
-            session_id, message_agent, assistant_messages, *totals = row
+            (
+                session_id,
+                message_agent,
+                message_provider,
+                message_model,
+                assistant_messages,
+                *totals,
+            ) = row
             covered.add(session_id)
             if not assistant_messages:
                 # Session with no assistant messages: covered, but it must
                 # not mint a zero-valued series for its agent.
                 continue
             agent = str(message_agent or session_agents.get(session_id) or "unknown")
+            key = (
+                agent,
+                model_provider_label(str(message_provider or "unknown")),
+                str(message_model or "unknown"),
+            )
             bucket = agent_tokens.setdefault(
-                agent, {token_type: 0 for token_type in TOKEN_TYPES}
+                key, {token_type: 0 for token_type in TOKEN_TYPES}
+            )
+            session_bucket = session_agent_tokens.setdefault(session_id, {})
+            session_bucket.setdefault(
+                key, {token_type: 0 for token_type in TOKEN_TYPES}
             )
             for token_type, total in zip(TOKEN_TYPES, totals[:-1]):
-                bucket[token_type] += int(total or 0)
+                value = int(total or 0)
+                bucket[token_type] += value
+                session_bucket[key][token_type] += value
             agent_cost[agent] = agent_cost.get(agent, 0.0) + float(totals[-1] or 0.0)
-        return agent_tokens, agent_cost, covered
+        return agent_tokens, agent_cost, session_agent_tokens, covered
     finally:
         connection.close()
 
@@ -555,6 +628,7 @@ def collect(server_url, auth_path, db_path=None):
     model_tokens = {}
     agent_tokens = {}
     agent_cost = {}
+    session_agent_tokens = {}
     cost_total = 0.0
     lines_added_total = 0
     lines_deleted_total = 0
@@ -578,11 +652,12 @@ def collect(server_url, auth_path, db_path=None):
     }
     db_agent_tokens = {}
     db_agent_cost = {}
+    db_session_agent_tokens = {}
     db_covered = set()
     if db_path:
         try:
-            db_agent_tokens, db_agent_cost, db_covered = agent_usage_from_db(
-                db_path, session_agents
+            db_agent_tokens, db_agent_cost, db_session_agent_tokens, db_covered = (
+                agent_usage_from_db(db_path, session_agents)
             )
         except (OSError, ValueError, sqlite3.Error) as error:
             # An unavailable or stale database must not fail the scrape:
@@ -635,11 +710,21 @@ def collect(server_url, auth_path, db_path=None):
                     ):
                         continue
                     agent = str(info.get("agent") or session_agent)
+                    key = (
+                        agent,
+                        model_provider_label(str(info.get("providerID") or "unknown")),
+                        str(info.get("modelID") or "unknown"),
+                    )
                     agent_tokens.setdefault(
-                        agent, {token_type: 0 for token_type in TOKEN_TYPES}
+                        key, {token_type: 0 for token_type in TOKEN_TYPES}
+                    )
+                    session_bucket = session_agent_tokens.setdefault(session_id, {})
+                    session_bucket.setdefault(
+                        key, {token_type: 0 for token_type in TOKEN_TYPES}
                     )
                     for token_type, value in usage_tokens(info.get("tokens")).items():
-                        agent_tokens[agent][token_type] += value
+                        agent_tokens[key][token_type] += value
+                        session_bucket[key][token_type] += value
                     agent_cost[agent] = agent_cost.get(agent, 0.0) + float(
                         info.get("cost") or 0.0
                     )
@@ -654,13 +739,27 @@ def collect(server_url, auth_path, db_path=None):
             active_24h += 1
 
     # Merge the database aggregate with whatever the message API fallback
-    # collected; both share the same attribution rules.
-    for agent, tokens in db_agent_tokens.items():
+    # collected; both share the same attribution rules, and the per-session
+    # maps never overlap because covered sessions skip the message API.
+    for key, tokens in db_agent_tokens.items():
         bucket = agent_tokens.setdefault(
-            agent, {token_type: 0 for token_type in TOKEN_TYPES}
+            key, {token_type: 0 for token_type in TOKEN_TYPES}
         )
         for token_type, value in tokens.items():
             bucket[token_type] += value
+    session_agent_tokens.update(db_session_agent_tokens)
+
+    # Per-session statistics: one sample per observed token type per
+    # (agent, provider, model), over the sessions in which that pair
+    # appeared.
+    agent_session_stats = {}
+    for session_tokens in session_agent_tokens.values():
+        for key, types in session_tokens.items():
+            entry = agent_session_stats.setdefault(
+                key, {token_type: [] for token_type in TOKEN_TYPES}
+            )
+            for token_type, value in types.items():
+                entry[token_type].append(value)
     for agent, cost in db_agent_cost.items():
         agent_cost[agent] = agent_cost.get(agent, 0.0) + cost
 
@@ -712,9 +811,15 @@ def collect(server_url, auth_path, db_path=None):
         ),
         format_metric(
             "opencode_agent_tokens_total",
-            "Cumulative tokens per agent and token type, summed from assistant message info records.",
+            "Cumulative tokens per agent, provider/model and token type, summed from assistant message info records.",
             "counter",
             agent_token_samples(agent_tokens),
+        ),
+        format_metric(
+            "opencode_agent_session_tokens",
+            "Token distribution per agent, provider/model and token type over per-session totals (stat label: p10, p50, p90, mean); gauge, not a counter.",
+            "gauge",
+            agent_session_token_samples(agent_session_stats),
         ),
         format_metric(
             "opencode_session_cost_usd_total",
