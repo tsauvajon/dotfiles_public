@@ -11,16 +11,18 @@
 {
   pkgs,
   lib,
-  inputs,
+  privateConfig,
   ...
 }:
 
 let
-  privateGit = inputs.private.git or { };
-  name = privateGit.name or "";
-  email = privateGit.email or "";
-  signingKey = privateGit.signingKey or "";
-  extraConfigInclude = privateGit.extraConfigInclude or null;
+  privateConfigLib = import ../lib/private-config.nix { inherit lib; };
+  privateGit = privateConfig.git;
+  inherit (privateConfigLib) valueOr;
+  name = valueOr privateGit "name" "";
+  email = valueOr privateGit "email" "";
+  signingKey = valueOr privateGit "signingKey" "";
+  extraConfigInclude = valueOr privateGit "extraConfigInclude" null;
 
   hasIdentity = name != "" && email != "" && signingKey != "";
 in
@@ -70,7 +72,7 @@ assert lib.assertMsg hasIdentity ''
     };
 
     includes = lib.optional (extraConfigInclude != null) {
-      path = toString extraConfigInclude;
+      path = "${extraConfigInclude}";
     };
 
     settings = {

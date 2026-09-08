@@ -27,6 +27,19 @@ pkgs.runCommand "opencode-imports-test"
       printf '%s' "$manifest" | HOME="$home" bash -c '. "$1"; opencode_imports_sync "$2"' _ "$helper" "$stage"
     }
 
+    run_sync_faulted() {
+      local stage="$1"
+      local manifest="$2"
+      printf '%s' "$manifest" | HOME="$home" \
+        PATH="$fault_bin:$PATH" \
+        REAL_MKTEMP="$real_mktemp" \
+        REAL_MV="$real_mv" \
+        FAULT_STATE="$fault_state" \
+        FAULT_MKTEMP="''${fault_mktemp:-}" \
+        FAULT_MV="''${fault_mv:-}" \
+        bash -c '. "$1"; opencode_imports_sync "$2"' _ "$helper" "$stage"
+    }
+
     assert_file() {
       [ -f "$1" ] || fail "expected file: $1"
     }
@@ -47,6 +60,8 @@ pkgs.runCommand "opencode-imports-test"
       printf '{"bare":true}\n' > "$src/opencode.json"
       printf '{"scripts":{}}\n' > "$src/package.json"
       printf '{"nonstandard":true}\n' > "$src/mcp.fragment.json"
+      ln -s hello.md "$src/commands/linked.md"
+      ln -s example-skill "$src/skills/linked-skill"
     }
 
     src="$TMPDIR/src"
@@ -64,6 +79,9 @@ pkgs.runCommand "opencode-imports-test"
     assert_file "$stage1/auto/opencode.fragment.json"
     assert_file "$stage1/auto/package.json"
     assert_no_path "$stage1/auto/opencode.json"
+    [ ! -L "$stage1/auto/commands/linked.md" ] || fail "staged file symlink was not dereferenced"
+    [ ! -L "$stage1/auto/skills/linked-skill" ] || fail "staged directory symlink was not dereferenced"
+    assert_file "$stage1/auto/skills/linked-skill/SKILL.md"
 
     # --- Test 2: exclude filtering skips auto-discovered entries.
     stage2="$TMPDIR/stage2"
@@ -163,6 +181,121 @@ pkgs.runCommand "opencode-imports-test"
     run_sync "$stage10" "$manifest10" >/dev/null
     assert_file "$stage10/idem/commands/hello.md"
     assert_no_path "$stage10/idem/stale.md"
+
+    # --- Test 12: a staging failure preserves the last successful tree.
+    stage11="$TMPDIR/stage11"
+    run_sync "$stage11" "$manifest10" >/dev/null
+    printf 'last-good\n' > "$stage11/idem/last-good.md"
+    manifest11=$(printf 'HEADER\tbroken\t%s\texplicit\nPATH\tbroken\tcommands/hello.md\tcommands\nPATH\tbroken\tpackage.json\tcommands/nested.json\nEND\tbroken\n' "$src")
+    set +e
+    output=$(run_sync "$stage11" "$manifest11" 2>&1)
+    rc=$?
+    set -e
+    [ "$rc" -ne 0 ] || fail "conflicting destinations should fail staging: $output"
+    assert_file "$stage11/idem/last-good.md"
+    assert_no_path "$stage11/broken"
+    if compgen -G "$stage11.staging.*" >/dev/null; then
+      fail "failed transaction left a staging directory"
+    fi
+
+    # --- Test 13: imports deleted from the manifest disappear on success.
+    stage12="$TMPDIR/stage12"
+    manifest12a=$(printf 'HEADER\tone\t%s\tauto\nEND\tone\nHEADER\ttwo\t%s\tauto\nEND\ttwo\n' "$src" "$src")
+    manifest12b=$(printf 'HEADER\tone\t%s\tauto\nEND\tone\n' "$src")
+    run_sync "$stage12" "$manifest12a" >/dev/null
+    assert_file "$stage12/two/commands/hello.md"
+    run_sync "$stage12" "$manifest12b" >/dev/null
+    assert_file "$stage12/one/commands/hello.md"
+    assert_no_path "$stage12/two"
+
+    # --- Test 14: a successful empty manifest removes the previous tree.
+    stage13="$TMPDIR/stage13"
+    run_sync "$stage13" "$manifest10" >/dev/null
+    assert_file "$stage13/idem/commands/hello.md"
+    run_sync "$stage13" "" >/dev/null
+    assert_no_path "$stage13"
+
+    fault_bin="$TMPDIR/fault-bin"
+    mkdir -p "$fault_bin"
+    real_mktemp=$(command -v mktemp)
+    real_mv=$(command -v mv)
+    cat > "$fault_bin/mktemp" <<'EOF'
+#!/bin/sh
+count=0
+[ ! -f "$FAULT_STATE.mktemp" ] || count=$(cat "$FAULT_STATE.mktemp")
+count=$((count + 1))
+printf '%s\n' "$count" > "$FAULT_STATE.mktemp"
+if [ "$FAULT_MKTEMP" = "first" ] && [ "$count" -eq 1 ]; then exit 73; fi
+if [ "$FAULT_MKTEMP" = "second" ] && [ "$count" -eq 2 ]; then exit 74; fi
+exec "$REAL_MKTEMP" "$@"
+EOF
+    cat > "$fault_bin/mv" <<'EOF'
+#!/bin/sh
+count=0
+[ ! -f "$FAULT_STATE.mv" ] || count=$(cat "$FAULT_STATE.mv")
+count=$((count + 1))
+printf '%s\n' "$count" > "$FAULT_STATE.mv"
+if { [ "$FAULT_MV" = "publish" ] || [ "$FAULT_MV" = "publish-restore" ]; } && [ "$count" -eq 2 ]; then exit 75; fi
+if [ "$FAULT_MV" = "publish-restore" ] && [ "$count" -eq 3 ]; then exit 76; fi
+exec "$REAL_MV" "$@"
+EOF
+    chmod +x "$fault_bin/mktemp" "$fault_bin/mv"
+
+    # --- Test 15: staging allocation failure is explicit and preserves old state.
+    stage14="$TMPDIR/stage14"
+    run_sync "$stage14" "$manifest10" >/dev/null
+    printf 'last-good\n' > "$stage14/idem/last-good.md"
+    fault_state="$TMPDIR/fault14" fault_mktemp=first fault_mv=""
+    set +e
+    output=$(run_sync_faulted "$stage14" "$manifest12b" 2>&1)
+    rc=$?
+    set -e
+    [ "$rc" -ne 0 ] || fail "staging mktemp failure should fail"
+    echo "$output" | grep -q 'failed to allocate OpenCode imports staging directory' || fail "staging allocation error missing: $output"
+    assert_file "$stage14/idem/last-good.md"
+
+    # --- Test 16: backup allocation failure removes staging and preserves old state.
+    stage15="$TMPDIR/stage15"
+    run_sync "$stage15" "$manifest10" >/dev/null
+    printf 'last-good\n' > "$stage15/idem/last-good.md"
+    fault_state="$TMPDIR/fault15" fault_mktemp=second fault_mv=""
+    set +e
+    output=$(run_sync_faulted "$stage15" "$manifest12b" 2>&1)
+    rc=$?
+    set -e
+    [ "$rc" -ne 0 ] || fail "backup mktemp failure should fail"
+    echo "$output" | grep -q 'failed to allocate OpenCode imports backup directory' || fail "backup allocation error missing: $output"
+    assert_file "$stage15/idem/last-good.md"
+    if compgen -G "$stage15.staging.*" >/dev/null; then fail "backup allocation failure left staging"; fi
+
+    # --- Test 17: publication failure restores the previous successful tree.
+    stage16="$TMPDIR/stage16"
+    run_sync "$stage16" "$manifest10" >/dev/null
+    printf 'last-good\n' > "$stage16/idem/last-good.md"
+    fault_state="$TMPDIR/fault16" fault_mktemp="" fault_mv=publish
+    set +e
+    output=$(run_sync_faulted "$stage16" "$manifest12b" 2>&1)
+    rc=$?
+    set -e
+    [ "$rc" -ne 0 ] || fail "publication failure should fail"
+    assert_file "$stage16/idem/last-good.md"
+    if compgen -G "$stage16.backup.*" >/dev/null; then fail "restored publication failure left backup"; fi
+
+    # --- Test 18: failed restoration retains and reports the only good backup.
+    stage17="$TMPDIR/stage17"
+    run_sync "$stage17" "$manifest10" >/dev/null
+    printf 'last-good\n' > "$stage17/idem/last-good.md"
+    fault_state="$TMPDIR/fault17" fault_mktemp="" fault_mv=publish-restore
+    set +e
+    output=$(run_sync_faulted "$stage17" "$manifest12b" 2>&1)
+    rc=$?
+    set -e
+    [ "$rc" -ne 0 ] || fail "publication+restore failure should fail"
+    backup_line=$(printf '%s\n' "$output" | grep 'preserved backup at ')
+    backup_path="''${backup_line##*preserved backup at }"
+    [ -n "$backup_path" ] || fail "preserved backup path was not reported: $output"
+    assert_file "$backup_path/idem/last-good.md"
+    assert_no_path "$stage17"
 
     echo "all opencode-imports assertions passed"
     touch "$out"

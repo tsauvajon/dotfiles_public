@@ -22,6 +22,7 @@ let
     // (import ./server-activation.nix { inherit lib; })
     // (import ./cargo-cache-guardrails.nix { inherit lib; })
     // (import ./public-permissions.nix { inherit lib; })
+    // (import ./managed-entries.nix { inherit lib; })
     // (import ./public-base-guardrail.nix { inherit lib; })
     // {
       testCompactionPruneEnabled = {

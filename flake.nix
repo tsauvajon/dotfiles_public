@@ -141,11 +141,21 @@
         srcHash = "sha256-lCXlxTOhcX70jxJAbpolyGlIxQK2nst+6bFhq3Xzdmc=";
         nodeModulesHash = "sha256-0rpyP6nqK4FrJNjl0WV5adPjEQhe8a55RM7CgP9wlak=";
       };
-      supportedSystems = [
-        "x86_64-linux"
-        "aarch64-darwin"
-        "x86_64-darwin"
-      ];
+      hostInventory = {
+        thomas-darwin = {
+          system = "aarch64-darwin";
+          hostModule = ./home/hosts/darwin.nix;
+        };
+        thomas-darwin-intel = {
+          system = "x86_64-darwin";
+          hostModule = ./home/hosts/darwin.nix;
+        };
+        thomas-linux = {
+          system = "x86_64-linux";
+          hostModule = ./home/hosts/linux.nix;
+        };
+      };
+      supportedSystems = nixpkgs.lib.unique (map (host: host.system) (builtins.attrValues hostInventory));
 
       localOverlay =
         system: final: prev:
@@ -252,6 +262,9 @@
 
       pkgsFor = nixpkgs.lib.genAttrs supportedSystems mkPkgs;
 
+      privateConfigLib = import ./home/lib/private-config.nix { lib = nixpkgs.lib; };
+      privateConfig = privateConfigLib.normalize inputs.private;
+
       dotfilesRoot = ./.;
 
       # Change this one toggle to "kitty" to make Kitty the default terminal
@@ -295,46 +308,40 @@
               system
               dotfilesRoot
               terminal
+              privateConfig
               ;
           };
           modules = [
             ./home
             hostModule
           ]
-          ++ (inputs.private.homeModules or [ ]);
+          ++ privateConfig.homeModules;
         };
 
-      homeConfigurations = {
-        thomas-darwin = mkHome {
-          system = "aarch64-darwin";
-          hostModule = ./home/hosts/darwin.nix;
-        };
-        thomas-darwin-intel = mkHome {
-          system = "x86_64-darwin";
-          hostModule = ./home/hosts/darwin.nix;
-        };
-        thomas-linux = mkHome {
-          system = "x86_64-linux";
-          hostModule = ./home/hosts/linux.nix;
-        };
-      };
+      homeConfigurations = nixpkgs.lib.mapAttrs (_: mkHome) hostInventory;
     in
     flake-utils.lib.eachSystem supportedSystems (
       system:
       let
         pkgs = pkgsFor.${system};
         inherit (pkgs) lib;
-        # Map each host to the system it targets so `nix flake check
-        # --all-systems` exercises every homeConfiguration. Pure
-        # evaluation alone catches issues like the nixGL fetchurl
-        # regression; building still requires the matching system or
-        # a remote builder.
-        hostsForSystem = {
-          "aarch64-darwin" = [ "thomas-darwin" ];
-          "x86_64-darwin" = [ "thomas-darwin-intel" ];
-          "x86_64-linux" = [ "thomas-linux" ];
+        # Derive the checks for this system from the same inventory as the
+        # supported-system list and exported Home Manager configurations.
+        hosts = builtins.attrNames (lib.filterAttrs (_: host: host.system == system) hostInventory);
+
+        exportedPackages = {
+          inherit (pkgs)
+            cargo-coupling
+            dumap
+            glim
+            herdr
+            kache
+            sem
+            tool-habit
+            tsql
+            weave
+            ;
         };
-        hosts = hostsForSystem.${system} or [ ];
 
         # Pure value-equality unit tests for the lib helpers. Each
         # imported file returns an attrset of `{expr; expected;}`
@@ -346,6 +353,7 @@
           (import ./home/lib/deep-merge-json.test.nix { inherit lib; })
           // (import ./home/lib/concat-files.test.nix { inherit lib; })
           // (import ./home/lib/goto-enabled.test.nix { inherit lib; })
+          // (import ./home/lib/private-config.test.nix { inherit lib; })
           // (import ./home/lib/list-files-in.test.nix { inherit lib; })
           // (import ./home/lib/read-json-or.test.nix { inherit lib; })
           // (import ./home/lib/managed-user-service.test.nix { inherit lib; })
@@ -378,17 +386,16 @@
         mergeDirsCheck = import ./home/lib/merge-dirs.test.nix { inherit pkgs lib; };
         concatTomlFilesCheck = import ./home/lib/concat-toml-files.test.nix { inherit pkgs lib; };
         opencodeImportsCheck = import ./scripts/lib/opencode-imports.test.nix { inherit pkgs lib; };
+        setupCheck = import ./scripts/setup.test.nix { inherit pkgs lib; };
         opencodeTestsCheck = import ./home/opencode.test { inherit pkgs lib; };
         opencodeGlobalEventListenerRetentionCheck =
           import ./pkgs/opencode/global-event-listener-retention.test.nix
             {
               inherit pkgs;
             };
-        opencodeExporterCheck =
-          import ./pkgs/opencode-exporter/opencode-exporter.test.nix
-            {
-              inherit pkgs lib;
-            };
+        opencodeExporterCheck = import ./pkgs/opencode-exporter/opencode-exporter.test.nix {
+          inherit pkgs lib;
+        };
         opencodeVersionAlignmentCheck =
           pkgs.runCommand "opencode-version-alignment"
             {
@@ -555,19 +562,7 @@
       in
       {
         formatter = pkgs.nixfmt-rfc-style;
-        packages = {
-          inherit (pkgs)
-            cargo-coupling
-            dumap
-            glim
-            herdr
-            kache
-            sem
-            tool-habit
-            tsql
-            weave
-            ;
-        };
+        packages = exportedPackages;
         checks =
           builtins.listToAttrs (
             map (h: {
@@ -575,18 +570,8 @@
               value = homeConfigurations.${h}.activationPackage;
             }) hosts
           )
+          // exportedPackages
           // {
-            inherit (pkgs)
-              cargo-coupling
-              dumap
-              glim
-              herdr
-              kache
-              sem
-              tool-habit
-              tsql
-              weave
-              ;
             lib-runTests = libRunTestsCheck;
             bootstrap-keys-test = bootstrapKeysCheck;
             arch-packages-test = archPackagesCheck;
@@ -594,6 +579,7 @@
             concat-toml-files-test = concatTomlFilesCheck;
             merge-dirs-test = mergeDirsCheck;
             opencode-imports-test = opencodeImportsCheck;
+            setup-test = setupCheck;
             opencode-global-event-listener-retention-test = opencodeGlobalEventListenerRetentionCheck;
             opencode-exporter-test = opencodeExporterCheck;
             opencode-version-alignment = opencodeVersionAlignmentCheck;

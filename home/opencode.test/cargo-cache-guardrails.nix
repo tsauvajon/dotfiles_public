@@ -3,69 +3,14 @@
 
 let
   inherit (import ../lib/opencode-merge.nix { inherit lib; }) mkMergedOpencodeJson;
+  inherit (import ./lib/permission-matcher.nix { inherit lib; })
+    actionsFor
+    expectedActions
+    lastMatchingAction
+    matches
+    ;
 
   merged = mkMergedOpencodeJson { publicRoot = ../../config/opencode; };
-
-  escapeRegex =
-    s:
-    builtins.replaceStrings
-      [
-        "\\"
-        "."
-        "+"
-        "?"
-        "^"
-        "$"
-        "("
-        ")"
-        "["
-        "]"
-        "{"
-        "}"
-        "|"
-      ]
-      [
-        "\\\\"
-        "\\."
-        "\\+"
-        "\\?"
-        "\\^"
-        "\\$"
-        "\\("
-        "\\)"
-        "\\["
-        "\\]"
-        "\\{"
-        "\\}"
-        "\\|"
-      ]
-      s;
-
-  globToRegex =
-    pattern:
-    if lib.hasSuffix " *" pattern then
-      "^"
-      + lib.concatStringsSep ".*" (map escapeRegex (lib.splitString "*" (lib.removeSuffix " *" pattern)))
-      + "( .*)?$"
-    else
-      "^" + lib.concatStringsSep ".*" (map escapeRegex (lib.splitString "*" pattern)) + "$";
-
-  lastMatchingAction =
-    rules: command:
-    let
-      matchingKeys = builtins.filter (pattern: builtins.match (globToRegex pattern) command != null) (
-        builtins.attrNames rules
-      );
-    in
-    builtins.getAttr (lib.last matchingKeys) rules;
-
-  actionsFor =
-    rules: commands:
-    map (command: {
-      inherit command;
-      action = lastMatchingAction rules command;
-    }) commands;
-  expectedActions = action: commands: map (command: { inherit command action; }) commands;
 
   globalRules = merged.permission.bash;
   agentRules = name: merged.agent.${name}.permission.bash;
@@ -115,6 +60,27 @@ let
   ];
 in
 {
+  testPermissionMatcherBoundaries = {
+    expr = {
+      bareCommand = matches "cargo *" "cargo";
+      commandArguments = matches "cargo *" "cargo check";
+      commandPrefix = matches "cargo *" "cargo-nextest";
+      questionWildcardOneCharacter = matches "tool? *" "toolx run";
+      questionWildcardNeedsCharacter = matches "tool? *" "tool run";
+      wildcardWithinToken = matches "scripts/*/check.sh" "scripts/nix/check.sh";
+      unmatchedAction = lastMatchingAction { "cargo *" = "allow"; } "git status";
+    };
+    expected = {
+      bareCommand = true;
+      commandArguments = true;
+      commandPrefix = false;
+      questionWildcardOneCharacter = true;
+      questionWildcardNeedsCharacter = false;
+      wildcardWithinToken = true;
+      unmatchedAction = null;
+    };
+  };
+
   testGlobalCargoCacheOverrideDenies = {
     expr = actionsFor globalRules globalDeniedCargoCommands;
     expected = expectedActions "deny" globalDeniedCargoCommands;

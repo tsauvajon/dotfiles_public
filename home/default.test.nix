@@ -17,15 +17,23 @@ let
   home = ./.;
   source = builtins.readFile (home + "/default.nix");
   rustModuleSource = builtins.readFile (home + "/rust.nix");
+  gitModule = import ./programs/git.nix {
+    inherit lib;
+    pkgs = { };
+    privateConfig.git = {
+      name = "Test User";
+      email = "test@example.com";
+      signingKey = "/tmp/test.pub";
+      extraConfigInclude = ./programs/git.nix;
+    };
+  };
 
   # `builtins.split` returns a list alternating between non-match
   # strings and match groups (themselves lists). We keep only the
   # match groups whose first element is the captured path.
   parts = builtins.split "\\./([A-Za-z0-9_./-]+)" source;
 
-  importPaths = lib.concatMap (
-    p: if builtins.isList p then [ (builtins.elemAt p 0) ] else [ ]
-  ) parts;
+  importPaths = lib.concatMap (p: if builtins.isList p then [ (builtins.elemAt p 0) ] else [ ]) parts;
 
   # Filter out matches that are not module imports — e.g. a comment
   # like `./bootstrap.nix runs ...`. Real imports always end in either
@@ -50,6 +58,11 @@ in
   testImportsResolve = {
     expr = missing;
     expected = [ ];
+  };
+
+  testGitIncludePreservesNixPathContext = {
+    expr = builtins.hasContext ((builtins.head gitModule.programs.git.includes).path);
+    expected = true;
   };
 
   testKacheUsesGracefulBoundedStop = {

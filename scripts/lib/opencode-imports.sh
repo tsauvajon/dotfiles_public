@@ -5,23 +5,67 @@
 # the provided staging root. The manifest is produced by setup.sh via Nix eval.
 opencode_imports_sync() {
   local sync_root="$1"
-  local manifest
+  local manifest staging backup
 
   manifest=$(cat)
 
-  # Eval succeeded before this function was called — reset the staging root so
-  # removed manifest entries do not linger.
-  if [ -d "$sync_root" ]; then
-    chmod -R u+w "$sync_root" 2>/dev/null || true
+  mkdir -p "$(dirname "$sync_root")" || return 1
+  if ! staging=$(mktemp -d "${sync_root}.staging.XXXXXX"); then
+    printf 'error: failed to allocate OpenCode imports staging directory for %s\n' "$sync_root" >&2
+    return 1
   fi
-  rm -rf "$sync_root"
 
+  if [ -n "$manifest" ]; then
+    printf '==> Syncing OpenCode imports into %s\n' "$sync_root"
+    if ! opencode_imports_stage_manifest "$staging" "$manifest"; then
+      chmod -R u+w "$staging" 2>/dev/null || true
+      rm -rf "$staging"
+      return 1
+    fi
+  fi
+
+  # Publish only after every import has staged successfully. Moving the old
+  # tree aside first keeps it available for restoration if publication fails.
+  if ! backup=$(mktemp -d "${sync_root}.backup.XXXXXX"); then
+    printf 'error: failed to allocate OpenCode imports backup directory for %s\n' "$sync_root" >&2
+    rm -rf "$staging"
+    return 1
+  fi
+  if [ -e "$sync_root" ]; then
+    if ! mv "$sync_root" "$backup/previous"; then
+      rm -rf "$staging" "$backup"
+      return 1
+    fi
+  fi
+
+  # Preserve the historical empty-manifest behavior: a successful empty eval
+  # removes the imports root rather than publishing an empty directory.
   if [ -z "$manifest" ]; then
+    chmod -R u+w "$backup" 2>/dev/null || true
+    rm -rf "$staging" "$backup"
     return 0
   fi
 
-  mkdir -p "$sync_root"
-  printf '==> Syncing OpenCode imports into %s\n' "$sync_root"
+  if ! mv "$staging" "$sync_root"; then
+    if [ -e "$backup/previous" ]; then
+      if ! mv "$backup/previous" "$sync_root"; then
+        rm -rf "$staging"
+        printf 'error: failed to restore previous OpenCode imports; preserved backup at %s\n' \
+          "$backup/previous" >&2
+        return 1
+      fi
+    fi
+    rm -rf "$staging" "$backup"
+    return 1
+  fi
+
+  chmod -R u+w "$backup" 2>/dev/null || true
+  rm -rf "$backup"
+}
+
+# Parse and stage one complete manifest into a fresh, unpublished directory.
+opencode_imports_stage_manifest() {
+  local stage_root="$1" manifest="$2"
 
   # Per-import accumulators (reset on each HEADER, consumed on END).
   local cur_name="" cur_source="" cur_mode=""
@@ -49,7 +93,9 @@ opencode_imports_sync() {
         cur_path_src+=("$b") cur_path_dest+=("$c")
         ;;
       END)
-        opencode_imports_process_import "$sync_root"
+        if ! opencode_imports_process_import "$stage_root"; then
+          return 1
+        fi
         ;;
       *)
         printf 'warning: unknown opencode-import record tag %q\n' "$tag" >&2
@@ -64,7 +110,7 @@ opencode_imports_validate_rel() {
   case "$rel" in
     ""|/*|..|../*|*/..|*/../*)
       printf 'error: opencode-import "%s" has invalid %s path: %s\n' "$name" "$kind" "$rel" >&2
-      exit 1
+      return 1
       ;;
   esac
 }
@@ -84,17 +130,17 @@ opencode_imports_validate_source_rel() {
 opencode_imports_stage_one() {
   local src="$1" stage="$2" dest_rel="$3" name="$4" dst
 
-  opencode_imports_validate_dest_rel "$dest_rel" "$name"
+  opencode_imports_validate_dest_rel "$dest_rel" "$name" || return 1
   dst="$stage/$dest_rel"
 
   if [ -d "$src" ]; then
     rm -rf "$dst"
-    mkdir -p "$(dirname "$dst")"
-    cp -RL "$src" "$dst"
+    mkdir -p "$(dirname "$dst")" || return 1
+    cp -RL "$src" "$dst" || return 1
     chmod -R u+w "$dst" 2>/dev/null || true
   elif [ -f "$src" ]; then
-    mkdir -p "$(dirname "$dst")"
-    cp -L "$src" "$dst"
+    mkdir -p "$(dirname "$dst")" || return 1
+    cp -L "$src" "$dst" || return 1
     chmod u+w "$dst" 2>/dev/null || true
   else
     printf 'warning: opencode-import "%s" missing path: %s\n' "$name" "$src" >&2
@@ -130,7 +176,7 @@ opencode_imports_process_import() {
   local sync_root="$1"
   local source="$cur_source"
 
-  opencode_imports_validate_dest_rel "$cur_name" "$cur_name"
+  opencode_imports_validate_dest_rel "$cur_name" "$cur_name" || return 1
 
   # Tilde expansion. Only `~` and `~/...` are supported; the `~user/...` form
   # would require user-database lookup.
@@ -152,28 +198,28 @@ opencode_imports_process_import() {
     if [ ${#cur_rename_src[@]} -gt 0 ]; then
       # shellcheck disable=SC2016
       printf 'error: opencode-import "%s" sets both `paths` and `rename` (mutually exclusive)\n' "$cur_name" >&2
-      exit 1
+      return 1
     fi
     if [ ${#cur_exclude[@]} -gt 0 ]; then
       # shellcheck disable=SC2016
       printf 'error: opencode-import "%s" sets both `paths` and `exclude` (mutually exclusive)\n' "$cur_name" >&2
-      exit 1
+      return 1
     fi
     local i
     for ((i = 0; i < ${#cur_path_src[@]}; i++)); do
-      opencode_imports_validate_source_rel "${cur_path_src[$i]}" "$cur_name"
-      opencode_imports_validate_dest_rel "${cur_path_dest[$i]}" "$cur_name"
+      opencode_imports_validate_source_rel "${cur_path_src[$i]}" "$cur_name" || return 1
+      opencode_imports_validate_dest_rel "${cur_path_dest[$i]}" "$cur_name" || return 1
     done
-    mkdir -p "$stage"
+    mkdir -p "$stage" || return 1
     for ((i = 0; i < ${#cur_path_src[@]}; i++)); do
-      opencode_imports_stage_one "$source/${cur_path_src[$i]}" "$stage" "${cur_path_dest[$i]}" "$cur_name"
+      opencode_imports_stage_one "$source/${cur_path_src[$i]}" "$stage" "${cur_path_dest[$i]}" "$cur_name" || return 1
     done
     return 0
   fi
 
   # Auto mode: walk the standard layout.
   local sub entry rel dest
-  mkdir -p "$stage"
+  mkdir -p "$stage" || return 1
   for sub in commands skills agents plugins rules; do
     [ -d "$source/$sub" ] || continue
     for entry in "$source/$sub"/*; do
@@ -181,7 +227,7 @@ opencode_imports_process_import() {
       rel="$sub/$(basename "$entry")"
       opencode_imports_import_excluded "$rel" && continue
       dest=$(opencode_imports_import_rename_for "$rel")
-      opencode_imports_stage_one "$entry" "$stage" "$dest" "$cur_name"
+      opencode_imports_stage_one "$entry" "$stage" "$dest" "$cur_name" || return 1
     done
   done
 
@@ -192,7 +238,7 @@ opencode_imports_process_import() {
     [ "$rel" = "opencode.json" ] && continue
     opencode_imports_import_excluded "$rel" && continue
     dest=$(opencode_imports_import_rename_for "$rel")
-    opencode_imports_stage_one "$entry" "$stage" "$dest" "$cur_name"
+    opencode_imports_stage_one "$entry" "$stage" "$dest" "$cur_name" || return 1
   done
 
   # Rename entries pointing at non-standard sources (e.g. mcp.fragment.json →
@@ -202,9 +248,9 @@ opencode_imports_process_import() {
   for ((i = 0; i < ${#cur_rename_src[@]}; i++)); do
     rel="${cur_rename_src[$i]}"
     dest="${cur_rename_dest[$i]}"
-    opencode_imports_validate_dest_rel "$dest" "$cur_name"
+    opencode_imports_validate_dest_rel "$dest" "$cur_name" || return 1
     [ -e "$stage/$dest" ] && continue
     [ -e "$source/$rel" ] || continue
-    opencode_imports_stage_one "$source/$rel" "$stage" "$dest" "$cur_name"
+    opencode_imports_stage_one "$source/$rel" "$stage" "$dest" "$cur_name" || return 1
   done
 }

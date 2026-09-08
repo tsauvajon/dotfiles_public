@@ -3,69 +3,19 @@
 
 let
   inherit (import ../lib/opencode-merge.nix { inherit lib; }) mkMergedOpencodeJson;
+  permissionMatcher = import ./lib/permission-matcher.nix { inherit lib; };
 
   merged = mkMergedOpencodeJson { publicRoot = ../../config/opencode; };
   rules = merged.permission.bash;
-
-  escapeRegex =
-    s:
-    builtins.replaceStrings
-      [
-        "\\"
-        "."
-        "+"
-        "^"
-        "$"
-        "("
-        ")"
-        "["
-        "]"
-        "{"
-        "}"
-        "|"
-      ]
-      [
-        "\\\\"
-        "\\."
-        "\\+"
-        "\\^"
-        "\\$"
-        "\\("
-        "\\)"
-        "\\["
-        "\\]"
-        "\\{"
-        "\\}"
-        "\\|"
-      ]
-      s;
-
-  wildcardToRegex = s: builtins.replaceStrings [ "*" "?" ] [ ".*" "." ] (escapeRegex s);
-
-  globToRegex =
-    pattern:
-    if lib.hasSuffix " *" pattern then
-      "^" + wildcardToRegex (lib.removeSuffix " *" pattern) + "( .*)?$"
-    else
-      "^" + wildcardToRegex pattern + "$";
-
-  # OpenCode evaluates matching rules in sorted key order, with the last
-  # matching rule deciding the action.
-  lastMatchingAction =
-    command:
-    let
-      matchingKeys = builtins.filter (pattern: builtins.match (globToRegex pattern) command != null) (
-        builtins.attrNames rules
-      );
-    in
-    builtins.getAttr (lib.last matchingKeys) rules;
 in
 {
   testPublicPermissionAdditions = {
-    expr = map (command: {
-      inherit command;
-      action = lastMatchingAction command;
-    }) [
+    expr = map (
+      command: {
+        inherit command;
+        action = permissionMatcher.lastMatchingAction rules command;
+      }
+    ) [
       "scripts/arch-packages.sh --check"
       "scripts/foo/check.sh"
       "./scripts/check.sh"

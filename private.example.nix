@@ -10,7 +10,10 @@
 #
 #   git.{name,email}             REQUIRED - used to generate the machine key.
 #   git.signingKey               REQUIRED by the build, auto-filled by setup.
-#   everything else              OPTIONAL — null/[]/omitted is fine.
+#   everything else              OPTIONAL — null/[]/omitted is fine. Known
+#                                config sections may themselves be null; null
+#                                scalar values use that setting's documented
+#                                disabled/default behaviour.
 #
 # After editing this file, just rerun:
 #

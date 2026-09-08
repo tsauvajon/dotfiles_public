@@ -34,7 +34,9 @@ After setup:
 - private machine-specific config: put it under `~/.config/dotfiles/`
 
 After changing anything, rerun `./setup.sh`. It auto-detects the host; set
-`DOTFILES_HOST` only when you need to override that.
+`DOTFILES_HOST` only when you need to override that. On macOS, setup updates
+Homebrew by default; pass `./setup.sh --no-brew-update` to skip only that update
+while still installing both managed Brewfiles and reconciling managed casks.
 
 Common private overlays:
 
@@ -99,7 +101,9 @@ achieved with these mechanisms:
   Before building the Home Manager generation, `setup.sh` installs the public
   Brewfile so native dependencies such as OpenSSL are available to Rust builds.
   After activation it installs the generated personal Brewfile, then removes
-  any Homebrew cask not declared in either file.
+  any Homebrew cask not declared in either file. It runs `brew update` first by
+  default; `--no-brew-update` skips the update without changing this ordering or
+  cleanup behavior.
 
   To inspect extra casks without removing them, run `scripts/brew-cleanup.sh`
   without `--apply`.

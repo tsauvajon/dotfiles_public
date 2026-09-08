@@ -4,10 +4,15 @@
 # ~/.config/dotfiles/flake.nix under the `goto` attribute. Both
 # fields are optional — when either the API URL or bookmarks database is
 # absent, programs.goto stays disabled and no goto config is generated.
-{ inputs, lib, ... }:
+{
+  inputs,
+  lib,
+  privateConfig,
+  ...
+}:
 
 let
-  privateGoto = inputs.private.goto or { };
+  privateGoto = privateConfig.goto;
   apiUrl = privateGoto.apiUrl or null;
   bookmarksFile = privateGoto.bookmarksFile or null;
   # Shared with home/launchd-goto.nix so both sides stay in lock-step.

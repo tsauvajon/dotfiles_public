@@ -20,6 +20,12 @@ let
   kacheFallback = "sccache";
   sccacheDir = "${config.home.homeDirectory}/.cache/sccache";
   sccacheCacheSize = "100G";
+  rustBuildEnv = {
+    DYLINT_CARGO_WRAPPER = "dylint-cargo";
+    KACHE_FALLBACK = kacheFallback;
+    SCCACHE_CACHE_SIZE = sccacheCacheSize;
+    SCCACHE_DIR = sccacheDir;
+  };
 
   names = lib.attrNames cfg.vars;
 
@@ -56,21 +62,12 @@ in
   };
 
   config = {
-    home.sessionVariables = {
-      DYLINT_CARGO_WRAPPER = "dylint-cargo";
-      KACHE_FALLBACK = kacheFallback;
-      SCCACHE_CACHE_SIZE = sccacheCacheSize;
-      SCCACHE_DIR = sccacheDir;
-    };
+    home.sessionVariables = rustBuildEnv;
 
-    programs.crossShellEnv.vars = {
+    programs.crossShellEnv.vars = rustBuildEnv // {
       # bat (cat replacement) theme — Catppuccin Mocha to match the
       # rest of the terminal aesthetic.
       BAT_THEME = "Catppuccin Mocha";
-      DYLINT_CARGO_WRAPPER = "dylint-cargo";
-      KACHE_FALLBACK = kacheFallback;
-      SCCACHE_CACHE_SIZE = sccacheCacheSize;
-      SCCACHE_DIR = sccacheDir;
     };
 
     xdg.configFile = lib.mkIf (cfg.vars != { }) {

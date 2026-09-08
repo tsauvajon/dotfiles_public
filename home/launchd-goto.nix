@@ -16,11 +16,12 @@
   inputs,
   lib,
   pkgs,
+  privateConfig,
   ...
 }:
 
 let
-  privateGoto = inputs.private.goto or { };
+  privateGoto = privateConfig.goto;
   apiUrl = privateGoto.apiUrl or null;
   bookmarksFile = privateGoto.bookmarksFile or null;
   # Shared with home/programs/goto.nix so both sides stay in lock-step.

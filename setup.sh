@@ -36,6 +36,29 @@ set -euo pipefail
 DOTFILES="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 export DOTFILES
 
+usage() {
+  printf 'Usage: %s [--no-brew-update]\n' "${0##*/}"
+}
+
+brew_update=1
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --no-brew-update)
+      brew_update=0
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      printf 'error: unknown argument: %s\n' "$1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+  shift
+done
+
 # shellcheck source=scripts/lib/opencode-imports.sh
 . "$DOTFILES/scripts/lib/opencode-imports.sh"
 
@@ -109,15 +132,21 @@ fi
 # packages. In particular, some host-native Rust builds need Homebrew OpenSSL.
 brew_available=0
 if [ "$(uname -s)" = "Darwin" ]; then
-  if [ -x "/opt/homebrew/bin/brew" ]; then
-    eval "$(/opt/homebrew/bin/brew shellenv)"
-  elif [ -x "/usr/local/bin/brew" ]; then
-    eval "$(/usr/local/bin/brew shellenv)"
+  brew_command="$(command -v brew 2>/dev/null || true)"
+  if [ -z "$brew_command" ] && [ -x "/opt/homebrew/bin/brew" ]; then
+    brew_command="/opt/homebrew/bin/brew"
+  elif [ -z "$brew_command" ] && [ -x "/usr/local/bin/brew" ]; then
+    brew_command="/usr/local/bin/brew"
+  fi
+  if [ -n "$brew_command" ]; then
+    eval "$("$brew_command" shellenv)"
   fi
 
   if command -v brew >/dev/null 2>&1; then
     brew_available=1
-    brew update
+    if [ "$brew_update" -eq 1 ]; then
+      brew update
+    fi
 
     public_brewfile="$DOTFILES/config/Brewfile"
     if [ -f "$public_brewfile" ]; then

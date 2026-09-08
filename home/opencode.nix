@@ -25,6 +25,7 @@
   lib,
   config,
   inputs,
+  privateConfig,
   ...
 }:
 
@@ -32,6 +33,7 @@ let
   cfg = config.programs.opencode;
 
   mergeDirs = import ./lib/merge-dirs.nix { inherit pkgs lib; };
+  managedEntries = import ./lib/opencode-managed-entries.nix { inherit lib; };
   inherit (import ./lib/opencode-merge.nix { inherit lib; })
     applyProviderGates
     mkMergedOpencodeJson
@@ -41,12 +43,15 @@ let
     ;
 
   publicRoot = ../config/opencode;
-  # Every field of `inputs.private.opencode` is optional. A user's
+  privateConfigLib = import ./lib/private-config.nix { inherit lib; };
+  inherit (privateConfigLib) valueOr;
+
+  # Every field of `privateConfig.opencode` is optional. A user's
   # private flake.nix may omit the entire `opencode` attribute (the
   # placeholder does), in which case we fall back to an empty attrset
   # and every consumed path defaults to its standard subpath under
   # `<private flake>/config/opencode/` — see `defaultPrivateSubpath` below.
-  privatePaths = inputs.private.opencode or { };
+  privateSettings = privateConfig.opencode;
 
   # Standard layout: every private OpenCode overlay lives under
   # `<private flake outPath>/config/opencode/<name>` (e.g. `commands/`,
@@ -72,23 +77,23 @@ let
   # declares `opencode.imports` and the HM build derives the staged
   # directories from each import name. `importsDirs` is an escape
   # hatch for hand-written private flakes.
-  declaredImports = privatePaths.imports or [ ];
+  declaredImports = valueOr privateSettings "imports" [ ];
   stagedImportsDirs = map (i: inputs.private.outPath + "/opencode-imports/${i.name}") declaredImports;
-  importsDirs = stagedImportsDirs ++ (privatePaths.importsDirs or [ ]);
+  importsDirs = stagedImportsDirs ++ (valueOr privateSettings "importsDirs" [ ]);
 
   # Each *Dir / *File field is optional in the private flake. When
   # omitted, fall back to the standard subpath under
   # `<private>/config/opencode/<name>`. Setting a field to `null` explicitly
   # disables the overlay even if the standard subpath exists; setting
   # it to a custom path overrides the default location.
-  privateCommandsDir = privatePaths.commandsDir or (defaultPrivateSubpath "commands");
-  privateSkillsDir = privatePaths.skillsDir or (defaultPrivateSubpath "skills");
-  privateAgentsDir = privatePaths.agentsDir or (defaultPrivateSubpath "agents");
-  privatePluginsDir = privatePaths.pluginsDir or (defaultPrivateSubpath "plugins");
-  privateRulesDir = privatePaths.rulesDir or (defaultPrivateSubpath "rules");
-  privatePrimaryRulesDir = privatePaths.primaryRulesDir or (defaultPrivateSubpath "primary-rules");
-  privateConfigFile = privatePaths.configFile or (defaultPrivateSubpath "opencode.json");
-  privatePackageFile = privatePaths.packageFile or (defaultPrivateSubpath "package.json");
+  privateCommandsDir = privateSettings.commandsDir or (defaultPrivateSubpath "commands");
+  privateSkillsDir = privateSettings.skillsDir or (defaultPrivateSubpath "skills");
+  privateAgentsDir = privateSettings.agentsDir or (defaultPrivateSubpath "agents");
+  privatePluginsDir = privateSettings.pluginsDir or (defaultPrivateSubpath "plugins");
+  privateRulesDir = privateSettings.rulesDir or (defaultPrivateSubpath "rules");
+  privatePrimaryRulesDir = privateSettings.primaryRulesDir or (defaultPrivateSubpath "primary-rules");
+  privateConfigFile = privateSettings.configFile or (defaultPrivateSubpath "opencode.json");
+  privatePackageFile = privateSettings.packageFile or (defaultPrivateSubpath "package.json");
 
   # Helper: subdir of an import dir if it exists, else null.
   importSubdir =
@@ -196,25 +201,52 @@ let
     pluginVersion = pkgs.opencode.version;
   };
 
-  opencodeAllowedEntries = [
+  # Keep the managed file paths in one declaration. The unmanaged-file check
+  # derives its top-level allowlist from both groups, including files that are
+  # conditional in the current generation but may have been managed by the
+  # previous one.
+  managedOpencodeFiles = {
+    always = {
+      "opencode/commands".source = mergedCommands;
+      "opencode/skills".source = mergedSkills;
+      "opencode/agents".source = mergedAgents;
+      "opencode/plugins".source = mergedPlugins;
+      "opencode/themes/catppuccin-mocha-lavender.json".source =
+        "${inputs.catppuccin-opencode}/themes/mocha/catppuccin-mocha-lavender.json";
+      "opencode/opencode.json".source = compactJsonFile "opencode.json" mergedJson;
+      # tui.json is a separate OpenCode file (different $schema) — not
+      # part of the opencode.json deep-merge. Symlinked verbatim from
+      # the public source.
+      "opencode/tui.json".source = publicRoot + "/tui.json";
+      # The public package.json is committed and non-empty, so
+      # mergedPackage always has content. Always emit the file and
+      # always run the bun-install activation.
+      "opencode/package.json".source = compactJsonFile "opencode-package.json" mergedPackage;
+    };
+    rules = {
+      "opencode/AGENTS.md".text = agentsContent;
+      "opencode/primary-context.md".text = primaryAgentsContent;
+    };
+  };
+
+  managedOpencodeTopLevelEntries = managedEntries (
+    managedOpencodeFiles.always // managedOpencodeFiles.rules
+  );
+
+  # OpenCode and package managers create these at runtime. Keep this separate
+  # from managed paths so adding a managed file cannot silently broaden the
+  # runtime exceptions. bun.lockb remains accepted for older Bun generations.
+  opencodeRuntimeAllowedEntries = [
     ".gitignore"
-    "AGENTS.md"
-    "agents"
     "bun.lock"
     "bun.lockb"
-    "commands"
     "node_modules"
     "opencode*.db"
     "opencode*.db-*"
-    "opencode.json"
     "package-lock.json"
-    "package.json"
-    "plugins"
-    "primary-context.md"
-    "skills"
-    "themes"
-    "tui.json"
   ];
+
+  opencodeAllowedEntries = managedOpencodeTopLevelEntries ++ opencodeRuntimeAllowedEntries;
 
   opencodeAllowedEntryCases = lib.concatMapStringsSep "\n" (
     name: "          ${name}) ;;"
@@ -289,29 +321,8 @@ in
 
   config = {
     xdg.configFile = lib.mkMerge [
-      {
-        "opencode/commands".source = mergedCommands;
-        "opencode/skills".source = mergedSkills;
-        "opencode/agents".source = mergedAgents;
-        "opencode/plugins".source = mergedPlugins;
-        "opencode/themes/catppuccin-mocha-lavender.json".source =
-          "${inputs.catppuccin-opencode}/themes/mocha/catppuccin-mocha-lavender.json";
-        "opencode/opencode.json".source = compactJsonFile "opencode.json" mergedJson;
-        # tui.json is a separate OpenCode file (different $schema) — not
-        # part of the opencode.json deep-merge. Symlinked verbatim from
-        # the public source.
-        "opencode/tui.json".source = publicRoot + "/tui.json";
-      }
-      (lib.mkIf (cfg.rulesMode != "disabled") {
-        "opencode/AGENTS.md".text = agentsContent;
-        "opencode/primary-context.md".text = primaryAgentsContent;
-      })
-      {
-        # The public package.json is committed and non-empty, so
-        # mergedPackage always has content. Always emit the file and
-        # always run the bun-install activation.
-        "opencode/package.json".source = compactJsonFile "opencode-package.json" mergedPackage;
-      }
+      managedOpencodeFiles.always
+      (lib.mkIf (cfg.rulesMode != "disabled") managedOpencodeFiles.rules)
     ];
 
     # Auto-install plugin dependencies when the merged package.json
@@ -326,68 +337,68 @@ in
     # include the user profile's bin dir.
     home.activation = {
       opencodeCheckDuplicateSkillNames = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
-        skills_dir="${config.xdg.configHome}/opencode/skills"
-        if [ -d "$skills_dir" ]; then
-          names_file="$(${pkgs.coreutils}/bin/mktemp)"
-          trap '${pkgs.coreutils}/bin/rm -f "$names_file"' EXIT
+                skills_dir="${config.xdg.configHome}/opencode/skills"
+                if [ -d "$skills_dir" ]; then
+                  names_file="$(${pkgs.coreutils}/bin/mktemp)"
+                  trap '${pkgs.coreutils}/bin/rm -f "$names_file"' EXIT
 
-          while IFS= read -r skill_file; do
-            name="$(${pkgs.gawk}/bin/awk '
-              BEGIN { in_frontmatter = 0 }
-              NR == 1 && $0 == "---" { in_frontmatter = 1; next }
-              in_frontmatter && $0 == "---" { exit }
-              in_frontmatter && $0 ~ /^name:[[:space:]]*/ {
-                sub(/^name:[[:space:]]*/, "")
-                gsub(/^"|"$/, "")
-                print
-                exit
-              }
-            ' "$skill_file")"
-            [ -n "$name" ] || continue
-            printf '%s\t%s\n' "$name" "$skill_file" >>"$names_file"
-          done < <(${pkgs.findutils}/bin/find -L "$skills_dir" -mindepth 2 -maxdepth 2 -name SKILL.md -type f)
+                  while IFS= read -r skill_file; do
+                    name="$(${pkgs.gawk}/bin/awk '
+                      BEGIN { in_frontmatter = 0 }
+                      NR == 1 && $0 == "---" { in_frontmatter = 1; next }
+                      in_frontmatter && $0 == "---" { exit }
+                      in_frontmatter && $0 ~ /^name:[[:space:]]*/ {
+                        sub(/^name:[[:space:]]*/, "")
+                        gsub(/^"|"$/, "")
+                        print
+                        exit
+                      }
+                    ' "$skill_file")"
+                    [ -n "$name" ] || continue
+                    printf '%s\t%s\n' "$name" "$skill_file" >>"$names_file"
+                  done < <(${pkgs.findutils}/bin/find -L "$skills_dir" -mindepth 2 -maxdepth 2 -name SKILL.md -type f)
 
-          duplicates="$(${pkgs.coreutils}/bin/cut -f1 "$names_file" | ${pkgs.coreutils}/bin/sort | ${pkgs.coreutils}/bin/uniq -d)"
-          if [ -n "$duplicates" ]; then
-            printf '%s\n' "Duplicate OpenCode skill names detected:" >&2
-            while IFS= read -r duplicate; do
-              [ -n "$duplicate" ] || continue
-              ${pkgs.gnugrep}/bin/grep -F "''${duplicate}$(printf '\t')" "$names_file" >&2 || true
-            done <<EOF
-$duplicates
-EOF
-            exit 1
-          fi
-        fi
+                  duplicates="$(${pkgs.coreutils}/bin/cut -f1 "$names_file" | ${pkgs.coreutils}/bin/sort | ${pkgs.coreutils}/bin/uniq -d)"
+                  if [ -n "$duplicates" ]; then
+                    printf '%s\n' "Duplicate OpenCode skill names detected:" >&2
+                    while IFS= read -r duplicate; do
+                      [ -n "$duplicate" ] || continue
+                      ${pkgs.gnugrep}/bin/grep -F "''${duplicate}$(printf '\t')" "$names_file" >&2 || true
+                    done <<EOF
+        $duplicates
+        EOF
+                    exit 1
+                  fi
+                fi
       '';
 
       opencodeCheckUnmanaged = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
-        dir="${config.xdg.configHome}/opencode"
-        unmanaged=""
-        if [ -d "$dir" ]; then
-          for path in "$dir"/* "$dir"/.[!.]* "$dir"/..?*; do
-            [ -e "$path" ] || [ -L "$path" ] || continue
-            name="''${path##*/}"
-            case "$name" in
-${opencodeAllowedEntryCases}
-              *)
-                if [ -z "$unmanaged" ]; then
-                  unmanaged="  $name"
-                else
-                  unmanaged="$unmanaged
-  $name"
+                dir="${config.xdg.configHome}/opencode"
+                unmanaged=""
+                if [ -d "$dir" ]; then
+                  for path in "$dir"/* "$dir"/.[!.]* "$dir"/..?*; do
+                    [ -e "$path" ] || [ -L "$path" ] || continue
+                    name="''${path##*/}"
+                    case "$name" in
+        ${opencodeAllowedEntryCases}
+                      *)
+                        if [ -z "$unmanaged" ]; then
+                          unmanaged="  $name"
+                        else
+                          unmanaged="$unmanaged
+          $name"
+                        fi
+                        ;;
+                    esac
+                  done
                 fi
-                ;;
-            esac
-          done
-        fi
 
-        if [ -n "$unmanaged" ]; then
-          printf '%s\n' "Found unmanaged OpenCode config under $dir:" >&2
-          printf '%s\n' "$unmanaged" >&2
-          printf '%s\n' "Move it into dotfiles/private overlay or remove it before activating." >&2
-          exit 1
-        fi
+                if [ -n "$unmanaged" ]; then
+                  printf '%s\n' "Found unmanaged OpenCode config under $dir:" >&2
+                  printf '%s\n' "$unmanaged" >&2
+                  printf '%s\n' "Move it into dotfiles/private overlay or remove it before activating." >&2
+                  exit 1
+                fi
       '';
 
       opencodeBunInstall = lib.hm.dag.entryAfter [ "opencodeCheckUnmanaged" ] ''

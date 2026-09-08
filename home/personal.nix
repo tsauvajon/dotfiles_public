@@ -30,11 +30,14 @@
   lib,
   nixglNvidia ? null,
   pkgs,
+  privateConfig,
   ...
 }:
 
 let
-  privatePersonal = inputs.private.personal or { };
+  privateConfigLib = import ./lib/private-config.nix { inherit lib; };
+  inherit (privateConfigLib) valueOr;
+  privatePersonal = privateConfig.personal;
   privateSignal = privatePersonal.signal or { };
   privateSyncthing = privatePersonal.syncthing or { };
   privateChromium = privatePersonal.chromium or { };
@@ -51,8 +54,7 @@ let
   privateOpencodeIngress = privatePersonal."opencode-ingress" or { };
   privateUnifiExporter = privatePersonal."unifi-exporter" or { };
 
-  printerExporterUrl =
-    bindAddress: "http://${bindAddress}/metrics";
+  printerExporterUrl = bindAddress: "http://${bindAddress}/metrics";
 
   cfg = config.dotfiles.personal;
 
@@ -87,7 +89,7 @@ in
   options.dotfiles.personal = {
     enable = lib.mkOption {
       type = lib.types.bool;
-      default = privatePersonal.enable or false;
+      default = valueOr privatePersonal "enable" false;
       description = ''
         Master switch for personal-only applications and services.
         Leave false on work machines. When true, every per-app toggle
@@ -97,7 +99,7 @@ in
 
     signal.enable = lib.mkOption {
       type = lib.types.bool;
-      default = privateSignal.enable or true;
+      default = valueOr privateSignal "enable" true;
       description = ''
         Install Signal Desktop. Nix-managed (`pkgs.signal-desktop`) on
         both Linux and macOS.
@@ -106,13 +108,13 @@ in
 
     syncthing.enable = lib.mkOption {
       type = lib.types.bool;
-      default = privateSyncthing.enable or true;
+      default = valueOr privateSyncthing "enable" true;
       description = "Run the Syncthing user service (systemd on Linux, launchd on macOS).";
     };
 
     tailscale.enable = lib.mkOption {
       type = lib.types.bool;
-      default = privateTailscale.enable or true;
+      default = valueOr privateTailscale "enable" true;
       description = ''
         Install Tailscale. On Linux this installs the `tailscale` CLI
         (the privileged `tailscaled` daemon still needs host setup).
@@ -124,7 +126,7 @@ in
 
     chromium.enable = lib.mkOption {
       type = lib.types.bool;
-      default = privateChromium.enable or true;
+      default = valueOr privateChromium "enable" true;
       description = ''
         Install Chromium. On Linux this uses `pkgs.chromium` with Widevine
         enabled. On macOS this declares a Homebrew-managed cask for the
@@ -134,7 +136,7 @@ in
 
     naps2.enable = lib.mkOption {
       type = lib.types.bool;
-      default = privateNaps2.enable or true;
+      default = valueOr privateNaps2 "enable" true;
       description = ''
         Install NAPS2 document scanner. On Linux this uses `pkgs.naps2`.
         On macOS this declares a Homebrew-managed cask for the official app.
@@ -143,7 +145,7 @@ in
 
     plezy.enable = lib.mkOption {
       type = lib.types.bool;
-      default = privatePlezy.enable or true;
+      default = valueOr privatePlezy "enable" true;
       description = ''
         Install Plezy, a modern Plex & Jellyfin client. Uses `pkgs.plezy`
         from nixpkgs on all supported platforms.
@@ -152,13 +154,13 @@ in
 
     immich.enable = lib.mkOption {
       type = lib.types.bool;
-      default = privateImmich.enable or true;
+      default = valueOr privateImmich "enable" true;
       description = "Install the Immich CLI for photo management on personal hosts.";
     };
 
     printerExporter.enable = lib.mkOption {
       type = lib.types.bool;
-      default = privatePrinterExporter.enable or false;
+      default = valueOr privatePrinterExporter "enable" false;
       description = ''
         Run the Brother printer snmp_exporter bridge as a user service.
         Defaults to false because only hosts on the printer's home LAN can
@@ -169,7 +171,7 @@ in
 
     printerExporter.bindAddress = lib.mkOption {
       type = lib.types.str;
-      default = privatePrinterExporter.bindAddress or "127.0.0.1:9116";
+      default = valueOr privatePrinterExporter "bindAddress" "127.0.0.1:9116";
       description = ''
         Address the exporter binds. Use the host's Tailscale IPv4 so
         exposure is governed by the tailnet policy alone.
@@ -178,13 +180,13 @@ in
 
     printerExporter.configFile = lib.mkOption {
       type = lib.types.nullOr lib.types.path;
-      default = privatePrinterExporter.configFile or null;
+      default = valueOr privatePrinterExporter "configFile" null;
       description = "snmp_exporter module configuration (snmp.yml) for the printer.";
     };
 
     cupsExporter.enable = lib.mkOption {
       type = lib.types.bool;
-      default = privateCupsExporter.enable or false;
+      default = valueOr privateCupsExporter "enable" false;
       description = ''
         Run the CUPS prometheus exporter as a user service. Defaults to
         false because only hosts running a CUPS server have something to
@@ -195,7 +197,7 @@ in
 
     cupsExporter.bindAddress = lib.mkOption {
       type = lib.types.str;
-      default = privateCupsExporter.bindAddress or "127.0.0.1:9628";
+      default = valueOr privateCupsExporter "bindAddress" "127.0.0.1:9628";
       description = ''
         Address the exporter binds. Use the host's Tailscale IPv4 so
         exposure is governed by the tailnet policy alone.
@@ -204,13 +206,13 @@ in
 
     cupsExporter.cupsUri = lib.mkOption {
       type = lib.types.str;
-      default = privateCupsExporter.cupsUri or "http://localhost:631";
+      default = valueOr privateCupsExporter "cupsUri" "http://localhost:631";
       description = "URI of the CUPS server the exporter queries over IPP/HTTP.";
     };
 
     printerMaintenanceExporter.enable = lib.mkOption {
       type = lib.types.bool;
-      default = privateMaintenanceExporter.enable or false;
+      default = valueOr privateMaintenanceExporter "enable" false;
       description = ''
         Run the Brother maintenance-info exporter (toner/drum/tray percentages
         decoded from private OIDs) as a user service. Defaults to false
@@ -221,7 +223,7 @@ in
 
     printerMaintenanceExporter.bindAddress = lib.mkOption {
       type = lib.types.str;
-      default = privateMaintenanceExporter.bindAddress or "127.0.0.1:9629";
+      default = valueOr privateMaintenanceExporter "bindAddress" "127.0.0.1:9629";
       description = ''
         Address the exporter binds. Use the host's Tailscale IPv4 so
         exposure is governed by the tailnet policy alone.
@@ -230,13 +232,13 @@ in
 
     printerMaintenanceExporter.snmpHost = lib.mkOption {
       type = lib.types.str;
-      default = privateMaintenanceExporter.snmpHost or "192.168.0.158";
+      default = valueOr privateMaintenanceExporter "snmpHost" "192.168.0.158";
       description = "LAN address of the Brother printer to poll over SNMPv1.";
     };
 
     opencodeExporter.enable = lib.mkOption {
       type = lib.types.bool;
-      default = privateOpencodeExporter.enable or false;
+      default = valueOr privateOpencodeExporter "enable" false;
       description = ''
         Run the OpenCode shared-server usage exporter as a user service.
         Defaults to false because it is only useful on hosts running the
@@ -247,7 +249,7 @@ in
 
     opencodeExporter.bindAddress = lib.mkOption {
       type = lib.types.str;
-      default = privateOpencodeExporter.bindAddress or "127.0.0.1:9630";
+      default = valueOr privateOpencodeExporter "bindAddress" "127.0.0.1:9630";
       description = ''
         Address the exporter binds. Use the host's Tailscale IPv4 so
         exposure is governed by the tailnet policy alone.
@@ -256,7 +258,7 @@ in
 
     opencodeExporter.serverUrl = lib.mkOption {
       type = lib.types.str;
-      default = privateOpencodeExporter.serverUrl or "http://127.0.0.1:4096";
+      default = valueOr privateOpencodeExporter "serverUrl" "http://127.0.0.1:4096";
       description = ''
         Base URL of the local shared OpenCode server
         (programs.opencode.sharedServer) to poll.
@@ -265,7 +267,7 @@ in
 
     unifiExporter.enable = lib.mkOption {
       type = lib.types.bool;
-      default = privateUnifiExporter.enable or false;
+      default = valueOr privateUnifiExporter "enable" false;
       description = ''
         Run unpoller (UniFi controller Prometheus exporter) as a user service.
         Defaults to false because only hosts on the UniFi console's home LAN
@@ -276,7 +278,7 @@ in
 
     unifiExporter.bindAddress = lib.mkOption {
       type = lib.types.str;
-      default = privateUnifiExporter.bindAddress or "127.0.0.1:9130";
+      default = valueOr privateUnifiExporter "bindAddress" "127.0.0.1:9130";
       description = ''
         Address the exporter binds. Use the host's Tailscale IPv4 so
         exposure is governed by the tailnet policy alone.
@@ -285,7 +287,7 @@ in
 
     unifiExporter.configFile = lib.mkOption {
       type = lib.types.nullOr lib.types.path;
-      default = privateUnifiExporter.configFile or null;
+      default = valueOr privateUnifiExporter "configFile" null;
       description = ''
         unpoller TOML configuration (controller URL plus credentials). Must
         be supplied by the private overlay because it contains secrets.
@@ -294,7 +296,7 @@ in
 
     opencodeExporter.authFile = lib.mkOption {
       type = lib.types.path;
-      default = privateOpencodeExporter.authFile or "${config.xdg.dataHome}/opencode/auth.json";
+      default = valueOr privateOpencodeExporter "authFile" "${config.xdg.dataHome}/opencode/auth.json";
       description = ''
         OpenCode auth file read for subscription quota collection
         (ai_subscription_quota_* metrics). Must belong to the user running
@@ -305,8 +307,8 @@ in
     opencodeExporter.databaseFile = lib.mkOption {
       type = lib.types.path;
       default =
-        privateOpencodeExporter.databaseFile
-        or "${config.xdg.dataHome}/opencode/opencode-stable.db";
+        valueOr privateOpencodeExporter "databaseFile"
+          "${config.xdg.dataHome}/opencode/opencode-stable.db";
       description = ''
         OpenCode SQLite database (opencode-stable.db) opened read-only to
         aggregate per-agent token/cost usage (opencode_agent_* metrics) in
@@ -319,7 +321,7 @@ in
 
     opencodeIngress.enable = lib.mkOption {
       type = lib.types.bool;
-      default = privateOpencodeIngress.enable or false;
+      default = valueOr privateOpencodeIngress "enable" false;
       description = ''
         Run a Tailscale-only TCP bridge to the local shared OpenCode server.
         The private overlay opts in only on the Arch host.
@@ -328,19 +330,19 @@ in
 
     opencodeIngress.bindAddress = lib.mkOption {
       type = lib.types.str;
-      default = privateOpencodeIngress.bindAddress or "127.0.0.1";
+      default = valueOr privateOpencodeIngress "bindAddress" "127.0.0.1";
       description = "IPv4 address on which the OpenCode ingress bridge listens.";
     };
 
     opencodeIngress.port = lib.mkOption {
       type = lib.types.port;
-      default = privateOpencodeIngress.port or 4097;
+      default = valueOr privateOpencodeIngress "port" 4097;
       description = "TCP port on which the OpenCode ingress bridge listens.";
     };
 
     opencodeIngress.allowedSource = lib.mkOption {
       type = lib.types.str;
-      default = privateOpencodeIngress.allowedSource or "127.0.0.1/32";
+      default = valueOr privateOpencodeIngress "allowedSource" "127.0.0.1/32";
       description = ''
         Source IPv4 range accepted by the OpenCode ingress bridge. This must be
         the Edge Tailscale address, not a broad Tailnet range.
@@ -348,302 +350,306 @@ in
     };
   };
 
-  config =
-    lib.mkIf
-      cfg.enable
-      (lib.mkMerge [
-        {
-          home.packages =
-            lib.optionals cfg.signal.enable [ pkgs.signal-desktop ]
-            ++ lib.optionals (cfg.chromium.enable && pkgs.stdenv.isLinux) [
-              (pkgs.chromium.override { enableWideVine = true; })
-            ]
-            ++ lib.optionals (cfg.naps2.enable && pkgs.stdenv.isLinux) [ pkgs.naps2 ]
-            ++ lib.optionals (cfg.tailscale.enable && pkgs.stdenv.isLinux) [ pkgs.tailscale ]
-            ++ lib.optionals cfg.plezy.enable [ plezyPackage ]
-            ++ lib.optionals cfg.immich.enable [ pkgs.immich-cli ];
+  config = lib.mkIf cfg.enable (
+    lib.mkMerge [
+      {
+        home.packages =
+          lib.optionals cfg.signal.enable [ pkgs.signal-desktop ]
+          ++ lib.optionals (cfg.chromium.enable && pkgs.stdenv.isLinux) [
+            (pkgs.chromium.override { enableWideVine = true; })
+          ]
+          ++ lib.optionals (cfg.naps2.enable && pkgs.stdenv.isLinux) [ pkgs.naps2 ]
+          ++ lib.optionals (cfg.tailscale.enable && pkgs.stdenv.isLinux) [ pkgs.tailscale ]
+          ++ lib.optionals cfg.plezy.enable [ plezyPackage ]
+          ++ lib.optionals cfg.immich.enable [ pkgs.immich-cli ];
 
-          services.syncthing = lib.mkIf cfg.syncthing.enable {
-            enable = true;
-            extraOptions = [ "--allow-newer-config" ];
+        services.syncthing = lib.mkIf cfg.syncthing.enable {
+          enable = true;
+          extraOptions = [ "--allow-newer-config" ];
+        };
+
+        # Only write Brewfile.personal on Darwin and only when at least
+        # one cask is selected. Skipping the file entirely when empty
+        # keeps `setup.sh` quiet on unaffected hosts.
+        xdg.configFile."dotfiles-managed/Brewfile.personal" = lib.mkIf (
+          pkgs.stdenv.isDarwin && personalBrewfileLines != [ ]
+        ) { text = personalBrewfileText; };
+      }
+      (lib.mkIf (cfg.printerExporter.enable && pkgs.stdenv.isLinux) (
+        let
+          bindAddress = cfg.printerExporter.bindAddress;
+          configFile =
+            if cfg.printerExporter.configFile == null then
+              throw "dotfiles.personal.printerExporter.configFile must be supplied by the private overlay when the printer exporter is enabled."
+            else
+              cfg.printerExporter.configFile;
+          exporterUrl = printerExporterUrl bindAddress;
+          execArgs = [
+            "${pkgs.prometheus-snmp-exporter}/bin/snmp_exporter"
+            "--config.file=${toString configFile}"
+            "--web.listen-address=${bindAddress}"
+          ];
+        in
+        (import ./lib/managed-user-service.nix) { inherit config pkgs lib; } {
+          activationName = "printerExporter";
+          changedMessage = "Printer exporter inputs changed; restarting service";
+          darwinProgramArguments = execArgs;
+          deferredFollowup = "Run setup.sh from a normal shell to restart the printer exporter safely";
+          deferredMessage = "Printer exporter inputs changed; restart deferred because setup is running under an OpenCode agent";
+          description = "Brother printer SNMP exporter bridge";
+          environment = { };
+          errorLogFile = "${config.xdg.dataHome}/printer-exporter/error.log";
+          # The exporter's own /metrics endpoint answers even while the
+          # printer is asleep, so health checks never loop-restart it.
+          healthCommand = "${pkgs.curl}/bin/curl --fail --silent --max-time 2 '${exporterUrl}' >/dev/null 2>&1";
+          label = "dev.printer.exporter";
+          linuxExecStart = lib.escapeShellArgs execArgs;
+          linuxService.TimeoutStopSec = "10s";
+          logFile = "${config.xdg.dataHome}/printer-exporter/log";
+          markerFile = "${config.xdg.cacheHome}/dotfiles/printer-exporter.sha256";
+          occupiedHint = "If ${bindAddress} is held by an old exporter process, kill it manually and rerun setup.sh";
+          restartFailureWarning = "Printer exporter restart failed or did not become healthy at ${exporterUrl}";
+          serviceFingerprint = builtins.toJSON {
+            inherit bindAddress;
+            bin = toString pkgs.prometheus-snmp-exporter;
           };
-
-          # Only write Brewfile.personal on Darwin and only when at least
-          # one cask is selected. Skipping the file entirely when empty
-          # keeps `setup.sh` quiet on unaffected hosts.
-          xdg.configFile."dotfiles-managed/Brewfile.personal" = lib.mkIf (
-            pkgs.stdenv.isDarwin && personalBrewfileLines != [ ]
-          ) { text = personalBrewfileText; };
+          systemdService = "printer-exporter.service";
+          systemdUnitName = "printer-exporter";
+          url = exporterUrl;
+          waitAttempts = 50;
+          waitDescription = "printer exporter";
+          watchedPaths = [ (toString configFile) ];
+          workingDirectory = config.home.homeDirectory;
         }
-        (lib.mkIf (cfg.printerExporter.enable && pkgs.stdenv.isLinux) (
-          let
-            bindAddress = cfg.printerExporter.bindAddress;
-            configFile =
-              if cfg.printerExporter.configFile == null then
-                throw "dotfiles.personal.printerExporter.configFile must be supplied by the private overlay when the printer exporter is enabled."
-              else
-                cfg.printerExporter.configFile;
-            exporterUrl = printerExporterUrl bindAddress;
-            execArgs = [
-              "${pkgs.prometheus-snmp-exporter}/bin/snmp_exporter"
-              "--config.file=${toString configFile}"
-              "--web.listen-address=${bindAddress}"
-            ];
-          in
-          (import ./lib/managed-user-service.nix) { inherit config pkgs lib; } {
-            activationName = "printerExporter";
-            changedMessage = "Printer exporter inputs changed; restarting service";
-            darwinProgramArguments = execArgs;
-            deferredFollowup = "Run setup.sh from a normal shell to restart the printer exporter safely";
-            deferredMessage = "Printer exporter inputs changed; restart deferred because setup is running under an OpenCode agent";
-            description = "Brother printer SNMP exporter bridge";
-            environment = { };
-            errorLogFile = "${config.xdg.dataHome}/printer-exporter/error.log";
-            # The exporter's own /metrics endpoint answers even while the
-            # printer is asleep, so health checks never loop-restart it.
-            healthCommand = ''${pkgs.curl}/bin/curl --fail --silent --max-time 2 '${exporterUrl}' >/dev/null 2>&1'';
-            label = "dev.printer.exporter";
-            linuxExecStart = lib.escapeShellArgs execArgs;
-            linuxService.TimeoutStopSec = "10s";
-            logFile = "${config.xdg.dataHome}/printer-exporter/log";
-            markerFile = "${config.xdg.cacheHome}/dotfiles/printer-exporter.sha256";
-            occupiedHint = "If ${bindAddress} is held by an old exporter process, kill it manually and rerun setup.sh";
-            restartFailureWarning = "Printer exporter restart failed or did not become healthy at ${exporterUrl}";
-            serviceFingerprint = builtins.toJSON {
-              inherit bindAddress;
-              bin = toString pkgs.prometheus-snmp-exporter;
-            };
-            systemdService = "printer-exporter.service";
-            systemdUnitName = "printer-exporter";
-            url = exporterUrl;
-            waitAttempts = 50;
-            waitDescription = "printer exporter";
-            watchedPaths = [ (toString configFile) ];
-            workingDirectory = config.home.homeDirectory;
-          }
-        ))
-        (lib.mkIf (cfg.cupsExporter.enable && pkgs.stdenv.isLinux) (
-          let
-            bindAddress = cfg.cupsExporter.bindAddress;
-            cupsUri = cfg.cupsExporter.cupsUri;
-            exporterUrl = printerExporterUrl bindAddress;
-            execArgs = [
-              "${pkgs.cups-exporter}/bin/cups_exporter"
-              "-cups.uri=${cupsUri}"
-              "-web.listen-address=${bindAddress}"
-            ];
-          in
-          (import ./lib/managed-user-service.nix) { inherit config pkgs lib; } {
-            activationName = "cupsExporter";
-            changedMessage = "CUPS exporter inputs changed; restarting service";
-            darwinProgramArguments = execArgs;
-            deferredFollowup = "Run setup.sh from a normal shell to restart the CUPS exporter safely";
-            deferredMessage = "CUPS exporter inputs changed; restart deferred because setup is running under an OpenCode agent";
-            description = "CUPS print-server prometheus exporter";
-            environment = { };
-            errorLogFile = "${config.xdg.dataHome}/cups-exporter/error.log";
-            # The exporter's /metrics endpoint answers even while the queue
-            # is empty or a printer is offline, so health checks never
-            # loop-restart it.
-            healthCommand = ''${pkgs.curl}/bin/curl --fail --silent --max-time 2 '${exporterUrl}' >/dev/null 2>&1'';
-            label = "dev.cups.exporter";
-            linuxExecStart = lib.escapeShellArgs execArgs;
-            linuxService.TimeoutStopSec = "10s";
-            logFile = "${config.xdg.dataHome}/cups-exporter/log";
-            markerFile = "${config.xdg.cacheHome}/dotfiles/cups-exporter.sha256";
-            occupiedHint = "If ${bindAddress} is held by an old exporter process, kill it manually and rerun setup.sh";
-            restartFailureWarning = "CUPS exporter restart failed or did not become healthy at ${exporterUrl}";
-            serviceFingerprint = builtins.toJSON {
-              inherit bindAddress cupsUri;
-              bin = toString pkgs.cups-exporter;
-            };
-            systemdService = "cups-exporter.service";
-            systemdUnitName = "cups-exporter";
-            url = exporterUrl;
-            waitAttempts = 50;
-            waitDescription = "CUPS exporter";
-            watchedPaths = [ ];
-            workingDirectory = config.home.homeDirectory;
-          }
-        ))
-        (lib.mkIf (cfg.printerMaintenanceExporter.enable && pkgs.stdenv.isLinux) (
-          let
-            bindAddress = cfg.printerMaintenanceExporter.bindAddress;
-            snmpHost = cfg.printerMaintenanceExporter.snmpHost;
-            exporterUrl = printerExporterUrl bindAddress;
-            execArgs = [
-              "${pkgs.brother-maintenance-exporter}/bin/brother-maintenance-exporter"
-              "--bind=${bindAddress}"
-              "--snmp-host=${snmpHost}"
-            ];
-          in
-          (import ./lib/managed-user-service.nix) { inherit config pkgs lib; } {
-            activationName = "printerMaintenanceExporter";
-            changedMessage = "Brother maintenance exporter inputs changed; restarting service";
-            darwinProgramArguments = execArgs;
-            deferredFollowup = "Run setup.sh from a normal shell to restart the Brother maintenance exporter safely";
-            deferredMessage = "Brother maintenance exporter restart deferred because setup is running under an OpenCode agent";
-            description = "Brother printer maintenance-info prometheus exporter";
-            environment = { };
-            errorLogFile = "${config.xdg.dataHome}/brother-maintenance-exporter/error.log";
-            # The exporter always answers /metrics (brother_maintenance_up 0 on
-            # scrape failure), so health checks never loop-restart it.
-            healthCommand = ''${pkgs.curl}/bin/curl --fail --silent --max-time 2 '${exporterUrl}' >/dev/null 2>&1'';
-            label = "dev.brother.maintenance";
-            linuxExecStart = lib.escapeShellArgs execArgs;
-            linuxService.TimeoutStopSec = "10s";
-            logFile = "${config.xdg.dataHome}/brother-maintenance-exporter/log";
-            markerFile = "${config.xdg.cacheHome}/dotfiles/brother-maintenance-exporter.sha256";
-            occupiedHint = "If ${bindAddress} is held by an old exporter process, kill it manually and rerun setup.sh";
-            restartFailureWarning = "Brother maintenance exporter restart failed or did not become healthy at ${exporterUrl}";
-            serviceFingerprint = builtins.toJSON {
-              inherit bindAddress snmpHost;
-              bin = toString pkgs.brother-maintenance-exporter;
-            };
-            systemdService = "brother-maintenance-exporter.service";
-            systemdUnitName = "brother-maintenance-exporter";
-            url = exporterUrl;
-            waitAttempts = 50;
-            waitDescription = "Brother maintenance exporter";
-            watchedPaths = [ ];
-            workingDirectory = config.home.homeDirectory;
-          }
-        ))
-        (lib.mkIf (cfg.opencodeExporter.enable && pkgs.stdenv.isLinux) (
-          let
-            bindAddress = cfg.opencodeExporter.bindAddress;
-            serverUrl = cfg.opencodeExporter.serverUrl;
-            authFile = cfg.opencodeExporter.authFile;
-            databaseFile = cfg.opencodeExporter.databaseFile;
-            exporterUrl = printerExporterUrl bindAddress;
-            execArgs = [
-              "${pkgs.opencode-exporter}/bin/opencode-exporter"
-              "--bind=${bindAddress}"
-              "--server-url=${serverUrl}"
-              "--auth-file=${authFile}"
-              "--db=${databaseFile}"
-            ];
-          in
-          (import ./lib/managed-user-service.nix) { inherit config pkgs lib; } {
-            activationName = "opencodeExporter";
-            changedMessage = "OpenCode exporter inputs changed; restarting service";
-            darwinProgramArguments = execArgs;
-            deferredFollowup = "Run setup.sh from a normal shell to restart the OpenCode exporter safely";
-            deferredMessage = "OpenCode exporter inputs changed; restart deferred because setup is running under an OpenCode agent";
-            description = "OpenCode shared-server usage prometheus exporter";
-            environment = { };
-            errorLogFile = "${config.xdg.dataHome}/opencode-exporter/error.log";
-            # The exporter always answers /metrics (opencode_up 0 when the
-            # shared server is down), so health checks never loop-restart it.
-            healthCommand = ''${pkgs.curl}/bin/curl --fail --silent --max-time 2 '${exporterUrl}' >/dev/null 2>&1'';
-            label = "dev.opencode.exporter";
-            linuxExecStart = lib.escapeShellArgs execArgs;
-            linuxService.TimeoutStopSec = "10s";
-            logFile = "${config.xdg.dataHome}/opencode-exporter/log";
-            markerFile = "${config.xdg.cacheHome}/dotfiles/opencode-exporter.sha256";
-            occupiedHint = "If ${bindAddress} is held by an old exporter process, kill it manually and rerun setup.sh";
-            restartFailureWarning = "OpenCode exporter restart failed or did not become healthy at ${exporterUrl}";
-            serviceFingerprint = builtins.toJSON {
-              inherit bindAddress serverUrl authFile databaseFile;
-              bin = toString pkgs.opencode-exporter;
-            };
-            systemdService = "opencode-exporter.service";
-            systemdUnitName = "opencode-exporter";
-            url = exporterUrl;
-            waitAttempts = 50;
-            waitDescription = "OpenCode exporter";
-            watchedPaths = [ ];
-            workingDirectory = config.home.homeDirectory;
-          }
-        ))
-        (lib.mkIf (cfg.unifiExporter.enable && pkgs.stdenv.isLinux) (
-          let
-            bindAddress = cfg.unifiExporter.bindAddress;
-            configFile =
-              if cfg.unifiExporter.configFile == null then
-                throw "dotfiles.personal.unifiExporter.configFile must be supplied by the private overlay when the UniFi exporter is enabled."
-              else
-                cfg.unifiExporter.configFile;
-            exporterUrl = printerExporterUrl bindAddress;
-            execArgs = [
-              "${pkgs.unpoller}/bin/unpoller"
-              "--config=${toString configFile}"
-            ];
-          in
-          (import ./lib/managed-user-service.nix) { inherit config pkgs lib; } {
-            activationName = "unifiExporter";
-            changedMessage = "UniFi exporter inputs changed; restarting service";
-            darwinProgramArguments = execArgs;
-            deferredFollowup = "Run setup.sh from a normal shell to restart the UniFi exporter safely";
-            deferredMessage = "UniFi exporter inputs changed; restart deferred because setup is running under an OpenCode agent";
-            description = "UniFi controller unpoller prometheus exporter";
-            environment = { };
-            errorLogFile = "${config.xdg.dataHome}/unifi-exporter/error.log";
-            # unpoller keeps serving /metrics from its cached snapshot even
-            # while the console is unreachable, so health checks never
-            # loop-restart it.
-            healthCommand = ''${pkgs.curl}/bin/curl --fail --silent --max-time 2 '${exporterUrl}' >/dev/null 2>&1'';
-            label = "dev.unifi.exporter";
-            linuxExecStart = lib.escapeShellArgs execArgs;
-            linuxService.TimeoutStopSec = "10s";
-            logFile = "${config.xdg.dataHome}/unifi-exporter/log";
-            markerFile = "${config.xdg.cacheHome}/dotfiles/unifi-exporter.sha256";
-            occupiedHint = "If ${bindAddress} is held by an old exporter process, kill it manually and rerun setup.sh";
-            restartFailureWarning = "UniFi exporter restart failed or did not become healthy at ${exporterUrl}";
-            serviceFingerprint = builtins.toJSON {
-              inherit bindAddress;
-              bin = toString pkgs.unpoller;
-            };
-            systemdService = "unifi-exporter.service";
-            systemdUnitName = "unifi-exporter";
-            url = exporterUrl;
-            waitAttempts = 50;
-            waitDescription = "UniFi exporter";
-            watchedPaths = [ (toString configFile) ];
-            workingDirectory = config.home.homeDirectory;
-          }
-        ))
-        (lib.mkIf (cfg.opencodeIngress.enable && pkgs.stdenv.isLinux) (
-          let
-            bindAddress = cfg.opencodeIngress.bindAddress;
-            port = toString cfg.opencodeIngress.port;
-            allowedSource = cfg.opencodeIngress.allowedSource;
-            listenUrl = "http://${bindAddress}:${port}";
-            execArgs = [
-              "${pkgs.socat}/bin/socat"
-              "TCP-LISTEN:${port},bind=${bindAddress},fork,reuseaddr,range=${allowedSource}"
-              "TCP:127.0.0.1:4096"
-            ];
-          in
-          (import ./lib/managed-user-service.nix) { inherit config pkgs lib; } {
-            activationName = "opencodeIngress";
-            changedMessage = "OpenCode ingress inputs changed; restarting service";
-            darwinProgramArguments = execArgs;
-            deferredFollowup = "Run setup.sh from a normal shell to restart the OpenCode ingress safely";
-            deferredMessage = "OpenCode ingress inputs changed; restart deferred because setup is running under an OpenCode agent";
-            description = "Tailscale-only OpenCode ingress bridge";
-            environment = { };
-            errorLogFile = "${config.xdg.dataHome}/opencode-ingress/error.log";
-            healthCommand = ''${pkgs.curl}/bin/curl --fail --silent --max-time 2 http://127.0.0.1:4096/global/health >/dev/null 2>&1'';
-            label = "dev.opencode.ingress";
-            linuxExecStart = lib.escapeShellArgs execArgs;
-            linuxService.TimeoutStopSec = "10s";
-            logFile = "${config.xdg.dataHome}/opencode-ingress/log";
-            markerFile = "${config.xdg.cacheHome}/dotfiles/opencode-ingress.sha256";
-            occupiedHint = "If ${listenUrl} is held by an old ingress process, kill it manually and rerun setup.sh";
-            restartFailureWarning = "OpenCode ingress restart failed or did not become healthy at ${listenUrl}";
-            serviceFingerprint = builtins.toJSON {
-              inherit allowedSource bindAddress port;
-              bin = toString pkgs.socat;
-            };
-            systemdService = "opencode-ingress.service";
-            systemdUnitName = "opencode-ingress";
-            url = listenUrl;
-            waitAttempts = 50;
-            waitDescription = "OpenCode ingress";
-            watchedPaths = [ ];
-            workingDirectory = config.home.homeDirectory;
-          }
-        ))
-      ]);
+      ))
+      (lib.mkIf (cfg.cupsExporter.enable && pkgs.stdenv.isLinux) (
+        let
+          bindAddress = cfg.cupsExporter.bindAddress;
+          cupsUri = cfg.cupsExporter.cupsUri;
+          exporterUrl = printerExporterUrl bindAddress;
+          execArgs = [
+            "${pkgs.cups-exporter}/bin/cups_exporter"
+            "-cups.uri=${cupsUri}"
+            "-web.listen-address=${bindAddress}"
+          ];
+        in
+        (import ./lib/managed-user-service.nix) { inherit config pkgs lib; } {
+          activationName = "cupsExporter";
+          changedMessage = "CUPS exporter inputs changed; restarting service";
+          darwinProgramArguments = execArgs;
+          deferredFollowup = "Run setup.sh from a normal shell to restart the CUPS exporter safely";
+          deferredMessage = "CUPS exporter inputs changed; restart deferred because setup is running under an OpenCode agent";
+          description = "CUPS print-server prometheus exporter";
+          environment = { };
+          errorLogFile = "${config.xdg.dataHome}/cups-exporter/error.log";
+          # The exporter's /metrics endpoint answers even while the queue
+          # is empty or a printer is offline, so health checks never
+          # loop-restart it.
+          healthCommand = "${pkgs.curl}/bin/curl --fail --silent --max-time 2 '${exporterUrl}' >/dev/null 2>&1";
+          label = "dev.cups.exporter";
+          linuxExecStart = lib.escapeShellArgs execArgs;
+          linuxService.TimeoutStopSec = "10s";
+          logFile = "${config.xdg.dataHome}/cups-exporter/log";
+          markerFile = "${config.xdg.cacheHome}/dotfiles/cups-exporter.sha256";
+          occupiedHint = "If ${bindAddress} is held by an old exporter process, kill it manually and rerun setup.sh";
+          restartFailureWarning = "CUPS exporter restart failed or did not become healthy at ${exporterUrl}";
+          serviceFingerprint = builtins.toJSON {
+            inherit bindAddress cupsUri;
+            bin = toString pkgs.cups-exporter;
+          };
+          systemdService = "cups-exporter.service";
+          systemdUnitName = "cups-exporter";
+          url = exporterUrl;
+          waitAttempts = 50;
+          waitDescription = "CUPS exporter";
+          watchedPaths = [ ];
+          workingDirectory = config.home.homeDirectory;
+        }
+      ))
+      (lib.mkIf (cfg.printerMaintenanceExporter.enable && pkgs.stdenv.isLinux) (
+        let
+          bindAddress = cfg.printerMaintenanceExporter.bindAddress;
+          snmpHost = cfg.printerMaintenanceExporter.snmpHost;
+          exporterUrl = printerExporterUrl bindAddress;
+          execArgs = [
+            "${pkgs.brother-maintenance-exporter}/bin/brother-maintenance-exporter"
+            "--bind=${bindAddress}"
+            "--snmp-host=${snmpHost}"
+          ];
+        in
+        (import ./lib/managed-user-service.nix) { inherit config pkgs lib; } {
+          activationName = "printerMaintenanceExporter";
+          changedMessage = "Brother maintenance exporter inputs changed; restarting service";
+          darwinProgramArguments = execArgs;
+          deferredFollowup = "Run setup.sh from a normal shell to restart the Brother maintenance exporter safely";
+          deferredMessage = "Brother maintenance exporter restart deferred because setup is running under an OpenCode agent";
+          description = "Brother printer maintenance-info prometheus exporter";
+          environment = { };
+          errorLogFile = "${config.xdg.dataHome}/brother-maintenance-exporter/error.log";
+          # The exporter always answers /metrics (brother_maintenance_up 0 on
+          # scrape failure), so health checks never loop-restart it.
+          healthCommand = "${pkgs.curl}/bin/curl --fail --silent --max-time 2 '${exporterUrl}' >/dev/null 2>&1";
+          label = "dev.brother.maintenance";
+          linuxExecStart = lib.escapeShellArgs execArgs;
+          linuxService.TimeoutStopSec = "10s";
+          logFile = "${config.xdg.dataHome}/brother-maintenance-exporter/log";
+          markerFile = "${config.xdg.cacheHome}/dotfiles/brother-maintenance-exporter.sha256";
+          occupiedHint = "If ${bindAddress} is held by an old exporter process, kill it manually and rerun setup.sh";
+          restartFailureWarning = "Brother maintenance exporter restart failed or did not become healthy at ${exporterUrl}";
+          serviceFingerprint = builtins.toJSON {
+            inherit bindAddress snmpHost;
+            bin = toString pkgs.brother-maintenance-exporter;
+          };
+          systemdService = "brother-maintenance-exporter.service";
+          systemdUnitName = "brother-maintenance-exporter";
+          url = exporterUrl;
+          waitAttempts = 50;
+          waitDescription = "Brother maintenance exporter";
+          watchedPaths = [ ];
+          workingDirectory = config.home.homeDirectory;
+        }
+      ))
+      (lib.mkIf (cfg.opencodeExporter.enable && pkgs.stdenv.isLinux) (
+        let
+          bindAddress = cfg.opencodeExporter.bindAddress;
+          serverUrl = cfg.opencodeExporter.serverUrl;
+          authFile = cfg.opencodeExporter.authFile;
+          databaseFile = cfg.opencodeExporter.databaseFile;
+          exporterUrl = printerExporterUrl bindAddress;
+          execArgs = [
+            "${pkgs.opencode-exporter}/bin/opencode-exporter"
+            "--bind=${bindAddress}"
+            "--server-url=${serverUrl}"
+            "--auth-file=${authFile}"
+            "--db=${databaseFile}"
+          ];
+        in
+        (import ./lib/managed-user-service.nix) { inherit config pkgs lib; } {
+          activationName = "opencodeExporter";
+          changedMessage = "OpenCode exporter inputs changed; restarting service";
+          darwinProgramArguments = execArgs;
+          deferredFollowup = "Run setup.sh from a normal shell to restart the OpenCode exporter safely";
+          deferredMessage = "OpenCode exporter inputs changed; restart deferred because setup is running under an OpenCode agent";
+          description = "OpenCode shared-server usage prometheus exporter";
+          environment = { };
+          errorLogFile = "${config.xdg.dataHome}/opencode-exporter/error.log";
+          # The exporter always answers /metrics (opencode_up 0 when the
+          # shared server is down), so health checks never loop-restart it.
+          healthCommand = "${pkgs.curl}/bin/curl --fail --silent --max-time 2 '${exporterUrl}' >/dev/null 2>&1";
+          label = "dev.opencode.exporter";
+          linuxExecStart = lib.escapeShellArgs execArgs;
+          linuxService.TimeoutStopSec = "10s";
+          logFile = "${config.xdg.dataHome}/opencode-exporter/log";
+          markerFile = "${config.xdg.cacheHome}/dotfiles/opencode-exporter.sha256";
+          occupiedHint = "If ${bindAddress} is held by an old exporter process, kill it manually and rerun setup.sh";
+          restartFailureWarning = "OpenCode exporter restart failed or did not become healthy at ${exporterUrl}";
+          serviceFingerprint = builtins.toJSON {
+            inherit
+              bindAddress
+              serverUrl
+              authFile
+              databaseFile
+              ;
+            bin = toString pkgs.opencode-exporter;
+          };
+          systemdService = "opencode-exporter.service";
+          systemdUnitName = "opencode-exporter";
+          url = exporterUrl;
+          waitAttempts = 50;
+          waitDescription = "OpenCode exporter";
+          watchedPaths = [ ];
+          workingDirectory = config.home.homeDirectory;
+        }
+      ))
+      (lib.mkIf (cfg.unifiExporter.enable && pkgs.stdenv.isLinux) (
+        let
+          bindAddress = cfg.unifiExporter.bindAddress;
+          configFile =
+            if cfg.unifiExporter.configFile == null then
+              throw "dotfiles.personal.unifiExporter.configFile must be supplied by the private overlay when the UniFi exporter is enabled."
+            else
+              cfg.unifiExporter.configFile;
+          exporterUrl = printerExporterUrl bindAddress;
+          execArgs = [
+            "${pkgs.unpoller}/bin/unpoller"
+            "--config=${toString configFile}"
+          ];
+        in
+        (import ./lib/managed-user-service.nix) { inherit config pkgs lib; } {
+          activationName = "unifiExporter";
+          changedMessage = "UniFi exporter inputs changed; restarting service";
+          darwinProgramArguments = execArgs;
+          deferredFollowup = "Run setup.sh from a normal shell to restart the UniFi exporter safely";
+          deferredMessage = "UniFi exporter inputs changed; restart deferred because setup is running under an OpenCode agent";
+          description = "UniFi controller unpoller prometheus exporter";
+          environment = { };
+          errorLogFile = "${config.xdg.dataHome}/unifi-exporter/error.log";
+          # unpoller keeps serving /metrics from its cached snapshot even
+          # while the console is unreachable, so health checks never
+          # loop-restart it.
+          healthCommand = "${pkgs.curl}/bin/curl --fail --silent --max-time 2 '${exporterUrl}' >/dev/null 2>&1";
+          label = "dev.unifi.exporter";
+          linuxExecStart = lib.escapeShellArgs execArgs;
+          linuxService.TimeoutStopSec = "10s";
+          logFile = "${config.xdg.dataHome}/unifi-exporter/log";
+          markerFile = "${config.xdg.cacheHome}/dotfiles/unifi-exporter.sha256";
+          occupiedHint = "If ${bindAddress} is held by an old exporter process, kill it manually and rerun setup.sh";
+          restartFailureWarning = "UniFi exporter restart failed or did not become healthy at ${exporterUrl}";
+          serviceFingerprint = builtins.toJSON {
+            inherit bindAddress;
+            bin = toString pkgs.unpoller;
+          };
+          systemdService = "unifi-exporter.service";
+          systemdUnitName = "unifi-exporter";
+          url = exporterUrl;
+          waitAttempts = 50;
+          waitDescription = "UniFi exporter";
+          watchedPaths = [ (toString configFile) ];
+          workingDirectory = config.home.homeDirectory;
+        }
+      ))
+      (lib.mkIf (cfg.opencodeIngress.enable && pkgs.stdenv.isLinux) (
+        let
+          bindAddress = cfg.opencodeIngress.bindAddress;
+          port = toString cfg.opencodeIngress.port;
+          allowedSource = cfg.opencodeIngress.allowedSource;
+          listenUrl = "http://${bindAddress}:${port}";
+          execArgs = [
+            "${pkgs.socat}/bin/socat"
+            "TCP-LISTEN:${port},bind=${bindAddress},fork,reuseaddr,range=${allowedSource}"
+            "TCP:127.0.0.1:4096"
+          ];
+        in
+        (import ./lib/managed-user-service.nix) { inherit config pkgs lib; } {
+          activationName = "opencodeIngress";
+          changedMessage = "OpenCode ingress inputs changed; restarting service";
+          darwinProgramArguments = execArgs;
+          deferredFollowup = "Run setup.sh from a normal shell to restart the OpenCode ingress safely";
+          deferredMessage = "OpenCode ingress inputs changed; restart deferred because setup is running under an OpenCode agent";
+          description = "Tailscale-only OpenCode ingress bridge";
+          environment = { };
+          errorLogFile = "${config.xdg.dataHome}/opencode-ingress/error.log";
+          healthCommand = "${pkgs.curl}/bin/curl --fail --silent --max-time 2 http://127.0.0.1:4096/global/health >/dev/null 2>&1";
+          label = "dev.opencode.ingress";
+          linuxExecStart = lib.escapeShellArgs execArgs;
+          linuxService.TimeoutStopSec = "10s";
+          logFile = "${config.xdg.dataHome}/opencode-ingress/log";
+          markerFile = "${config.xdg.cacheHome}/dotfiles/opencode-ingress.sha256";
+          occupiedHint = "If ${listenUrl} is held by an old ingress process, kill it manually and rerun setup.sh";
+          restartFailureWarning = "OpenCode ingress restart failed or did not become healthy at ${listenUrl}";
+          serviceFingerprint = builtins.toJSON {
+            inherit allowedSource bindAddress port;
+            bin = toString pkgs.socat;
+          };
+          systemdService = "opencode-ingress.service";
+          systemdUnitName = "opencode-ingress";
+          url = listenUrl;
+          waitAttempts = 50;
+          waitDescription = "OpenCode ingress";
+          watchedPaths = [ ];
+          workingDirectory = config.home.homeDirectory;
+        }
+      ))
+    ]
+  );
 }
