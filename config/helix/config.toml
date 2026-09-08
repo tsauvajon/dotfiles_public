@@ -1,8 +1,8 @@
 theme = "catppuccin_mocha"
 
-[editor]
-# steel fork option: implicitly trusts every workspace.
-insecure = true
+[editor.workspace-trust]
+# Implicitly trust every workspace.
+level = "insecure"
 
 [keys.normal]
 C-d = ":half-page-down-smooth"
