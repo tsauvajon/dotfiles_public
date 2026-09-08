@@ -3,7 +3,7 @@
 let
   rustToolchain = import ./rust-toolchain.nix;
   fakePkgs = {
-    rust-bin.nightly."2026-08-17".default.override = args: {
+    rust-bin.nightly."2026-09-06".default.override = args: {
       inherit (args) extensions;
       outPath = "/nightly";
     };
@@ -39,7 +39,7 @@ in
 
   testRustToolchainName = {
     expr = toolchain.name;
-    expected = "rust-nightly-2026-08-17-cranelift";
+    expected = "rust-nightly-2026-09-06-cranelift";
   };
 
   testCargoWrapperDefaultsCranelift = {

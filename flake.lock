@@ -423,16 +423,16 @@
     "scooter-hx": {
       "flake": false,
       "locked": {
-        "lastModified": 1786704370,
-        "narHash": "sha256-SaqNvnR/7M5ue1oeqr0rdGwjpVMG99or+DC9o7HZCCk=",
+        "lastModified": 1788646163,
+        "narHash": "sha256-KHv63lXt4kKk9HsrbGgR8gW5upyFBiWRxAp4XjjH+qI=",
         "ref": "refs/heads/main",
-        "rev": "0873e2244631ba42d04576776030b2672f0e6202",
-        "revCount": 291,
+        "rev": "3d68194ebd1962b944afd2543d9ab09d4907cef8",
+        "revCount": 293,
         "type": "git",
         "url": "https://github.com/thomasschafer/scooter.hx.git"
       },
       "original": {
-        "rev": "0873e2244631ba42d04576776030b2672f0e6202",
+        "rev": "3d68194ebd1962b944afd2543d9ab09d4907cef8",
         "type": "git",
         "url": "https://github.com/thomasschafer/scooter.hx.git"
       }
@@ -465,16 +465,16 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1786813086,
-        "narHash": "sha256-D3+8XkW4nNZn45ckcvuY4WhpaUeYX3taNVgQQ1yFu6I=",
+        "lastModified": 1788533906,
+        "narHash": "sha256-jwjPojXErU2uTf7pXlywmUwLhMMm1cst0K/jvbKRfLo=",
         "ref": "refs/heads/master",
-        "rev": "2640abca12408c11b0d692b41284815c65856cf8",
-        "revCount": 1189,
+        "rev": "1bc0cc4b752bbece3e5da62c40540267d0ff7a58",
+        "revCount": 1197,
         "type": "git",
         "url": "https://github.com/mattwparas/steel.git"
       },
       "original": {
-        "rev": "2640abca12408c11b0d692b41284815c65856cf8",
+        "rev": "1bc0cc4b752bbece3e5da62c40540267d0ff7a58",
         "type": "git",
         "url": "https://github.com/mattwparas/steel.git"
       }

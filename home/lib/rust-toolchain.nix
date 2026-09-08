@@ -1,7 +1,7 @@
 { pkgs }:
 
 let
-  nightly = pkgs.rust-bin.nightly."2026-08-17".default.override {
+  nightly = pkgs.rust-bin.nightly."2026-09-06".default.override {
     extensions = [
       "clippy"
       "llvm-tools-preview"
@@ -20,7 +20,7 @@ let
   '';
 in
 pkgs.symlinkJoin {
-  name = "rust-nightly-2026-08-17-cranelift";
+  name = "rust-nightly-2026-09-06-cranelift";
   paths = [
     nightly
     cargoWrapper

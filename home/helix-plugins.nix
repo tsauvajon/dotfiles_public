@@ -143,7 +143,7 @@ let
       substituteInPlace Cargo.toml \
         --replace-fail \
         'git = "https://github.com/mattwparas/steel.git"' \
-        'git = "https://github.com/mattwparas/steel.git", rev = "2640abca12408c11b0d692b41284815c65856cf8"'
+        'git = "https://github.com/mattwparas/steel.git", rev = "1bc0cc4b752bbece3e5da62c40540267d0ff7a58"'
       substituteInPlace file-watcher.scm \
         --replace-fail \
         '(when (and helix-doc-last-saved (system-time<? helix-doc-last-saved file-last-modified))' \

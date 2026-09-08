@@ -36,11 +36,11 @@
       inputs.rust-overlay.follows = "rust-overlay";
     };
     steel = {
-      url = "git+https://github.com/mattwparas/steel.git?rev=2640abca12408c11b0d692b41284815c65856cf8";
+      url = "git+https://github.com/mattwparas/steel.git?rev=1bc0cc4b752bbece3e5da62c40540267d0ff7a58";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     scooter-hx = {
-      url = "git+https://github.com/thomasschafer/scooter.hx.git?rev=0873e2244631ba42d04576776030b2672f0e6202";
+      url = "git+https://github.com/thomasschafer/scooter.hx.git?rev=3d68194ebd1962b944afd2543d9ab09d4907cef8";
       flake = false;
     };
     fake-warp-hx = {
@@ -137,9 +137,9 @@
     }:
     let
       opencodePin = {
-        version = "1.18.21";
-        srcHash = "sha256-WKG/lts+wzDjYJ5pOZ0X4Kb0rJ1TzYQzQgjyQBY+bxs=";
-        nodeModulesHash = "sha256-dGASaxZnxzJZY1PuDeqQCnYgMm2gEf5HZQsWOnt2JaU=";
+        version = "1.18.29";
+        srcHash = "sha256-lCXlxTOhcX70jxJAbpolyGlIxQK2nst+6bFhq3Xzdmc=";
+        nodeModulesHash = "sha256-0rpyP6nqK4FrJNjl0WV5adPjEQhe8a55RM7CgP9wlak=";
       };
       supportedSystems = [
         "x86_64-linux"
