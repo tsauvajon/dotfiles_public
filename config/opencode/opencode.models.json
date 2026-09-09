@@ -58,7 +58,7 @@
   },
   "agent": {
     "general": {
-      "model": "zai-coding-plan/glm-5.3-flash",
+      "model": "openai/gpt-5.6-luna",
       "variant": "high"
     },
     "explore": {
@@ -71,7 +71,7 @@
     },
     "review": {
       "model": "openai/gpt-5.6-sol",
-      "variant": "high"
+      "variant": "medium"
     },
     "scout": {
       "model": "openai/gpt-5.6-luna",
@@ -87,7 +87,7 @@
     },
     "rust-implement": {
       "model": "zai-coding-plan/glm-5.3-flash",
-      "variant": "xhigh"
+      "variant": "high"
     }
   }
 }
