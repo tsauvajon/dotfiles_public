@@ -5,7 +5,7 @@ from one place via [Home Manager](https://nix-community.github.io/home-manager/)
 
 ## Quick start
 
-Prerequisite: install [Nix](https://nixos.org).
+Prerequisite: install [Determinate Nix](docs/Determinate%20Nix.md) (recommended) or any upstream [Nix](https://nixos.org).
 
 ```bash
 ./setup.sh
@@ -114,6 +114,10 @@ To inspect missing packages without installing them, run:
 ```bash
 scripts/arch-packages.sh --check
 ```
+
+Nix itself is intentionally not in `packages/arch/pacman.txt`; install it via
+[Determinate Nix](docs/Determinate%20Nix.md), which also covers migration from
+an existing upstream install.
 
 ## macOS workflow
 
