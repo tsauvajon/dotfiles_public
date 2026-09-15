@@ -9,8 +9,8 @@
   # `fetchurl` (pure) instead of `builtins.fetchurl` (impure). Update `version`
   # and `hash` together from the same driver release.
   _module.args.nixglNvidia = {
-    version = "610.57.04";
-    hash = "sha256-suk1xmuDuwDAyFe8jg7g/VLekoa0DJzB7sKafOfrEW0=";
+    version = "615.71.09";
+    hash = "sha256-zc7tIrvrYSSNGm3qvCWWZz46ZQFpjucayNL9wo87cP4=";
   };
 
   home.username = "thomas";
