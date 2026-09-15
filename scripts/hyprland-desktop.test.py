@@ -6,6 +6,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import tomllib
 from pathlib import Path
 
 
@@ -92,7 +93,7 @@ if sys.platform.startswith("linux"):
         raise SystemExit("Nautilus launcher did not resolve a terminal process cwd")
 
 required_wiring = {
-    "home/desktop/default.nix": ["./nautilus.nix"],
+    "home/desktop/default.nix": ["./bar.nix", "./nautilus.nix"],
     "home/desktop/nautilus.nix": [
         "./nautilus-terminal-cwd.py",
         "systemd.user.services.udiskie",
@@ -111,6 +112,7 @@ required_wiring = {
         "sushi",
         "udiskie",
         "wl-clipboard",
+        "waybar\n",
     ],
     "config/alacritty/alacritty.toml": [
         'key = "Insert", mods = "Control", action = "Copy"',
@@ -126,3 +128,71 @@ for relative_path, fragments in required_wiring.items():
     for fragment in fragments:
         if fragment not in content:
             raise SystemExit(f"missing desktop wiring in {relative_path}: {fragment}")
+
+# Status-bar selection: one autostart entry through the generated
+# status-bar script (which also owns the notification daemon), and the
+# SUPER+SHIFT+R binding pointing at the same script.
+for fragment in (
+    'hl.exec_cmd("~/.config/hypr/status-bar &")',
+    '"~/.config/hypr/status-bar"',
+):
+    if fragment not in hypr:
+        raise SystemExit(f"missing status-bar wiring in config/hypr/hyprland.lua: {fragment}")
+for stale_fragment in (
+    '"@notificationCommand@"',
+    '"~/.config/waybar/scripts/reload.sh"',
+    "bin/waybar &",
+    "bin/mako &",
+):
+    if stale_fragment in hypr:
+        raise SystemExit(f"stale status-bar wiring in config/hypr/hyprland.lua: {stale_fragment}")
+
+hyprland_module = (root / "home/desktop/hyprland.nix").read_text()
+for fragment in (
+    '"$out/status-bar"',
+    "killall -q waybar .waybar-wrapped hyprbaric",
+    "killall -q mako",
+    "pgrep -x waybar",
+    "pgrep -x .waybar-wrapped",
+    "pgrep -x hyprbaric",
+    "pgrep -x mako",
+    "-ge 50",
+):
+    if fragment not in hyprland_module:
+        raise SystemExit(f"missing status-bar generation in home/desktop/hyprland.nix: {fragment}")
+
+# The README documents the toggle plus how to switch the current session
+# right after setup.
+readme = (root / "README.md").read_text()
+for fragment in (
+    'dotfiles.desktop.bar = "waybar";',
+    "~/.config/hypr/status-bar",
+    "SUPER+SHIFT+R",
+    "current session",
+):
+    if fragment not in readme:
+        raise SystemExit(f"missing status-bar docs in README.md: {fragment}")
+
+# The hyprbaric seed must parse and disable exactly the built-in global
+# shortcuts that conflict with Hyprland binds, plus the setup guide.
+seed = tomllib.loads((root / "config/hyprbaric/config.toml").read_text())
+conflicting_shortcuts = {
+    "app_launcher",
+    "lock_session",
+    "toggle_recording",
+    "volume_up",
+    "volume_down",
+    "toggle_mute",
+    "brightness_up",
+    "brightness_down",
+}
+seeded_shortcuts = seed.get("shortcuts", {})
+if set(seeded_shortcuts) != conflicting_shortcuts:
+    raise SystemExit(
+        f"hyprbaric seed shortcut set drifted: {sorted(seeded_shortcuts)} != {sorted(conflicting_shortcuts)}"
+    )
+for action, table in seeded_shortcuts.items():
+    if table != {"state": "disabled"}:
+        raise SystemExit(f"hyprbaric seed must only disable {action}, got {table}")
+if seed.get("setup") != {"startup": "never"}:
+    raise SystemExit("hyprbaric seed must disable the automatic setup guide")

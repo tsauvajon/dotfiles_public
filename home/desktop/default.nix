@@ -6,6 +6,7 @@
 {
   imports = [
     ./packages.nix
+    ./bar.nix
     ./hyprland.nix
     ./nautilus.nix
     ./mako.nix

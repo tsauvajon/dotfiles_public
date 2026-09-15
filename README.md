@@ -63,7 +63,8 @@ Currently managed:
 
 - shell startup files: `bash`, `fish`, `tmux`, `zsh`
 - editors and terminals: `helix`, `kitty`, `alacritty`
-- Linux desktop session: `hypr`, `mako`, `rofi`, `waybar`
+- Linux desktop session: `hypr`, `mako`, `rofi`, and a selectable status
+  bar (`waybar` or `hyprbaric`)
 - developer tooling: `cargo`, `task`, `goto`, `ssh`, `yazi`
 - JavaScript tooling: `bun` globally; use project-local Nix for Node.js when needed
 - OpenCode config, commands, skills, agents, and plugins
@@ -78,6 +79,31 @@ Cranelift for faster Rust development builds.
 
 Linux-only modules are gated with `lib.mkIf pkgs.stdenv.isLinux`, so importing
 this flake on macOS leaves them as no-ops automatically.
+
+## Status bar
+
+The Linux desktop status bar has a one-line toggle (default `hyprbaric` on
+x86_64-linux, `waybar` elsewhere):
+
+```nix
+dotfiles.desktop.bar = "waybar"; # or "hyprbaric"
+```
+
+Set it in `home/hosts/<host>.nix` or a private overlay home module, then rerun
+`./setup.sh`. To switch the current session right after setup, press
+`SUPER+SHIFT+R` or invoke `~/.config/hypr/status-bar`; otherwise the selected
+bar starts at the next Hyprland launch. Hyprbaric runs the pinned upstream
+v0.2.0 AppImage (`pkgs/hyprbaric`) wrapped with nixGL, autostarts with
+Hyprland, and owns session notifications in place of mako; the Waybar
+selection keeps mako. Both bars stay configured, and
+`~/.config/hypr/status-bar` — used by Hyprland autostart and the
+`SUPER+SHIFT+R` reload binding — stops whichever bar is running before
+starting the selected one, so two bars never run at once.
+`~/.config/hyprbaric/config.toml` is seeded on first run only (with conflicting
+hyprbaric shortcuts disabled and the setup guide skipped); hyprbaric owns that
+file afterwards. Known parity gaps of hyprbaric versus the Waybar setup: no AI
+usage module (`ai-usagebar` stays Waybar-only), no CPU/mem or MPRIS media
+widgets, and no custom-script modules.
 
 ## Arch workflow
 

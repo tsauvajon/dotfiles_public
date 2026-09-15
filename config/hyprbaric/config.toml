@@ -1,0 +1,38 @@
+# Seed for ~/.config/hyprbaric/config.toml, installed by Home Manager
+# activation on first run only. Hyprbaric and its settings window rewrite
+# this file afterwards, so edit the live copy directly; deleting it
+# restores this seed on the next activation.
+#
+# Disables the hyprbaric global shortcuts that conflict with binds in
+# config/hypr/hyprland.lua: the Super app launcher (rofi is the
+# launcher), Super+L lock session (focus right), Super+Shift+R recording
+# (status-bar reload), and the XF86 volume/brightness keys (amixer and
+# brightnessctl binds). Also skips the automatic first-run setup guide so
+# autostart stays deterministic.
+
+[setup]
+startup = "never"
+
+[shortcuts.app_launcher]
+state = "disabled"
+
+[shortcuts.lock_session]
+state = "disabled"
+
+[shortcuts.toggle_recording]
+state = "disabled"
+
+[shortcuts.volume_up]
+state = "disabled"
+
+[shortcuts.volume_down]
+state = "disabled"
+
+[shortcuts.toggle_mute]
+state = "disabled"
+
+[shortcuts.brightness_up]
+state = "disabled"
+
+[shortcuts.brightness_down]
+state = "disabled"

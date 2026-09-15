@@ -17,8 +17,9 @@ hl.monitor({
 
 hl.on("hyprland.start", function()
     hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP")
-    hl.exec_cmd("~/.nix-profile/bin/waybar &")
-    hl.exec_cmd("~/.nix-profile/bin/mako &")
+    -- Generated script (home/desktop/hyprland.nix): starts the selected
+    -- bar (dotfiles.desktop.bar) and manages the notification owner.
+    hl.exec_cmd("~/.config/hypr/status-bar &")
     hl.exec_cmd("~/.nix-profile/bin/terminal-launcher --class ssh-add -- ssh-add ~/.ssh/id_ed25519")
 end)
 
@@ -172,7 +173,7 @@ local passwordManager = "~/.nix-profile/bin/keepassxc"
 local screenshot = "grim -g \"$(slurp)\" - | ~/.nix-profile/bin/swappy -f -"
 local menu = "~/.nix-profile/bin/rofi -show drun"
 local procViewer = "~/.nix-profile/bin/terminal-launcher --hold -- ~/.nix-profile/bin/htop"
-local reloadBar = "~/.config/waybar/scripts/reload.sh"
+local reloadBar = "~/.config/hypr/status-bar"
 
 -- Tag terminals once and use the tag for context-sensitive shortcuts.
 local terminalClasses = {}

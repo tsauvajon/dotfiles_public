@@ -176,6 +176,10 @@
           dumap = final.callPackage ./pkgs/dumap { };
           glim = final.callPackage ./pkgs/glim { };
           herdr = final.callPackage ./pkgs/herdr { };
+          # Pinned upstream AppImage for the Linux status bar; only
+          # referenced by home/desktop/bar.nix on Linux hosts, so the
+          # linux-only derivation stays unevaluated on darwin.
+          hyprbaric = final.callPackage ./pkgs/hyprbaric { };
           kache = final.callPackage ./pkgs/kache { };
           marksman =
             if final.stdenv.hostPlatform.isDarwin then final.callPackage ./pkgs/marksman { } else prev.marksman;
@@ -295,6 +299,7 @@
         {
           system,
           hostModule,
+          extraModules ? [ ],
         }:
         let
           pkgs = pkgsFor.${system};
@@ -315,6 +320,7 @@
             ./home
             hostModule
           ]
+          ++ extraModules
           ++ privateConfig.homeModules;
         };
 
@@ -498,6 +504,111 @@
               python3 ${./scripts/hyprland-desktop.test.py} ${./.}
               touch "$out"
             '';
+        # Evaluates the status-bar wiring: the pure per-system default plus
+        # both forced selections per host, validating the bar value, the
+        # hyprbaric install toggle, and (on x86_64-linux) the generated
+        # hyprland config and status-bar script. Host/private overrides of
+        # the default stay legal; only forced values and the option's own
+        # default are asserted.
+        barSelectionCheck =
+          let
+            # The option's default expression, independent of any
+            # host/private override (which set .value, not .default).
+            pureDefault =
+              (mkHome {
+                inherit system;
+                hostModule = hostInventory.${builtins.head hosts}.hostModule;
+              }).options.dotfiles.desktop.bar.default;
+            expectedDefaults = {
+              x86_64-linux = "hyprbaric";
+              aarch64-darwin = "waybar";
+              x86_64-darwin = "waybar";
+            };
+            evalBar =
+              overrideModules: host:
+              let
+                hc =
+                  (mkHome {
+                    inherit system;
+                    hostModule = hostInventory.${host}.hostModule;
+                    extraModules = overrideModules;
+                  }).config;
+              in
+              {
+                bar = hc.dotfiles.desktop.bar;
+                hyprbaricInstalled = lib.any (
+                  p: lib.hasPrefix "hyprbaric" (p.pname or (p.name or ""))
+                ) hc.home.packages;
+              }
+              // lib.optionalAttrs (system == "x86_64-linux") {
+                hypr = hc.xdg.configFile."hypr".source;
+              };
+            hostResults = map (
+              host:
+              let
+                selection = name: {
+                  inherit name host;
+                  result = evalBar [ { dotfiles.desktop.bar = lib.mkForce name; } ] host;
+                };
+              in
+              {
+                inherit host;
+                waybar = selection "waybar";
+                hyprbaric = selection "hyprbaric";
+              }
+            ) hosts;
+            expectedInstalled =
+              selection: if selection == "hyprbaric" && system == "x86_64-linux" then "true" else "false";
+            assertEq = name: actual: expected: ''
+              if [ "${toString actual}" != "${expected}" ]; then
+                echo "${name}: expected ${expected}, got ${actual}" >&2
+                exit 1
+              fi
+            '';
+          in
+          pkgs.runCommand "bar-selection-eval" { } (
+            assertEq "pure default" pureDefault expectedDefaults.${system}
+            + lib.concatStrings (
+              map (
+                r:
+                assertEq "${r.host} forced waybar" r.waybar.result.bar "waybar"
+                + assertEq "${r.host} forced hyprbaric" r.hyprbaric.result.bar "hyprbaric"
+                +
+                  assertEq "${r.host} waybar hyprbaricInstalled" (lib.boolToString r.waybar.result.hyprbaricInstalled)
+                    (expectedInstalled "waybar")
+                +
+                  assertEq "${r.host} hyprbaric hyprbaricInstalled"
+                    (lib.boolToString r.hyprbaric.result.hyprbaricInstalled)
+                    (expectedInstalled "hyprbaric")
+                + lib.optionalString (system == "x86_64-linux") (
+                  let
+                    hyprbaric = r.hyprbaric.result.hypr;
+                    waybar = r.waybar.result.hypr;
+                  in
+                  ''
+                    grep -q 'exec ~/.nix-profile/bin/hyprbaric' ${hyprbaric}/status-bar
+                    grep -q 'killall -q mako' ${hyprbaric}/status-bar
+                    grep -q 'pgrep -x mako' ${hyprbaric}/status-bar
+                    grep -q 'exec ~/.nix-profile/bin/waybar' ${waybar}/status-bar
+                    grep -q 'bin/mako' ${waybar}/status-bar
+                    for selection in ${hyprbaric} ${waybar}; do
+                      grep -q 'pgrep -x .waybar-wrapped' "$selection/status-bar"
+                      grep -q '~/.config/hypr/status-bar &' "$selection/hyprland.lua"
+                      grep -q 'SUPER + SHIFT + R' "$selection/hyprland.lua"
+                      if grep -q '@notificationCommand@\|@statusBarCommand@' "$selection/hyprland.lua"; then
+                        echo "unresolved placeholder in $selection/hyprland.lua" >&2
+                        exit 1
+                      fi
+                    done
+                  ''
+                )
+              ) hostResults
+            )
+            + ''
+              echo "bar selection: ${toString (builtins.length hostResults)} host(s) ok"
+              touch "$out"
+            ''
+          );
         rustToolchainSmokeCheck =
           let
             rustToolchain = import ./home/lib/rust-toolchain.nix { inherit pkgs; };
@@ -594,6 +705,7 @@
             primary-context-test = primaryContextCheck;
             git-signing-test = gitSigningCheck;
             hyprland-desktop-test = hyprlandDesktopCheck;
+            bar-selection-eval = barSelectionCheck;
             rust-toolchain-smoke = rustToolchainSmokeCheck;
           };
       }
