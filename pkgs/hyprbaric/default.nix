@@ -21,10 +21,12 @@ appimageTools.wrapType2 {
   # $PATH, so repo-provided tools (grim, slurp, hyprpicker, wl-clipboard,
   # ddcutil, ...) stay reachable via ~/.nix-profile/bin. Host /usr/bin
   # hyprctl and the Hyprland portal are not visible and must come from
-  # the env; gtk-layer-shell is the one core library the default env
-  # lacks. https://asaphaaning.github.io/hyprbaric/docs/dependencies
+  # the env; gtk-layer-shell and libepoxy (needed at load time by the
+  # Flutter lib) are core libraries the default env lacks.
+  # https://asaphaaning.github.io/hyprbaric/docs/dependencies
   extraPkgs = pkgs: [
     pkgs.gtk-layer-shell
+    pkgs.libepoxy
     pkgs.hyprland # hyprctl
     pkgs.xdg-desktop-portal-hyprland
   ];

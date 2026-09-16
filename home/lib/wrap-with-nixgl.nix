@@ -39,12 +39,29 @@ let
   # `nvidiaPackages { version = ...; }` without forwarding the sha256, which
   # forces an impure `builtins.fetchurl` for the driver. Using `nixGLNvidia`
   # from the top-level scope picks up the sha256 we passed above.
+  nixGLNvidia = if nvidiaVersion != null then nixglPkgs.nixGLNvidia else null;
   nixGL =
-    if nvidiaVersion != null then
-      nixglPkgs.nixGLCommon nixglPkgs.nixGLNvidia
+    if nixGLNvidia != null then
+      nixglPkgs.nixGLCommon nixGLNvidia
     else
       nixglPkgs.nixGLCommon nixglPkgs.nixGLIntel;
   nixglLauncher = "${nixGL}/bin/nixGL";
+
+  # NVIDIA EGL only speaks the Wayland (and GBM/X11) window systems through
+  # external-platform ICDs discovered via json files, by default under
+  # /usr/share/egl/egl_external_platform.d. A plain Nix binary still sees the
+  # host's copy of that directory, but inside a sandbox that owns /usr
+  # (bubblewrap FHS envs such as the hyprbaric AppImage wrapper) the ICDs
+  # vanish and every EGL window context fails with GTK's "No GL
+  # implementation is available". Point the vendor library at the pinned
+  # driver's own ICDs instead; their jsons reference the libs by absolute
+  # store path, so no LD_LIBRARY_PATH is needed (which AppImage AppRun
+  # scripts clobber anyway).
+  nvidiaEglExternalPlatformDirs =
+    if nixGLNvidia != null then
+      "${nixglPkgs.nvidiaLibsOnly}/share/egl/egl_external_platform.d"
+    else
+      null;
 in
 package: binary:
 if pkgs.stdenv.isLinux then
@@ -55,6 +72,9 @@ if pkgs.stdenv.isLinux then
     postBuild = ''
       rm "$out/bin/${binary}"
       makeWrapper ${pkgs.writeShellScript "${binary}-nixgl-launcher" ''
+        ${pkgs.lib.optionalString (nvidiaEglExternalPlatformDirs != null) ''
+          export __EGL_EXTERNAL_PLATFORM_CONFIG_DIRS=${nvidiaEglExternalPlatformDirs}
+        ''}
         exec ${nixglLauncher} ${package}/bin/${binary} "$@"
       ''} "$out/bin/${binary}"
     '';

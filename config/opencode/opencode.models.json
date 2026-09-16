@@ -86,7 +86,7 @@
       "variant": "high"
     },
     "rust-implement": {
-      "model": "zai-coding-plan/glm-5.3-flash",
+      "model": "zai-coding-plan/glm-5.3",
       "variant": "high"
     }
   }
