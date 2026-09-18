@@ -303,6 +303,10 @@ out=$(nix \
   "$flake_ref")
 
 printf '==> Activating %s/activate\n' "$out"
+# Standalone HM reads this env var (the NixOS/darwin module wraps the same
+# knob as home-manager.backupFileExtension). A pre-existing plain file at a
+# managed path is moved aside to <file>.backup instead of aborting setup.
+export HOME_MANAGER_BACKUP_EXT=backup
 "$out/activate"
 
 # The personal Brewfile is generated during activation, so install it now.
