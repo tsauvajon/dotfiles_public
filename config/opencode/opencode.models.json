@@ -15,7 +15,7 @@
             "reasoningEffort": "high"
           }
         },
-        "gpt-5.6-sol": {
+        "gpt-6.1-sol": {
           "options": {
             "reasoningEffort": "medium"
           }
@@ -70,7 +70,7 @@
       "variant": "high"
     },
     "review": {
-      "model": "openai/gpt-5.6-sol",
+      "model": "openai/gpt-6.1-sol",
       "variant": "medium"
     },
     "scout": {

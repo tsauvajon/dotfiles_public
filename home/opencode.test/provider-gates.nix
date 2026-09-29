@@ -23,11 +23,11 @@ let
         variant = "xhigh";
       };
       bifrostGpt = {
-        model = "bifrost/gpt-5.6-sol";
+        model = "bifrost/gpt-6.1-sol";
         variant = "xhigh";
       };
       openai = {
-        model = "openai/gpt-5.6-sol";
+        model = "openai/gpt-6.1-sol";
         variant = "xhigh";
       };
     };
@@ -50,7 +50,7 @@ let
     bifrost = {
       enable = true;
       modelFallbacks = {
-        "gpt-5.6-sol".direct = "openai/gpt-5.6-sol";
+        "gpt-6.1-sol".direct = "openai/gpt-6.1-sol";
         "claude-fable-5" = sonnetFallback;
         "claude-sonnet-5" = sonnetFallback;
       };
@@ -131,11 +131,11 @@ in
         variant = "high";
       };
       bifrostGpt = {
-        model = "openai/gpt-5.6-sol";
+        model = "openai/gpt-6.1-sol";
         variant = "xhigh";
       };
       openai = {
-        model = "openai/gpt-5.6-sol";
+        model = "openai/gpt-6.1-sol";
         variant = "xhigh";
       };
     };

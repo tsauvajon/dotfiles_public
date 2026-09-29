@@ -29,7 +29,7 @@ same change. Do not combine this change with a `tool_output` experiment.
   `auto`, `reserved`, `tail_turns`, and `preserve_recent_tokens` unset, so the
   current pin's defaults still govern those fields.
 - The private model overlay currently pins `agent.compaction` to the full-context
-  `openai/gpt-5.6-sol` model with the `high` variant. Verify the resolved private
+  `openai/gpt-6.1-sol` model with the `high` variant. Verify the resolved private
   model before running the experiment; this is separate from top-level
   compaction behavior settings.
 - OpenCode itself is pinned to `1.18.18` in `flake.nix`. Recheck upstream behavior
