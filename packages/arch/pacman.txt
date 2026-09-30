@@ -2,3 +2,5 @@
 
 # Required by the CUPS universal filter for driverless printing.
 qpdf
+xdg-desktop-portal-hyprland
+power-profiles-daemon
