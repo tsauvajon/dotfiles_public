@@ -9,9 +9,17 @@
 # (status-bar reload), and the XF86 volume/brightness keys (amixer and
 # brightnessctl binds). Also skips the automatic first-run setup guide so
 # autostart stays deterministic.
+#
+# plugin_path points at the companion plugin built against the host
+# Hyprland SDK by scripts/build-hyprbaric-appmenu.sh; without it the
+# in-sandbox CMake fallback fails because the AppImage env cannot see
+# the host SDK.
 
 [setup]
 startup = "never"
+
+[global_menu]
+plugin_path = "/etc/hyprbaric/hyprbaric-appmenu.so"
 
 [shortcuts.app_launcher]
 state = "disabled"

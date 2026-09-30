@@ -41,6 +41,12 @@ in
   config = lib.mkIf (pkgs.stdenv.isLinux && cfg == "hyprbaric") {
     home.packages = [ (wrapWithNixGL pkgs.hyprbaric "hyprbaric") ];
 
+    # AppMenu companion plugin source from the pinned AppImage, for the
+    # host-side build performed by scripts/build-hyprbaric-appmenu.sh
+    # during setup.sh. Store symlinks are read-only, which is fine: the
+    # build always compiles into a user-owned temp directory.
+    home.file.".local/share/hyprbaric/appmenu-source".source = pkgs.hyprbaric.passthru.appmenuSource;
+
     # Seed the user config.toml only when missing: hyprbaric rewrites this
     # file, so it must stay user-owned. Delete it to restore the seed.
     home.activation.seedHyprbaricConfig = lib.hm.dag.entryAfter [ "writeBoundary" ] ''

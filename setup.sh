@@ -309,6 +309,29 @@ printf '==> Activating %s/activate\n' "$out"
 export HOME_MANAGER_BACKUP_EXT=backup
 "$out/activate"
 
+# Build and install the Hyprbaric AppMenu companion plugin against the
+# host Hyprland SDK. The source symlink only exists when the hyprbaric
+# bar is selected on Linux (home/desktop/bar.nix), so other hosts and
+# bar selections skip this block. Requires sudo to place the compiled
+# plugin under /etc/hyprbaric; failures are reported but do not abort
+# setup, since the bar runs fine without the global menu.
+if [ "$(uname -s)" = "Linux" ] && [ -d "$HOME/.local/share/hyprbaric/appmenu-source" ]; then
+  appmenu_source_fingerprint="$(
+    cd "$HOME/.local/share/hyprbaric/appmenu-source" &&
+      find . -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1
+  )"
+  if [ -f /etc/hyprbaric/hyprbaric-appmenu.so ] &&
+    [ "$appmenu_source_fingerprint" = "$(cat /etc/hyprbaric/hyprbaric-appmenu.fingerprint 2>/dev/null)" ]; then
+    printf '==> Hyprbaric AppMenu companion is up to date\n'
+  else
+    if "$DOTFILES/scripts/build-hyprbaric-appmenu.sh" "$HOME/.local/share/hyprbaric/appmenu-source"; then
+      printf '%s\n' "$appmenu_source_fingerprint" | sudo tee /etc/hyprbaric/hyprbaric-appmenu.fingerprint >/dev/null
+    else
+      printf 'warning: Hyprbaric AppMenu companion build failed; the bar runs without the global menu\n' >&2
+    fi
+  fi
+fi
+
 # The personal Brewfile is generated during activation, so install it now.
 # Public packages were already installed before the build above.
 if [ "$(uname -s)" = "Darwin" ] && [ "$brew_available" -eq 1 ]; then
